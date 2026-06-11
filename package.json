@@ -1,0 +1,39 @@
+{
+  "name": "@meld-ts/core",
+  "description": "A collection of utility functions for TypeScript",
+  "version": "1.0.0",
+  "keywords": [
+    "typescript",
+    "utility",
+    "functions",
+    "utils",
+    "type-guard",
+    "async",
+    "traits"
+  ],
+  "author": "Jiankai Zeng <janpoem@163.com>",
+  "contributors": [
+    {
+      "name": "KAI@AI-SOUL"
+    }
+  ],
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "lint": "biome lint --error-on-warnings ./src",
+    "fmt": "biome format --write ./src",
+    "ts-check": "tsgo --noEmit",
+    "test": "bun test src/ --coverage",
+    "build": "bunup",
+    "doc": "bun typedoc --options typedoc.json --cleanOutputDir"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "@types/bun": "latest",
+    "@typescript/native-preview": "^7.0.0-dev.20260611.2",
+    "bunup": "^0.16.32"
+  },
+  "peerDependencies": {
+    "typescript": "^6"
+  }
+}
