@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { isNil, isNull, isPresent, isUndef } from './existence';
+import { isNil, isNull, isPresent, isUndefined } from './existence';
 
 describe('guards/existence', () => {
   describe('isNull', () => {
@@ -13,13 +13,13 @@ describe('guards/existence', () => {
     });
   });
 
-  describe('isUndef', () => {
+  describe('isUndefined', () => {
     test('should return true for undefined', () => {
-      expect(isUndef(undefined)).toBe(true);
+      expect(isUndefined(undefined)).toBe(true);
     });
 
     test('should return false for non-undefined', () => {
-      expect(isUndef(null)).toBe(false);
+      expect(isUndefined(null)).toBe(false);
     });
   });
 

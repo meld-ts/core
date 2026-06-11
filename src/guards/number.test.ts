@@ -4,6 +4,7 @@ import {
   ceil10,
   decimalAdjust,
   floor10,
+  isInt,
   isNumber,
   isNumberVal,
   limitNumberMax,
@@ -28,6 +29,13 @@ describe('guards/number', () => {
     expect(isNumber(Number.NaN)).toBe(false);
     expect(isNumber(Number.POSITIVE_INFINITY)).toBe(false);
     expect(isNumber(Number.NEGATIVE_INFINITY)).toBe(false);
+  });
+
+  test('isInt', () => {
+    expect(isInt(3)).toBe(true);
+    expect(isInt(3.14)).toBe(false);
+    expect(isInt('3')).toBe(false);
+    expect(isInt(Number.NaN)).toBe(false);
   });
 
   test('isNumberVal', () => {
@@ -101,6 +109,10 @@ describe('guards/number', () => {
       expect(decimalAdjust('floor', 1.9)).toBe(1);
       expect(decimalAdjust('ceil', 1.1)).toBe(2);
       expect(decimalAdjust('round', 1.5, 0)).toBe(2);
+    });
+
+    test('null exp falls back to plain Math method', () => {
+      expect(decimalAdjust('round', 1.5, null)).toBe(2);
     });
 
     test('NaN value returns NaN', () => {

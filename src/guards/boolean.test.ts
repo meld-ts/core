@@ -1,67 +1,67 @@
 import { describe, expect, test } from 'bun:test';
-import { isBool, toBool } from './boolean';
+import { isBoolean, toBoolean } from './boolean';
 
-describe('guards/bool', () => {
-  describe('isBool', () => {
+describe('guards/boolean', () => {
+  describe('isBoolean', () => {
     test('should return true for boolean', () => {
-      expect(isBool(true)).toBe(true);
-      expect(isBool(false)).toBe(true);
+      expect(isBoolean(true)).toBe(true);
+      expect(isBoolean(false)).toBe(true);
     });
 
     test('should return false for non-boolean', () => {
-      expect(isBool(0)).toBe(false);
-      expect(isBool('true')).toBe(false);
-      expect(isBool(null)).toBe(false);
-      expect(isBool(undefined)).toBe(false);
+      expect(isBoolean(0)).toBe(false);
+      expect(isBoolean('true')).toBe(false);
+      expect(isBoolean(null)).toBe(false);
+      expect(isBoolean(undefined)).toBe(false);
     });
   });
 
-  describe('toBool', () => {
+  describe('toBoolean', () => {
     test('null / undefined → false', () => {
-      expect(toBool(null)).toBe(false);
-      expect(toBool(undefined)).toBe(false);
+      expect(toBoolean(null)).toBe(false);
+      expect(toBoolean(undefined)).toBe(false);
     });
 
     test('boolean → original value', () => {
-      expect(toBool(true)).toBe(true);
-      expect(toBool(false)).toBe(false);
+      expect(toBoolean(true)).toBe(true);
+      expect(toBoolean(false)).toBe(false);
     });
 
     test('number → > 0 is true', () => {
-      expect(toBool(1)).toBe(true);
-      expect(toBool(0.1)).toBe(true);
-      expect(toBool(0)).toBe(false);
-      expect(toBool(-1)).toBe(false);
-      expect(toBool(Number.NaN)).toBe(false);
+      expect(toBoolean(1)).toBe(true);
+      expect(toBoolean(0.1)).toBe(true);
+      expect(toBoolean(0)).toBe(false);
+      expect(toBoolean(-1)).toBe(false);
+      expect(toBoolean(Number.NaN)).toBe(false);
     });
 
     test('"true" / "yes" (case-insensitive) → true', () => {
-      expect(toBool('true')).toBe(true);
-      expect(toBool('TRUE')).toBe(true);
-      expect(toBool('True')).toBe(true);
-      expect(toBool('yes')).toBe(true);
-      expect(toBool('YES')).toBe(true);
-      expect(toBool('Yes')).toBe(true);
+      expect(toBoolean('true')).toBe(true);
+      expect(toBoolean('TRUE')).toBe(true);
+      expect(toBoolean('True')).toBe(true);
+      expect(toBoolean('yes')).toBe(true);
+      expect(toBoolean('YES')).toBe(true);
+      expect(toBoolean('Yes')).toBe(true);
     });
 
     test('"false" / "no" (case-insensitive) → false', () => {
-      expect(toBool('false')).toBe(false);
-      expect(toBool('FALSE')).toBe(false);
-      expect(toBool('no')).toBe(false);
-      expect(toBool('NO')).toBe(false);
+      expect(toBoolean('false')).toBe(false);
+      expect(toBoolean('FALSE')).toBe(false);
+      expect(toBoolean('no')).toBe(false);
+      expect(toBoolean('NO')).toBe(false);
     });
 
     test('other strings → Boolean(val): non-empty true, empty false', () => {
-      expect(toBool('1')).toBe(true);
-      expect(toBool('hello')).toBe(true);
-      expect(toBool(' ')).toBe(true);
-      expect(toBool('')).toBe(false);
+      expect(toBoolean('1')).toBe(true);
+      expect(toBoolean('hello')).toBe(true);
+      expect(toBoolean(' ')).toBe(true);
+      expect(toBoolean('')).toBe(false);
     });
 
     test('object / array → delegated to Boolean()', () => {
-      expect(toBool({})).toBe(true);
-      expect(toBool([])).toBe(true);
-      expect(toBool(() => {})).toBe(true);
+      expect(toBoolean({})).toBe(true);
+      expect(toBoolean([])).toBe(true);
+      expect(toBoolean(() => {})).toBe(true);
     });
   });
 });

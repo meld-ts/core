@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { isNull } from './existence';
 import { and, not, or } from './logicality';
 import { isNumber } from './number';
-import { isStr } from './string';
+import { isString } from './string';
 
 describe('guards/logicality', () => {
   describe('and', () => {
@@ -18,7 +18,7 @@ describe('guards/logicality', () => {
     });
 
     test('should return false if any guard fails', () => {
-      const guard = and(isStr, (val): val is string => val.length > 3);
+      const guard = and(isString, (val): val is string => val.length > 3);
       expect(guard('hello')).toBe(true);
       expect(guard('hi')).toBe(false);
       expect(guard(123)).toBe(false);
@@ -27,16 +27,16 @@ describe('guards/logicality', () => {
 
   describe('or', () => {
     test('should combine guards with OR logic', () => {
-      const isStrOrNum = or(isStr, isNumber);
-      expect(isStrOrNum('hello')).toBe(true);
-      expect(isStrOrNum(123)).toBe(true);
-      expect(isStrOrNum(true)).toBe(false);
+      const isStringOrNumber = or(isString, isNumber);
+      expect(isStringOrNumber('hello')).toBe(true);
+      expect(isStringOrNumber(123)).toBe(true);
+      expect(isStringOrNumber(true)).toBe(false);
     });
 
     test('should infer union type from guards', () => {
-      const isStrOrNum = or(isStr, isNumber);
+      const isStringOrNumber = or(isString, isNumber);
       const value: unknown = 'hello';
-      if (isStrOrNum(value)) {
+      if (isStringOrNumber(value)) {
         // value is string | number at this point
         expect(typeof value === 'string' || typeof value === 'number').toBe(
           true,
@@ -48,12 +48,12 @@ describe('guards/logicality', () => {
   describe('not', () => {
     test('should negate guard at runtime', () => {
       const isNotNull = not(isNull);
-      const isNotStr = not(isStr);
+      const isNotString = not(isString);
 
       expect(isNotNull('hello')).toBe(true);
       expect(isNotNull(null)).toBe(false);
-      expect(isNotStr(123)).toBe(true);
-      expect(isNotStr('hello')).toBe(false);
+      expect(isNotString(123)).toBe(true);
+      expect(isNotString('hello')).toBe(false);
     });
 
     test('should return boolean function, not TypeGuard', () => {

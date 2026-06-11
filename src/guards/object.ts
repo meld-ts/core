@@ -1,19 +1,29 @@
 import { _typeFunc, _typeObj } from '../_internal';
-import type { Constructor, TypeGuard, WithPrototype } from '../types';
+import type { TypeGuard } from '../types';
 
 /**
- * 检查值是否为一个普通对象（不包括数组、Date、RegExp 等特殊对象）
+ * 检查值是否为一个普通对象
  *
- * @param val 任意值
+ * "普通对象"定义为原型为 `Object.prototype` 或 `null` 的非数组对象。
+ * 这排除了 `Array`、`Date`、`Map`、`Set`、`Error`、`RegExp` 等所有内置类实例。
+ *
+ * 支持泛型：`isPlainObject<MyType>(val)` 通过后将 `val` 收窄为 `MyType`。
+ *
+ * @param val — 待检查的任意值
+ * @returns `true` 当且仅当 val 是普通对象，同时收窄为 T（默认 `Record<string, unknown>`）
  *
  * @example
  * ```ts
- * if (isPlainObj(value)) {
+ * if (isPlainObject(value)) {
  *   console.log(Object.keys(value));
  * }
+ * isPlainObject({});              // true
+ * isPlainObject(Object.create(null)); // true（null 原型）
+ * isPlainObject([]);              // false
+ * isPlainObject(new Date());      // false
  * ```
  */
-export const isPlainObj = <
+export const isPlainObject = <
   T extends Record<string, unknown> = Record<string, unknown>,
 >(
   val: unknown,
@@ -25,62 +35,46 @@ export const isPlainObj = <
     Object.getPrototypeOf(val) === null);
 
 /**
- * 检查 obj 是否为对象（非 null、非数组），结果为真时推导 obj 为 T 类型
+ * 检查 obj 是否为对象（非 null、非数组），结果为真时推导 obj 为 T
  *
- * 与 {@link isPlainObj} 的区别：本函数**不**排除 `Date`、`Map`、`Set`、`Error`
- * 等内置类实例，只做最基础的 `typeof === 'object'` 检查。
- * 如需严格判断"纯对象"，请用 {@link isPlainObj}。
+ * 与 {@link isPlainObject} 的区别：本函数**不**排除 `Date`、`Map`、`Set`、`Error`
+ * 等内置类实例，只做最基础的 `typeof === 'object' && !Array.isArray()` 检查。
+ * 如需严格判断"纯对象"，请用 {@link isPlainObject}。
  *
- * - 未指定泛型 T，则 T 默认为 `Record<string, unknown>`
- * - 如果指定泛型 T ，而未传入 fn ，只要 obj 是 Object 即推断 obj 为 T
+ * 泛型行为：
+ * - 不指定 T → 默认 `Record<string, unknown>`
+ * - 指定 T 但不传 guard → obj 直接推断为 T（运行时只做 typeof 检查）
+ * - 传入 guard → 在 typeof 检查通过后附加 guard 判定。guard 签名为 `(it: T) => boolean`，
+ *   但也可以传 TypeGuard 型函数（`(it: T) => it is T`），TS 同样接受且行为一致
+ *
+ * @param obj — 任意类型变量
+ * @param guard — 可选的附加断言函数，签名 `(it: T) => boolean`
+ * @returns `true` 当且仅当 obj 是非 null 对象（非数组）且 guard（若提供）返回 true
+ *
+ * @example
  * ```ts
- * type TestA = {
- *   name?: string;
+ * // 基础：指定 T 收窄
+ * type TestA = { name?: string };
+ * if (isInferObject<TestA>(obj)) {
+ *   console.log(obj.name || 'noname'); // obj: TestA
  * }
  *
- * if (isInferObj<TestA>(obj)) {
- *   // obj 推断为 TestA
- *   console.log(obj.name || 'noname');
- * }
- * ```
- * - 若果传入了 fn ，则先检查是否 Object，再附加 fn 结果进行推断
- * ```ts
- * type TestB = {
- *   name: string;
+ * // 带 guard 做附加验证
+ * type TestB = { name: string };
+ * if (isInferObject<TestB>(obj, it => typeof it.name === 'string')) {
+ *   console.log(obj.name); // obj: TestB 且 name 是 string
  * }
  *
- * if (isInferObj<TestB>(obj, it => typeof it.name === 'string')) {
- *   // obj 推断为 TestB
- *   console.log(obj.name);
- * }
- * ```
- * - 通过传入 `x is T` 的 fn ，可省略指定泛型 T（一般用于复杂的结构判定）
- * ```ts
- * // 由 fn 的结果推导 isInferObj 的 T
- * type WithVersion = {
- *  version: number;
- * };
- *
+ * // guard 可以是 TypeGuard，省略显式泛型
+ * type WithVersion = { version: number };
  * const isWithVersion = (it: WithVersion): it is WithVersion =>
  *   typeof it.version === 'number';
- *
- * const ver1 = { ver: 1 };
- * const ver2 = { version: 2 };
- *
- * if (isInferObj(ver1, isWithVersion)) {
- *   // 不符合
- * }
- *
- * if (isInferObj(ver2, isWithVersion)) {
- *   // ver2 推断为 Version
- *   ver2.version += 1;
+ * if (isInferObject(val, isWithVersion)) {
+ *   val.version += 1; // val: WithVersion
  * }
  * ```
- *
- * @param obj 任意类型变量
- * @param guard 断言类型判断函数
  */
-export const isInferObj = <T = Record<string, unknown>>(
+export const isInferObject = <T = Record<string, unknown>>(
   obj: unknown,
   guard?: (it: T) => boolean,
 ): obj is T =>
@@ -89,40 +83,3 @@ export const isInferObj = <T = Record<string, unknown>>(
       ? (guard as TypeGuard)(obj as T)
       : true
     : false;
-
-/**
- * 检查值是否为可 `new` 调用的构造函数（class 或普通函数）
- *
- * 箭头函数没有 `prototype`，返回 `false`；class 和普通函数返回 `true`。
- *
- * @param val 任意值
- *
- * @example
- * ```ts
- * isCtor(class Foo {})        // true  → val is Constructor<object>
- * isCtor<Foo>(class Foo {})   // true  → val is Constructor<Foo>
- * isCtor(() => {})             // false
- * isCtor(null)                 // false
- * ```
- */
-export const isCtor = <T = object>(val: unknown): val is Constructor<T> =>
-  typeof val === _typeFunc && !!(val as WithPrototype).prototype;
-
-/**
- * 检查值是否为 Promise
- *
- * @param val 任意值
- *
- * @example
- * ```ts
- * if (isPromise(value)) {
- *   await value;
- * }
- * ```
- */
-export const isPromise = <T = unknown>(val: unknown): val is Promise<T> =>
-  val instanceof Promise ||
-  (typeof val === _typeObj &&
-    val !== null &&
-    typeof (val as Promise<T>)?.then === _typeFunc &&
-    typeof (val as Promise<T>)?.catch === _typeFunc);

@@ -1,18 +1,44 @@
 import { _typeStr } from '../_internal';
 
 /**
- * 判定 val 是否为字符串类型（含 infer）
+ * 判定 val 是否为字符串原始类型（含类型收窄）
+ *
+ * 仅检查 `typeof val === 'string'`，不接受 `new String()` 包装对象。
+ * 后者在现代代码中几乎绝迹，且 `typeof` 为 `'object'`，会产生类型谎言。
+ *
+ * @param val — 待检查的任意值
+ * @returns `true` 当且仅当 val 是字符串原始类型，同时将 val 收窄为 `string`
+ *
+ * @example
+ * ```ts
+ * if (isString(val)) {
+ *   val.toUpperCase(); // ✅ val: string
+ * }
+ * isString(new String('hello')); // false（不收窄包装对象）
+ * ```
  *
  * @see https://stackoverflow.com/questions/4059147/check-if-a-variable-is-a-string-in-javascript
- * @param val
  */
-export const isStr = (val: unknown): val is string =>
-  typeof val === _typeStr || val instanceof String;
+export const isString = (val: unknown): val is string =>
+  typeof val === _typeStr;
 
 /**
- * 检查 val 是否为非空字符串（含 infer）
+ * 检查 val 是否为非空字符串（长度 > 0，含类型收窄）
  *
- * @param val
+ * 先通过 {@link isString} 判定，再检查 `length > 0`。
+ * 空白字符（空格、`\t`、`\n` 等）视为"非空"——长度大于 0 即通过。
+ * 如需过滤纯空白，请组合使用额外的 trim 检查。
+ *
+ * @param val — 待检查的任意值
+ * @returns `true` 当且仅当 val 是长度大于 0 的字符串，同时收窄为 `string`
+ *
+ * @example
+ * ```ts
+ * notEmptyString('hello');  // true
+ * notEmptyString(' ');      // true（空白字符也通过！）
+ * notEmptyString('');       // false
+ * notEmptyString(null);     // false
+ * ```
  */
-export const notEmptyStr = (val: unknown): val is string =>
-  isStr(val) && val.length > 0;
+export const notEmptyString = (val: unknown): val is string =>
+  isString(val) && val.length > 0;

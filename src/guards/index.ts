@@ -4,6 +4,7 @@ export * from './number';
 export * from './boolean';
 
 export * from './object';
+export * from './function';
 export * from './error';
 export * from './array';
 

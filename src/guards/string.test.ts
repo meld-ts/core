@@ -1,46 +1,42 @@
 import { describe, expect, test } from 'bun:test';
-import { isStr, notEmptyStr } from './string';
+import { isString, notEmptyString } from './string';
 
 describe('guards/string', () => {
-  describe('isStr', () => {
+  describe('isString', () => {
     test('should return true for string types', () => {
-      expect(isStr('')).toBe(true);
-      expect(isStr(String.fromCharCode(10000))).toBe(true);
-      expect(isStr(new String(''))).toBe(true);
-      expect(isStr(new String(String.fromCharCode(10000)))).toBe(true);
-      expect(isStr(Object.assign('hi', { constructor: Array }))).toBe(true);
-      expect(isStr(Object.assign('hi', { toString: 123 }))).toBe(true);
-      expect(isStr(Object.assign('hi', { valueOf: 123 }))).toBe(true);
-      expect(isStr(Object.assign('hi', { constructor: RegExp }))).toBe(true);
-      expect(isStr(new Proxy(new String('hello'), {}))).toBe(true);
+      expect(isString('')).toBe(true);
+      expect(isString(String.fromCharCode(10000))).toBe(true);
+      // 不再接受 String 包装对象 — 类型谎言已修复
+      expect(isString(new String(''))).toBe(false);
+      expect(isString(new String('hello'))).toBe(false);
     });
 
     test('should return false for non-string types', () => {
-      expect(isStr(null)).toBe(false);
-      expect(isStr(undefined)).toBe(false);
-      expect(isStr({ a: 1 })).toBe(false);
-      expect(isStr([1, 2, 3])).toBe(false);
-      expect(isStr(123)).toBe(false);
-      expect(isStr(0)).toBe(false);
-      expect(isStr(false)).toBe(false);
-      expect(isStr(/Hello/)).toBe(false);
-      expect(isStr(Symbol('TTT'))).toBe(false);
+      expect(isString(null)).toBe(false);
+      expect(isString(undefined)).toBe(false);
+      expect(isString({ a: 1 })).toBe(false);
+      expect(isString([1, 2, 3])).toBe(false);
+      expect(isString(123)).toBe(false);
+      expect(isString(0)).toBe(false);
+      expect(isString(false)).toBe(false);
+      expect(isString(/Hello/)).toBe(false);
+      expect(isString(Symbol('TTT'))).toBe(false);
     });
   });
 
-  describe('notEmptyStr', () => {
+  describe('notEmptyString', () => {
     test('should return true for non-empty strings', () => {
-      expect(notEmptyStr(' ')).toBe(true);
-      expect(notEmptyStr('\n')).toBe(true);
-      expect(notEmptyStr(' \n\t')).toBe(true);
+      expect(notEmptyString(' ')).toBe(true);
+      expect(notEmptyString('\n')).toBe(true);
+      expect(notEmptyString(' \n\t')).toBe(true);
     });
 
     test('should return false for empty or non-string', () => {
-      expect(notEmptyStr('')).toBe(false);
-      expect(notEmptyStr(null)).toBe(false);
-      expect(notEmptyStr(false)).toBe(false);
-      expect(notEmptyStr(undefined)).toBe(false);
-      expect(notEmptyStr([])).toBe(false);
+      expect(notEmptyString('')).toBe(false);
+      expect(notEmptyString(null)).toBe(false);
+      expect(notEmptyString(false)).toBe(false);
+      expect(notEmptyString(undefined)).toBe(false);
+      expect(notEmptyString([])).toBe(false);
     });
   });
 });
