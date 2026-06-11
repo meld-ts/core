@@ -3,6 +3,7 @@ export * from './string';
 export * from './number';
 export * from './boolean';
 
+export * from './symbol';
 export * from './object';
 export * from './function';
 export * from './error';

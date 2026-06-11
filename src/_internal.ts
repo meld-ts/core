@@ -4,6 +4,7 @@ export const _typeBool = 'boolean' as const;
 export const _typeObj = 'object' as const;
 export const _typeFunc = 'function' as const;
 export const _typeUndef = 'undefined' as const;
+export const _typeSymbol = 'symbol' as const;
 
 export const _strEmpty = '' as const;
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { isInferObject, isPlainObject } from './object';
+import { isDate, isInferObject, isPlainObject, isRegExp } from './object';
 
 describe('guards/object', () => {
   describe('isInferObject', () => {
@@ -42,6 +42,39 @@ describe('guards/object', () => {
       expect(isPlainObject(new Set())).toBe(false);
       expect(isPlainObject(new Error())).toBe(false);
       expect(isPlainObject(/regex/)).toBe(false);
+    });
+  });
+
+  describe('isDate', () => {
+    test('should return true for Date instances', () => {
+      expect(isDate(new Date())).toBe(true);
+      expect(isDate(new Date('2024-01-01'))).toBe(true);
+    });
+
+    test('should return true for Invalid Date (still a Date instance)', () => {
+      expect(isDate(new Date('invalid'))).toBe(true);
+    });
+
+    test('should return false for non-Date values', () => {
+      expect(isDate(Date.now())).toBe(false);
+      expect(isDate('2024-01-01')).toBe(false);
+      expect(isDate(null)).toBe(false);
+      expect(isDate({})).toBe(false);
+    });
+  });
+
+  describe('isRegExp', () => {
+    test('should return true for RegExp instances', () => {
+      expect(isRegExp(/hello/)).toBe(true);
+      expect(isRegExp(new RegExp('hi'))).toBe(true);
+      expect(isRegExp(/test/gi)).toBe(true);
+    });
+
+    test('should return false for non-RegExp values', () => {
+      expect(isRegExp('/hello/')).toBe(false);
+      expect(isRegExp('hello')).toBe(false);
+      expect(isRegExp(null)).toBe(false);
+      expect(isRegExp({})).toBe(false);
     });
   });
 });

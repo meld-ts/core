@@ -83,3 +83,41 @@ export const isInferObject = <T = Record<string, unknown>>(
       ? (guard as TypeGuard)(obj as T)
       : true
     : false;
+
+/**
+ * 检查值是否为 Date 实例
+ *
+ * 使用 `instanceof Date` 判定。不排除 Invalid Date（`new Date('invalid')`）
+ * —— 仅检查类型，不检查有效性。若需排除 Invalid Date，组合 `&& !isNaN(val.getTime())`。
+ *
+ * @param val — 待检查的任意值
+ * @returns `true` 当且仅当 val 是 Date 实例，同时收窄为 `Date`
+ *
+ * @example
+ * ```ts
+ * isDate(new Date());           // true
+ * isDate(new Date('invalid'));  // true（仍为 Date 实例！）
+ * isDate(Date.now());           // false（number）
+ * isDate('2024-01-01');         // false
+ * ```
+ */
+export const isDate = (val: unknown): val is Date =>
+  val instanceof Date;
+
+/**
+ * 检查值是否为 RegExp 实例
+ *
+ * 使用 `instanceof RegExp` 判定。字面量 `/pattern/` 和 `new RegExp('pattern')` 均返回 `true`。
+ *
+ * @param val — 待检查的任意值
+ * @returns `true` 当且仅当 val 是 RegExp 实例，同时收窄为 `RegExp`
+ *
+ * @example
+ * ```ts
+ * isRegExp(/hello/);           // true
+ * isRegExp(new RegExp('hi'));  // true
+ * isRegExp('/hello/');         // false（字符串）
+ * ```
+ */
+export const isRegExp = (val: unknown): val is RegExp =>
+  val instanceof RegExp;
