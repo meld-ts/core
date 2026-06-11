@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+
 import { isConstructor, isFunction, isPromise } from './function';
 
 describe('guards/function', () => {
@@ -36,7 +37,7 @@ describe('guards/function', () => {
   describe('isFunction', () => {
     test('should return true for functions of all kinds', () => {
       expect(isFunction(() => {})).toBe(true);
-      expect(isFunction(function () {})).toBe(true);
+      expect(isFunction(() => {})).toBe(true);
       expect(isFunction(class {})).toBe(true);
       expect(isFunction(async () => {})).toBe(true);
     });
@@ -49,7 +50,8 @@ describe('guards/function', () => {
     });
 
     test('should narrow type with generic — ReturnType extraction', () => {
-      const fn: unknown = (a: number, b: string): boolean => a > 0 && b.length > 0;
+      const fn: unknown = (a: number, b: string): boolean =>
+        a > 0 && b.length > 0;
       if (isFunction<(a: number, b: string) => boolean>(fn)) {
         const result: boolean = fn(1, 'hello');
         expect(result).toBe(true);

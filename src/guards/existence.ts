@@ -28,7 +28,8 @@ export const isNull = (val: unknown): val is null => val === null;
  * isUndefined(null);       // false
  * ```
  */
-export const isUndefined = (val: unknown): val is undefined => val === undefined;
+export const isUndefined = (val: unknown): val is undefined =>
+  val === undefined;
 
 /**
  * 检查值是否为 null 或 undefined

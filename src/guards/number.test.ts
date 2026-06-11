@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+
 import {
   calcProgress,
   ceil10,
@@ -112,6 +113,7 @@ describe('guards/number', () => {
     });
 
     test('null exp falls back to plain Math method', () => {
+      // @ts-expect-error
       expect(decimalAdjust('round', 1.5, null)).toBe(2);
     });
 

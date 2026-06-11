@@ -4,7 +4,6 @@ import {
   _typeBool,
   _typeNum,
   _typeStr,
-  _typeUndef,
 } from '../_internal';
 
 /**
@@ -118,7 +117,11 @@ export const toNumber = (val: unknown, dft: number = _numZero): number => {
  * limitNumberMin('abc', 100);  // 100（dft=0，取 max(0, 100)）
  * ```
  */
-export const limitNumberMin = (val: unknown, min: number, dft: number = _numZero) => {
+export const limitNumberMin = (
+  val: unknown,
+  min: number,
+  dft: number = _numZero,
+) => {
   const v = toNumber(val, dft);
   return v < min ? min : v;
 };
@@ -139,7 +142,11 @@ export const limitNumberMin = (val: unknown, min: number, dft: number = _numZero
  * limitNumberMax(150, 100);    // 100
  * ```
  */
-export const limitNumberMax = (val: unknown, max: number, dft: number = _numZero) => {
+export const limitNumberMax = (
+  val: unknown,
+  max: number,
+  dft: number = _numZero,
+) => {
   const v = toNumber(val, dft);
   return v > max ? max : v;
 };
@@ -199,10 +206,7 @@ export const decimalAdjust = (
   }
   _value = +_value;
   _exp = +_exp;
-  if (
-    Number.isNaN(_value) ||
-    !(typeof _exp === _typeNum && _exp % 1 === 0)
-  ) {
+  if (Number.isNaN(_value) || !(typeof _exp === _typeNum && _exp % 1 === 0)) {
     return Number.NaN;
   }
   let _parts = (_value as number).toString().split('e');

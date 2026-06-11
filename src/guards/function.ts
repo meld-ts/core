@@ -21,7 +21,9 @@ type WithPrototype = { prototype: unknown };
  * isConstructor(null);                 // false
  * ```
  */
-export const isConstructor = <T = object>(val: unknown): val is Constructor<T> =>
+export const isConstructor = <T = object>(
+  val: unknown,
+): val is Constructor<T> =>
   typeof val === _typeFunc && !!(val as WithPrototype).prototype;
 
 /**
