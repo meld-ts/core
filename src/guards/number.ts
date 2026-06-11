@@ -8,31 +8,46 @@ import {
 } from '../_internal';
 
 /**
- * 判断是否为有效的数字类型
+ * 判断是否为有效的数字类型（有限、非 NaN）
  *
  * @param val
  */
-export const isNumber = (val: unknown): val is number =>
+export const isNum = (val: unknown): val is number =>
   typeof val === _typeNum && !Number.isNaN(val) && Number.isFinite(val);
 
 /**
- * 判断值是否可被解析为有效数值（`toNumber` 的宽松前置检查）
+ * 判断是否为整数（有限、非 NaN 的整数）
+ *
+ * @param val
+ *
+ * @example
+ * ```ts
+ * isInt(3)    // true
+ * isInt(3.14) // false
+ * isInt('3')  // false
+ * ```
+ */
+export const isInt = (val: unknown): val is number =>
+  isNum(val) && Number.isInteger(val);
+
+/**
+ * 判断值是否可被解析为有效数值（`toNum` 的宽松前置检查）
  *
  * 使用 `parseFloat` 语义：字符串只要**前缀能解析出有限数字**即返回 `true`，
- * 如 `'123abc'` → `123`（有效），与 `isNumber` 的严格全值检查不同。
+ * 如 `'123abc'` → `123`（有效），与 `isNum` 的严格全值检查不同。
  *
- * - 数字类型：同 {@link isNumber}（有限、非 NaN）
+ * - 数字类型：同 {@link isNum}（有限、非 NaN）
  * - 字符串类型：`parseFloat` 能得到有限非 NaN 数字即为 `true`，
  *   空串 `''`、纯空白 `' '` 和 `'abc'` 均返回 `false`
  *
  * @param val
  */
-export const isNumberVal = (val: unknown): boolean => {
+export const isNumVal = (val: unknown): boolean => {
   if (typeof val === _typeStr) {
     const _v = Number.parseFloat(val as string);
     return !Number.isNaN(_v) && Number.isFinite(_v);
   }
-  return isNumber(val);
+  return isNum(val);
 };
 
 /**
@@ -45,10 +60,10 @@ export const isNumberVal = (val: unknown): boolean => {
  * @param val
  * @param dft 默认值，仅当 val 为 `null` 或 `undefined` 或 非包含有效数值时生效
  */
-export const toNumber = (val: unknown, dft = _numZero): number => {
+export const toNum = (val: unknown, dft: number = _numZero): number => {
   if (typeof val === _typeBool) return val ? 1 : 0;
-  if (isNumber(val)) return val;
-  if (val == null || !isNumberVal(val)) return dft;
+  if (isNum(val)) return val;
+  if (val == null || !isNumVal(val)) return dft;
   return Number.parseFloat(val as string);
 };
 
@@ -56,11 +71,11 @@ export const toNumber = (val: unknown, dft = _numZero): number => {
  * 限制 val 在最小值范围内
  *
  * @param val
- * @param {number} min 最小值
- * @param {number} dft 默认值，仅当 val 为 `null` 或 `undefined` 或 非包含有效数值时生效
+ * @param min 最小值
+ * @param dft 默认值，仅当 val 为 `null` 或 `undefined` 或 非包含有效数值时生效
  */
-export const limitNumberMin = (val: unknown, min: number, dft = _numZero) => {
-  const v = toNumber(val, dft);
+export const limitNumMin = (val: unknown, min: number, dft: number = _numZero) => {
+  const v = toNum(val, dft);
   return v < min ? min : v;
 };
 
@@ -70,8 +85,8 @@ export const limitNumberMin = (val: unknown, min: number, dft = _numZero) => {
  * @param max 最大值
  * @param dft 默认值，仅当 val 为 `null` 或 `undefined` 或 非包含有效数值时生效
  */
-export const limitNumberMax = (val: unknown, max: number, dft = _numZero) => {
-  const v = toNumber(val, dft);
+export const limitNumMax = (val: unknown, max: number, dft: number = _numZero) => {
+  const v = toNum(val, dft);
   return v > max ? max : v;
 };
 
@@ -82,13 +97,13 @@ export const limitNumberMax = (val: unknown, max: number, dft = _numZero) => {
  * @param max 最大值
  * @param dft 默认值，仅当 val 为 `null` 或 `undefined` 或 非包含有效数值时生效
  */
-export const limitNumberMinMax = (
+export const limitNumMinMax = (
   val: unknown,
   min: number,
   max: number,
-  dft = _numZero,
+  dft: number = _numZero,
 ) => {
-  const v = toNumber(val, dft);
+  const v = toNum(val, dft);
   return v < min ? min : v > max ? max : v;
 };
 
@@ -146,8 +161,8 @@ export const ceil10 = (value: number, exp?: number): number =>
  * @param total
  */
 export const calcProgress = (value: number, total: number) => {
-  if (total === 0 || !isNumber(total)) {
+  if (total === 0 || !isNum(total)) {
     throw new Error(_errDenominatorZero);
   }
-  return limitNumberMinMax(round10(value / total, -2), 0, 1);
+  return limitNumMinMax(round10(value / total, -2), 0, 1);
 };
