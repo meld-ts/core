@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+
 import { isDate, isInferObject, isPlainObject, isRegExp } from './object';
 
 describe('guards/object', () => {
@@ -66,6 +67,7 @@ describe('guards/object', () => {
   describe('isRegExp', () => {
     test('should return true for RegExp instances', () => {
       expect(isRegExp(/hello/)).toBe(true);
+      // biome-ignore lint/complexity/useRegexLiterals: 这里用于测试
       expect(isRegExp(new RegExp('hi'))).toBe(true);
       expect(isRegExp(/test/gi)).toBe(true);
     });

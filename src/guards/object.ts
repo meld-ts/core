@@ -101,8 +101,7 @@ export const isInferObject = <T = Record<string, unknown>>(
  * isDate('2024-01-01');         // false
  * ```
  */
-export const isDate = (val: unknown): val is Date =>
-  val instanceof Date;
+export const isDate = (val: unknown): val is Date => val instanceof Date;
 
 /**
  * 检查值是否为 RegExp 实例
@@ -119,5 +118,4 @@ export const isDate = (val: unknown): val is Date =>
  * isRegExp('/hello/');         // false（字符串）
  * ```
  */
-export const isRegExp = (val: unknown): val is RegExp =>
-  val instanceof RegExp;
+export const isRegExp = (val: unknown): val is RegExp => val instanceof RegExp;
