@@ -64,10 +64,9 @@ export const createTimer = (prefix: string): TimerHandle => {
     clear,
 
     clearAll() {
-      for (const key of Object.keys(store)) {
+      const keys = Object.keys(store);
+      for (const key of keys) {
         clearTimeout(store[key]);
-      }
-      for (const key of Object.keys(store)) {
         delete store[key];
       }
     },
@@ -111,10 +110,9 @@ export const createTicker = (prefix: string): TimerHandle => {
     clear,
 
     clearAll() {
-      for (const key of Object.keys(store)) {
+      const keys = Object.keys(store);
+      for (const key of keys) {
         clearInterval(store[key]);
-      }
-      for (const key of Object.keys(store)) {
         delete store[key];
       }
     },

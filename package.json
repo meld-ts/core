@@ -20,6 +20,26 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./timer": {
+      "import": {
+        "types": "./dist/timer.d.ts",
+        "default": "./dist/timer.js"
+      },
+      "require": {
+        "types": "./dist/timer.d.cts",
+        "default": "./dist/timer.cjs"
+      }
+    },
+    "./singleton": {
+      "import": {
+        "types": "./dist/singleton.d.ts",
+        "default": "./dist/singleton.js"
+      },
+      "require": {
+        "types": "./dist/singleton.d.cts",
+        "default": "./dist/singleton.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "keywords": [
