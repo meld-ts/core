@@ -1,3 +1,4 @@
+import { _typeFunc } from '../_internal';
 import { isInferObject } from '../guards';
 
 // ============================================================================
@@ -54,22 +55,25 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
   emit<N extends keyof E>(name: N, params: E[N]): Promise<void>;
 }
 
-/**
- * 事件委托者接口
- *
- * 通过 inject/eject 将自身的事件处理映射附加到或从 emitter 上解除。
- *
- * **注意**：`eject` 的 `emitter` 参数在当前实现中不被使用——
- * eject 通过内部存储的反注册函数清理，无需传入 emitter。
- * 保留该参数仅为接口兼容性。
- */
-export interface EventsDelegator<
-  E extends EventsDefinition = EventsDefinition,
-> {
-  inject(emitter?: EventsEmitter<E>): void;
-  /** @deprecated emitter 参数不被使用，eject 通过内部反注册函数清理 */
-  eject(emitter?: EventsEmitter<E>): void;
-}
+  /**
+   * 事件委托者接口
+   *
+   * 通过 inject/eject 将自身的事件处理映射附加到或从 emitter 上解除。
+   *
+   * `isOnce` 是**全局模式**——设为 `true` 时该 delegator 中所有回调
+   * 都以 `once` 方式注册。如需部分事件 `once`、部分持久，
+   * 请创建两个 delegator 分别 inject。
+   */
+  export interface EventsDelegator<
+    E extends EventsDefinition = EventsDefinition,
+  > {
+    /**
+     * @param emitter — 目标发射器；传 null/undefined 仅清理已绑定
+     * @param isOnce — 默认 false，设为 true 时所有回调以 once 注册
+     */
+    inject(emitter?: EventsEmitter<E>, isOnce?: boolean): void;
+    eject(): void;
+  }
 
 /**
  * 事件输入联合类型：emitter / callbacks 对象 / delegator 三选一
@@ -99,9 +103,10 @@ export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
   isInferObject<EventsEmitter<E>>(
     obj,
     (it) =>
-      typeof it.emit === 'function' &&
-      typeof it.on === 'function' &&
-      typeof it.off === 'function',
+      typeof it.emit === _typeFunc &&
+      typeof it.on === _typeFunc &&
+      typeof it.once === _typeFunc &&
+      typeof it.off === _typeFunc,
   );
 
 // ============================================================================
@@ -193,7 +198,7 @@ export const createEmitter = <
 // linkEvents
 // ============================================================================
 
-export type LinkEventMode = 'on' | 'off';
+export type LinkEventMode = 'on' | 'once' | 'off';
 
 /**
  * 将 callbacks 对象或 delegator 附加到（或从）emitter 上
@@ -209,7 +214,9 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
   mode: LinkEventMode = 'on',
 ): EventsEmitter<E> => {
   if (isEventsDelegator(input)) {
-    mode === 'on' ? input.inject(emitter) : input.eject(emitter);
+    mode === 'off'
+      ? input.eject()
+      : input.inject(emitter, mode === 'once');
     return emitter;
   }
 
@@ -220,6 +227,8 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
     for (const fn of fns as EventCallbackFn<E[keyof E]>[]) {
       if (mode === 'on') {
         emitter.on(key, fn);
+      } else if (mode === 'once') {
+        emitter.once(key, fn);
       } else {
         emitter.off(key, fn);
       }
@@ -285,7 +294,7 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
   let unsubscribers: EventUnsubscribeFn[] = [];
 
   return {
-    inject: (emitter) => {
+    inject: (emitter, isOnce = false) => {
       if (emitter == null) return;
       for (const unsub of unsubscribers) unsub();
       unsubscribers = [];
@@ -295,7 +304,9 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
         if (declaration == null) continue;
         const fns = Array.isArray(declaration) ? declaration : [declaration];
         for (const fn of fns as EventCallbackFn<E[keyof E]>[]) {
-          unsubscribers.push(emitter.on(key, fn));
+          unsubscribers.push(
+            isOnce ? emitter.once(key, fn) : emitter.on(key, fn),
+          );
         }
       }
     },

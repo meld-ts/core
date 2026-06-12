@@ -192,6 +192,18 @@ describe('createDelegator', () => {
     expect(a).toBe(1);
     expect(b).toBe(1);
   });
+
+  test('inject with isOnce=true registers all callbacks as once', async () => {
+    const emitter = createEmitter<{ tick: void }>();
+    let count = 0;
+    const delegator = createDelegator({
+      tick: () => { count++; },
+    });
+    delegator.inject(emitter, true);
+    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as void);
+    expect(count).toBe(1);
+  });
 });
 
 // ── linkEvents ───────────────────────────────────────────
@@ -226,6 +238,37 @@ describe('linkEvents', () => {
     linkEvents(emitter, delegator);
     await emitter.emit('ping', 'hello');
     expect(received).toBe('hello');
+  });
+
+  test('links callbacks with mode=once (fires only once)', async () => {
+    const emitter = createEmitter<{ tick: void }>();
+    let count = 0;
+    linkEvents(emitter, { tick: () => { count++; } }, 'once');
+    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as void);
+    expect(count).toBe(1);
+  });
+
+  test('links delegator with mode=once', async () => {
+    const emitter = createEmitter<{ tick: void }>();
+    let count = 0;
+    const delegator = createDelegator({
+      tick: () => { count++; },
+    });
+    linkEvents(emitter, delegator, 'once');
+    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as void);
+    expect(count).toBe(1);
+  });
+
+  test('unlinks delegator with mode=off', async () => {
+    const emitter = createEmitter<{ tick: void }>();
+    let count = 0;
+    const delegator = createDelegator({ tick: () => { count++; } });
+    linkEvents(emitter, delegator);
+    linkEvents(emitter, delegator, 'off');
+    await emitter.emit('tick', undefined as void);
+    expect(count).toBe(0);
   });
 
   test('returns emitter for chaining', () => {
