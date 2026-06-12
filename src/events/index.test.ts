@@ -85,9 +85,9 @@ describe('createEmitter', () => {
     test('fires only once', async () => {
       const emitter = createEmitter<{ tick: undefined }>();
       let count = 0;
-      emitter.once('tick', () => {
+      emitter.on('tick', () => {
         count++;
-      });
+      }, true);
       await emitter.emit('tick', undefined as undefined);
       await emitter.emit('tick', undefined as undefined);
       expect(count).toBe(1);
@@ -96,9 +96,9 @@ describe('createEmitter', () => {
     test('returns unsubscribe function that prevents firing', async () => {
       const emitter = createEmitter<{ tick: undefined }>();
       let count = 0;
-      const off = emitter.once('tick', () => {
+      const off = emitter.on('tick', () => {
         count++;
-      });
+      }, true);
       off();
       await emitter.emit('tick', undefined as undefined);
       expect(count).toBe(0);
@@ -107,10 +107,10 @@ describe('createEmitter', () => {
     test('still fires only once even if callback throws', async () => {
       const emitter = createEmitter<{ tick: undefined }>();
       let calls = 0;
-      emitter.once('tick', () => {
+      emitter.on('tick', () => {
         calls++;
         throw new Error('boom');
-      });
+      }, true);
       await emitter.emit('tick', undefined as undefined).catch(() => {});
       await emitter.emit('tick', undefined as undefined).catch(() => {});
       expect(calls).toBe(1);
@@ -123,9 +123,9 @@ describe('createEmitter', () => {
       emitter.on('tick', () => {
         onCount++;
       });
-      emitter.once('tick', () => {
+      emitter.on('tick', () => {
         onceCount++;
-      });
+      }, true);
       await emitter.emit('tick', undefined as undefined);
       await emitter.emit('tick', undefined as undefined);
       expect(onCount).toBe(2);

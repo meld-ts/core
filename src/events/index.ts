@@ -45,7 +45,7 @@ export type EventsCallbacks<E extends EventsDefinition = EventsDefinition> =
  * 标记回调为"仅触发一次"
  *
  * 在 {@link EventsCallbacks} 声明中包裹回调，由 `createDelegator`
- * 或 `linkEvents` 在注册时自动使用 `emitter.once()` 而非 `emitter.on()`。
+ * 或 `linkEvents` 在注册时自动使用 `emitter.on(key, fn, true)`。
  *
  * @example
  * ```ts
@@ -68,23 +68,13 @@ export const once = <T>(fn: EventCallbackFn<T>): MarkedCallback<T> => ({
  * 事件发射器接口
  *
  * `on` 返回反注册函数，无需持有 callback 引用即可取消监听。
+ * 传 `isOnce: true` 等同于 `once()`——首次触发后自动移除。
  */
 export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
   on<N extends keyof E>(
     name: N,
     callback: EventCallbackFn<E[N]>,
-  ): EventUnsubscribeFn;
-
-  /**
-   * 注册仅触发一次的监听器。
-   *
-   * **重要**：`once()` 注册的是内部包装函数，而非 `callback` 本身。
-   * 因此 `emitter.off(name, originalCallback)` **无法移除** once 监听器。
-   * 请始终通过返回的 `off` 函数来取消，或使用 `emitter.emit` 触发后自动移除。
-   */
-  once<N extends keyof E>(
-    name: N,
-    callback: EventCallbackFn<E[N]>,
+    isOnce?: boolean,
   ): EventUnsubscribeFn;
 
   off<N extends keyof E>(name: N, callback: EventCallbackFn<E[N]>): void;
@@ -96,7 +86,7 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
  * 事件委托者接口
  *
  * 通过 inject/eject 将自身的事件处理映射附加到或从 emitter 上解除。
- * 回调声明中通过 {@link once}() 标注的回调自动使用 `emitter.once()` 注册。
+ * 回调声明中通过 {@link once}() 标注的回调自动使用 `emitter.on(key, fn, true)` 注册。
  */
 export interface EventsDelegator<
   E extends EventsDefinition = EventsDefinition,
@@ -117,6 +107,15 @@ export type EventsInput<E extends EventsDefinition = EventsDefinition> =
 // Type guards
 // ============================================================================
 
+/**
+ * 检查 obj 是否实现 {@link EventsDelegator} 接口
+ *
+ * 通过检测 `inject` 和 `eject` 两个方法是否存在来判定（鸭子类型）。
+ * 任何满足此签名的对象均被视为 delegator。
+ *
+ * @param obj — 待检查的任意值
+ * @returns `true` 当且仅当 obj 具有 inject/eject 方法，同时收窄为 `EventsDelegator<E>`
+ */
 export const isEventsDelegator = <
   E extends EventsDefinition = EventsDefinition,
 >(
@@ -127,6 +126,15 @@ export const isEventsDelegator = <
     (it) => typeof it.inject === 'function' && typeof it.eject === 'function',
   );
 
+/**
+ * 检查 obj 是否实现 {@link EventsEmitter} 接口
+ *
+ * 通过检测 `emit`、`on`、`off` 三个方法是否存在来判定（鸭子类型）。
+ * 任何满足此签名的对象均被视为 emitter。
+ *
+ * @param obj — 待检查的任意值
+ * @returns `true` 当且仅当 obj 具有 emit/on/off 方法，同时收窄为 `EventsEmitter<E>`
+ */
 export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
   obj: unknown,
 ): obj is EventsEmitter<E> =>
@@ -135,7 +143,6 @@ export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
     (it) =>
       typeof it.emit === _typeFunc &&
       typeof it.on === _typeFunc &&
-      typeof it.once === _typeFunc &&
       typeof it.off === _typeFunc,
   );
 
@@ -147,7 +154,8 @@ export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
  * 创建事件发射器
  *
  * - 同一事件的所有监听器并发执行（Promise.all）
- * - `on` 返回反注册函数
+ * - `on(name, cb, true)` 等同于 `once()`——触发后自动移除
+ * - `off(name, cb)` 直接通过引用匹配移除，对 `isOnce` 回调同样有效
  * - 任意监听器抛出时，emit 返回的 Promise 以 AggregateError 拒绝
  *
  * @example
@@ -166,15 +174,13 @@ export const createEmitter = <
 >(): EventsEmitter<E> => {
   // biome-ignore lint/suspicious/noExplicitAny: listener map uses any for per-event type flexibility
   const listeners = new Map<keyof E, Set<EventCallbackFn<any>>>();
-  // once() 用 wrapper 注册，off(name, originalCb) 需要反向查 wrapper
-  const _onceWrappers = new Map<
-    EventCallbackFn<any>,
-    EventCallbackFn<any>
-  >();
+  // 标记哪些回调是 once——不修改用户对象，不创建 wrapper
+  const _onceFlags = new WeakMap<EventCallbackFn<any>, true>();
 
   const on = <N extends keyof E>(
     name: N,
     callback: EventCallbackFn<E[N]>,
+    isOnce?: boolean,
   ): EventUnsubscribeFn => {
     let set = listeners.get(name);
     if (set == null) {
@@ -183,29 +189,15 @@ export const createEmitter = <
       listeners.set(name, set);
     }
     set.add(callback);
+    if (isOnce) _onceFlags.set(callback, true);
     return () => off(name, callback);
-  };
-
-  const once = <N extends keyof E>(
-    name: N,
-    callback: EventCallbackFn<E[N]>,
-  ): EventUnsubscribeFn => {
-    const wrapper = ((params: E[N]) => {
-      off(name, wrapper);
-      return callback(params);
-    }) as EventCallbackFn<E[N]>;
-    _onceWrappers.set(callback, wrapper);
-    const offOnce = on(name, wrapper);
-    return offOnce;
   };
 
   const off = <N extends keyof E>(
     name: N,
     callback: EventCallbackFn<E[N]>,
   ): void => {
-    // once() 注册的是 wrapper，通过映射找到实际存于 Set 中的 wrapper 引用
-    const actual = _onceWrappers.get(callback) ?? callback;
-    listeners.get(name)?.delete(actual);
+    listeners.get(name)?.delete(callback);
   };
 
   const emit = async <N extends keyof E>(
@@ -218,10 +210,14 @@ export const createEmitter = <
     await Promise.all(
       [...set].map((fn) =>
         Promise.resolve()
-          .then(() => fn(params))
+          .then(async () => fn(params))
           .catch((err) => errors.push(err)),
       ),
     );
+    // 触发后清理 once 回调
+    for (const fn of [...set]) {
+      if (_onceFlags.has(fn)) off(name, fn);
+    }
     if (errors.length > 0) {
       throw new AggregateError(
         errors,
@@ -230,7 +226,7 @@ export const createEmitter = <
     }
   };
 
-  return { on, once, off, emit };
+  return { on, off, emit };
 };
 
 // ============================================================================
@@ -272,10 +268,9 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
 
       if (mode === 'off') {
         emitter.off(key, fn);
-      } else if (useOnce) {
-        emitter.once(key, fn);
       } else {
-        emitter.on(key, fn);
+        // on / once 统一走 on(name, cb, isOnce)
+        emitter.on(key, fn, useOnce);
       }
     }
   }
@@ -354,9 +349,7 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
         )[]) {
           const fn = typeof item === 'function' ? item : item.fn;
           const isOnce = typeof item !== 'function' && item.once;
-          unsubscribers.push(
-            isOnce ? emitter.once(key, fn) : emitter.on(key, fn),
-          );
+          unsubscribers.push(emitter.on(key, fn, isOnce));
         }
       }
     },
