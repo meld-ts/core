@@ -274,14 +274,13 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
         (mode === 'on' && typeof item !== 'function' && item.once);
 
       if (mode === 'off') {
-        // once() 回调注册的是 wrapper，不能用 emitter.off 移除
-        const subs = _linkSubs.get(emitter)?.get(key);
-        if (subs) {
-          const unsub = subs.get(fn);
-          if (unsub) {
-            unsub();
-            subs.delete(fn);
-          }
+        // once() 回调注册的是 wrapper，先查 _linkSubs
+        const unsub = _linkSubs.get(emitter)?.get(key)?.get(fn);
+        if (unsub) {
+          unsub();
+          _linkSubs.get(emitter)?.get(key)?.delete(fn);
+        } else {
+          emitter.off(key, fn);
         }
       } else if (useOnce) {
         const unsub = emitter.once(key, fn);
@@ -291,12 +290,7 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
         if (!subMap) subs.set(key, (subMap = new Map()));
         subMap.set(fn, unsub);
       } else {
-        const unsub = emitter.on(key, fn);
-        let subs = _linkSubs.get(emitter);
-        if (!subs) _linkSubs.set(emitter, (subs = new Map()));
-        let subMap = subs.get(key);
-        if (!subMap) subs.set(key, (subMap = new Map()));
-        subMap.set(fn, unsub);
+        emitter.on(key, fn);
       }
     }
   }

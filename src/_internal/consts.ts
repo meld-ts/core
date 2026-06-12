@@ -10,4 +10,5 @@ export const _strEmpty = '' as const;
 
 export const _numZero: number = 0;
 
-export const _errDenominatorZero = 'The denominator cannot be 0, NaN, or Infinity';
+export const _errDenominatorZero =
+  'The denominator cannot be 0, NaN, or Infinity';

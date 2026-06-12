@@ -226,9 +226,9 @@ export class StatefulRpc<Result = object, Params = object> {
     for (const it of items) {
       const { task } = it;
       this.removePendingItem(it);
-      this.#emitter.emit(settled.type, { task, result: settled.result }).catch(
-        console.error,
-      );
+      this.#emitter
+        .emit(settled.type, { task, result: settled.result })
+        .catch(console.error);
       this.#emitter
         .emit('settle', { ...settled, task: it.task })
         .catch(console.error);
