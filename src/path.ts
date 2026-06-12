@@ -105,11 +105,11 @@ export const createPathUtils = ({
       _path = duplicateReplace(_path, separator);
     }
 
-    // remove leading and trailing separators
-    if (_path.startsWith(separator)) {
+    // remove all leading and trailing separators
+    while (_path.startsWith(separator)) {
       _path = _path.substring(1);
     }
-    if (_path.endsWith(separator)) {
+    while (_path.endsWith(separator)) {
       _path = _path.substring(0, _path.length - 1);
     }
 

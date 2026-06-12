@@ -78,7 +78,7 @@ describe('purge', () => {
 
   test('strips leading and trailing separators', () => {
     expect(purge('/a/b/')).toBe('a/b');
-    expect(purge('///a///')).toBe('//a//');
+    expect(purge('///a///')).toBe('a');
     expect(purge('a/b')).toBe('a/b');
     expect(purge('/')).toBe('');
     expect(purge('//')).toBe('');
