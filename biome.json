@@ -6,7 +6,7 @@
       "source": {
         "organizeImports": {
           "options": {
-            "groups": [[":BUN:", ":NODE:"], ":BLANK_LINE:"],
+            "groups": [[":BUN:", ":NODE:"]],
             "identifierOrder": "lexicographic"
           },
           "level": "on"
