@@ -27,7 +27,7 @@
     "utility",
     "functions",
     "utils",
-    "type-guard",
+    "type-guards",
     "async",
     "traits"
   ],
