@@ -232,7 +232,7 @@ export const round10 = (value: number, exp?: number): number =>
   decimalAdjust('round', value, exp);
 
 /**
- * 向上取整到指定精度
+ * 向下取整到指定精度
  *
  * @param value — 要取整的数值
  * @param exp — 指数（同 {@link decimalAdjust}）
@@ -242,7 +242,7 @@ export const floor10 = (value: number, exp?: number): number =>
   decimalAdjust('floor', value, exp);
 
 /**
- * 向下取整到指定精度
+ * 向上取整到指定精度
  *
  * @param value — 要取整的数值
  * @param exp — 指数（同 {@link decimalAdjust}）
