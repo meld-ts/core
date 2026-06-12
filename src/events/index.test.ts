@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+
 import {
   createDelegator,
   createEmitter,
@@ -16,7 +17,9 @@ describe('createEmitter', () => {
     test('on registers listener, emit invokes it', async () => {
       const emitter = createEmitter<{ ping: string }>();
       let received = '';
-      emitter.on('ping', (msg) => { received = msg; });
+      emitter.on('ping', (msg) => {
+        received = msg;
+      });
       await emitter.emit('ping', 'hello');
       expect(received).toBe('hello');
     });
@@ -27,40 +30,52 @@ describe('createEmitter', () => {
     });
 
     test('off removes listener', async () => {
-      const emitter = createEmitter<{ tick: void }>();
+      const emitter = createEmitter<{ tick: undefined }>();
       let count = 0;
-      const cb = () => { count++; };
+      const cb = () => {
+        count++;
+      };
       emitter.on('tick', cb);
       emitter.off('tick', cb);
-      await emitter.emit('tick', undefined as void);
+      await emitter.emit('tick', undefined as undefined);
       expect(count).toBe(0);
     });
 
     test('on returns unsubscribe function', async () => {
-      const emitter = createEmitter<{ tick: void }>();
+      const emitter = createEmitter<{ tick: undefined }>();
       let count = 0;
-      const off = emitter.on('tick', () => { count++; });
+      const off = emitter.on('tick', () => {
+        count++;
+      });
       off();
-      await emitter.emit('tick', undefined as void);
+      await emitter.emit('tick', undefined as undefined);
       expect(count).toBe(0);
     });
 
     test('multiple listeners are all invoked', async () => {
-      const emitter = createEmitter<{ tick: void }>();
+      const emitter = createEmitter<{ tick: undefined }>();
       let a = 0;
       let b = 0;
-      emitter.on('tick', () => { a++; });
-      emitter.on('tick', () => { b++; });
-      await emitter.emit('tick', undefined as void);
+      emitter.on('tick', () => {
+        a++;
+      });
+      emitter.on('tick', () => {
+        b++;
+      });
+      await emitter.emit('tick', undefined as undefined);
       expect(a).toBe(1);
       expect(b).toBe(1);
     });
 
     test('emit collects errors into AggregateError', async () => {
-      const emitter = createEmitter<{ boom: void }>();
-      emitter.on('boom', () => { throw new Error('e1'); });
-      emitter.on('boom', () => { throw new Error('e2'); });
-      await expect(emitter.emit('boom', undefined as void)).rejects.toThrow(
+      const emitter = createEmitter<{ boom: undefined }>();
+      emitter.on('boom', () => {
+        throw new Error('e1');
+      });
+      emitter.on('boom', () => {
+        throw new Error('e2');
+      });
+      await expect(emitter.emit('boom', undefined as undefined)).rejects.toThrow(
         AggregateError,
       );
     });
@@ -68,43 +83,51 @@ describe('createEmitter', () => {
 
   describe('once', () => {
     test('fires only once', async () => {
-      const emitter = createEmitter<{ tick: void }>();
+      const emitter = createEmitter<{ tick: undefined }>();
       let count = 0;
-      emitter.once('tick', () => { count++; });
-      await emitter.emit('tick', undefined as void);
-      await emitter.emit('tick', undefined as void);
+      emitter.once('tick', () => {
+        count++;
+      });
+      await emitter.emit('tick', undefined as undefined);
+      await emitter.emit('tick', undefined as undefined);
       expect(count).toBe(1);
     });
 
     test('returns unsubscribe function that prevents firing', async () => {
-      const emitter = createEmitter<{ tick: void }>();
+      const emitter = createEmitter<{ tick: undefined }>();
       let count = 0;
-      const off = emitter.once('tick', () => { count++; });
+      const off = emitter.once('tick', () => {
+        count++;
+      });
       off();
-      await emitter.emit('tick', undefined as void);
+      await emitter.emit('tick', undefined as undefined);
       expect(count).toBe(0);
     });
 
     test('still fires only once even if callback throws', async () => {
-      const emitter = createEmitter<{ tick: void }>();
+      const emitter = createEmitter<{ tick: undefined }>();
       let calls = 0;
       emitter.once('tick', () => {
         calls++;
         throw new Error('boom');
       });
-      await emitter.emit('tick', undefined as void).catch(() => {});
-      await emitter.emit('tick', undefined as void).catch(() => {});
+      await emitter.emit('tick', undefined as undefined).catch(() => {});
+      await emitter.emit('tick', undefined as undefined).catch(() => {});
       expect(calls).toBe(1);
     });
 
     test('once and on listeners coexist', async () => {
-      const emitter = createEmitter<{ tick: void }>();
+      const emitter = createEmitter<{ tick: undefined }>();
       let onCount = 0;
       let onceCount = 0;
-      emitter.on('tick', () => { onCount++; });
-      emitter.once('tick', () => { onceCount++; });
-      await emitter.emit('tick', undefined as void);
-      await emitter.emit('tick', undefined as void);
+      emitter.on('tick', () => {
+        onCount++;
+      });
+      emitter.once('tick', () => {
+        onceCount++;
+      });
+      await emitter.emit('tick', undefined as undefined);
+      await emitter.emit('tick', undefined as undefined);
       expect(onCount).toBe(2);
       expect(onceCount).toBe(1);
     });
@@ -142,7 +165,9 @@ describe('createDelegator', () => {
     const emitter = createEmitter<{ ping: string }>();
     let received = '';
     const delegator = createDelegator({
-      ping: (msg: string) => { received = msg; },
+      ping: (msg: string) => {
+        received = msg;
+      },
     });
     delegator.inject(emitter);
     await emitter.emit('ping', 'hello');
@@ -150,29 +175,33 @@ describe('createDelegator', () => {
   });
 
   test('eject unbinds all callbacks', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let count = 0;
     const delegator = createDelegator({
-      tick: () => { count++; },
+      tick: () => {
+        count++;
+      },
     });
     delegator.inject(emitter);
     delegator.eject();
-    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as undefined);
     expect(count).toBe(0);
   });
 
   test('inject twice clears old bindings', async () => {
-    const e1 = createEmitter<{ tick: void }>();
-    const e2 = createEmitter<{ tick: void }>();
+    const e1 = createEmitter<{ tick: undefined }>();
+    const e2 = createEmitter<{ tick: undefined }>();
     let count = 0;
     const delegator = createDelegator({
-      tick: () => { count++; },
+      tick: () => {
+        count++;
+      },
     });
     delegator.inject(e1);
     delegator.inject(e2);
-    await e1.emit('tick', undefined as void);
+    await e1.emit('tick', undefined as undefined);
     expect(count).toBe(0); // old emitter cleared
-    await e2.emit('tick', undefined as void);
+    await e2.emit('tick', undefined as undefined);
     expect(count).toBe(1);
   });
 
@@ -182,44 +211,57 @@ describe('createDelegator', () => {
   });
 
   test('multiple callbacks in array declaration', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let a = 0;
     let b = 0;
     const delegator = createDelegator({
-      tick: [() => { a++; }, () => { b++; }],
+      tick: [
+        () => {
+          a++;
+        },
+        () => {
+          b++;
+        },
+      ],
     });
     delegator.inject(emitter);
-    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as undefined);
     expect(a).toBe(1);
     expect(b).toBe(1);
   });
 
   test('once()-marked callbacks fire only once in delegator', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let onCount = 0;
     let onceCount = 0;
     const delegator = createDelegator({
       tick: [
-        () => { onCount++; },
-        once(() => { onceCount++; }),
+        () => {
+          onCount++;
+        },
+        once(() => {
+          onceCount++;
+        }),
       ],
     });
     delegator.inject(emitter);
-    await emitter.emit('tick', undefined as void);
-    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as undefined);
+    await emitter.emit('tick', undefined as undefined);
     expect(onCount).toBe(2);
     expect(onceCount).toBe(1);
   });
 
   test('once()-marked single callback in delegator', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let count = 0;
     const delegator = createDelegator({
-      tick: once(() => { count++; }),
+      tick: once(() => {
+        count++;
+      }),
     });
     delegator.inject(emitter);
-    await emitter.emit('tick', undefined as void);
-    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as undefined);
+    await emitter.emit('tick', undefined as undefined);
     expect(count).toBe(1);
   });
 });
@@ -231,19 +273,23 @@ describe('linkEvents', () => {
     const emitter = createEmitter<{ ping: string }>();
     let received = '';
     linkEvents(emitter, {
-      ping: (msg: string) => { received = msg; },
+      ping: (msg: string) => {
+        received = msg;
+      },
     });
     await emitter.emit('ping', 'hello');
     expect(received).toBe('hello');
   });
 
   test('unlinks callbacks with mode=off', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let count = 0;
-    const cb = () => { count++; };
+    const cb = () => {
+      count++;
+    };
     linkEvents(emitter, { tick: cb });
     linkEvents(emitter, { tick: cb }, 'off');
-    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as undefined);
     expect(count).toBe(0);
   });
 
@@ -251,7 +297,9 @@ describe('linkEvents', () => {
     const emitter = createEmitter<{ ping: string }>();
     let received = '';
     const delegator = createDelegator({
-      ping: (msg: string) => { received = msg; },
+      ping: (msg: string) => {
+        received = msg;
+      },
     });
     linkEvents(emitter, delegator);
     await emitter.emit('ping', 'hello');
@@ -259,33 +307,47 @@ describe('linkEvents', () => {
   });
 
   test('links callbacks with mode=once (fires only once)', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let count = 0;
-    linkEvents(emitter, { tick: () => { count++; } }, 'once');
-    await emitter.emit('tick', undefined as void);
-    await emitter.emit('tick', undefined as void);
+    linkEvents(
+      emitter,
+      {
+        tick: () => {
+          count++;
+        },
+      },
+      'once',
+    );
+    await emitter.emit('tick', undefined as undefined);
+    await emitter.emit('tick', undefined as undefined);
     expect(count).toBe(1);
   });
 
   test('links delegator with mode=once', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let count = 0;
     const delegator = createDelegator({
-      tick: () => { count++; },
+      tick: () => {
+        count++;
+      },
     });
     linkEvents(emitter, delegator, 'once');
-    await emitter.emit('tick', undefined as void);
-    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as undefined);
+    await emitter.emit('tick', undefined as undefined);
     expect(count).toBe(1);
   });
 
   test('unlinks delegator with mode=off', async () => {
-    const emitter = createEmitter<{ tick: void }>();
+    const emitter = createEmitter<{ tick: undefined }>();
     let count = 0;
-    const delegator = createDelegator({ tick: () => { count++; } });
+    const delegator = createDelegator({
+      tick: () => {
+        count++;
+      },
+    });
     linkEvents(emitter, delegator);
     linkEvents(emitter, delegator, 'off');
-    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as undefined);
     expect(count).toBe(0);
   });
 
@@ -313,7 +375,9 @@ describe('initEventsEmitter', () => {
   test('callbacks input creates emitter and links them', async () => {
     let received = '';
     const emitter = initEventsEmitter<{ ping: string }>({
-      ping: (msg: string) => { received = msg; },
+      ping: (msg: string) => {
+        received = msg;
+      },
     });
     await emitter.emit('ping', 'hello');
     expect(received).toBe('hello');
@@ -322,7 +386,9 @@ describe('initEventsEmitter', () => {
   test('delegator input creates emitter and injects it', async () => {
     let received = '';
     const delegator = createDelegator<{ ping: string }>({
-      ping: (msg: string) => { received = msg; },
+      ping: (msg: string) => {
+        received = msg;
+      },
     });
     const emitter = initEventsEmitter(delegator);
     await emitter.emit('ping', 'hello');

@@ -55,9 +55,10 @@ export type EventsCallbacks<E extends EventsDefinition = EventsDefinition> =
  * });
  * ```
  */
-export const once = <T>(
-  fn: EventCallbackFn<T>,
-): MarkedCallback<T> => ({ fn, once: true });
+export const once = <T>(fn: EventCallbackFn<T>): MarkedCallback<T> => ({
+  fn,
+  once: true,
+});
 
 // ============================================================================
 // Interfaces
@@ -84,18 +85,18 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
   emit<N extends keyof E>(name: N, params: E[N]): Promise<void>;
 }
 
-  /**
-   * 事件委托者接口
-   *
-   * 通过 inject/eject 将自身的事件处理映射附加到或从 emitter 上解除。
-   * 回调声明中通过 {@link once}() 标注的回调自动使用 `emitter.once()` 注册。
-   */
-  export interface EventsDelegator<
-    E extends EventsDefinition = EventsDefinition,
-  > {
-    inject(emitter?: EventsEmitter<E>): void;
-    eject(): void;
-  }
+/**
+ * 事件委托者接口
+ *
+ * 通过 inject/eject 将自身的事件处理映射附加到或从 emitter 上解除。
+ * 回调声明中通过 {@link once}() 标注的回调自动使用 `emitter.once()` 注册。
+ */
+export interface EventsDelegator<
+  E extends EventsDefinition = EventsDefinition,
+> {
+  inject(emitter?: EventsEmitter<E>): void;
+  eject(): void;
+}
 
 /**
  * 事件输入联合类型：emitter / callbacks 对象 / delegator 三选一
@@ -244,7 +245,10 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
     const declaration = (input as EventsCallbacks<E>)[key];
     if (declaration == null) continue;
     const items = Array.isArray(declaration) ? declaration : [declaration];
-    for (const item of items as (EventCallbackFn<E[keyof E]> | MarkedCallback<E[keyof E]>)[]) {
+    for (const item of items as (
+      | EventCallbackFn<E[keyof E]>
+      | MarkedCallback<E[keyof E]>
+    )[]) {
       const fn = typeof item === 'function' ? item : item.fn;
       const useOnce =
         mode === 'once' ||
@@ -328,7 +332,10 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
         const declaration = callbacks[key];
         if (declaration == null) continue;
         const items = Array.isArray(declaration) ? declaration : [declaration];
-        for (const item of items as (EventCallbackFn<E[keyof E]> | MarkedCallback<E[keyof E]>)[]) {
+        for (const item of items as (
+          | EventCallbackFn<E[keyof E]>
+          | MarkedCallback<E[keyof E]>
+        )[]) {
           const fn = typeof item === 'function' ? item : item.fn;
           const isOnce = typeof item !== 'function' && item.once;
           unsubscribers.push(

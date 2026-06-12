@@ -8,6 +8,7 @@ export default defineConfig([
       'src/timer.ts',
       'src/singleton.ts',
       'src/path.ts',
+      'src/events/index.ts',
     ],
     name: 'core',
     format: ['esm', 'cjs'],
