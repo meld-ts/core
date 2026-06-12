@@ -1,1 +1,1 @@
-export * from './cloneObj';
+export * from './cloneObject';

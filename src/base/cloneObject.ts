@@ -15,7 +15,7 @@
  * console.log(src.a.b); // 1
  * ```
  */
-export const cloneObj = <T extends object>(obj: T): T => {
+export const cloneObject = <T extends object>(obj: T): T => {
   if (typeof globalThis.structuredClone === 'function') {
     return globalThis.structuredClone(obj);
   }
@@ -25,3 +25,7 @@ export const cloneObj = <T extends object>(obj: T): T => {
     return Object.assign({}, obj);
   }
 };
+
+export const cloneObjectByJson = () => {};
+
+export const cloneObjectByAssign = () => {};
