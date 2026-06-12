@@ -77,6 +77,12 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
     isOnce?: boolean,
   ): EventUnsubscribeFn;
 
+  /** `on(name, callback, true)` 的便利封装 */
+  once<N extends keyof E>(
+    name: N,
+    callback: EventCallbackFn<E[N]>,
+  ): EventUnsubscribeFn;
+
   off<N extends keyof E>(name: N, callback: EventCallbackFn<E[N]>): void;
 
   emit<N extends keyof E>(name: N, params: E[N]): Promise<void>;
@@ -129,7 +135,7 @@ export const isEventsDelegator = <
 /**
  * 检查 obj 是否实现 {@link EventsEmitter} 接口
  *
- * 通过检测 `emit`、`on`、`off` 三个方法是否存在来判定（鸭子类型）。
+ * 通过检测 `emit`、`on`、`once`、`off` 四个方法是否存在来判定（鸭子类型）。
  * 任何满足此签名的对象均被视为 emitter。
  *
  * @param obj — 待检查的任意值
@@ -143,6 +149,7 @@ export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
     (it) =>
       typeof it.emit === _typeFunc &&
       typeof it.on === _typeFunc &&
+      typeof it.once === _typeFunc &&
       typeof it.off === _typeFunc,
   );
 
@@ -226,7 +233,15 @@ export const createEmitter = <
     }
   };
 
-  return { on, off, emit };
+  return {
+    on,
+    once: <N extends keyof E>(
+      name: N,
+      callback: EventCallbackFn<E[N]>,
+    ) => on(name, callback, true),
+    off,
+    emit,
+  };
 };
 
 // ============================================================================
