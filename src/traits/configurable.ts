@@ -62,7 +62,9 @@ export const configurable = <T extends object>(presets: T): Configurable<T> => {
     get: <K extends keyof T>(key: K): T[K] =>
       Object.hasOwn(users, key) ? (users[key] as T[K]) : _presets[key],
 
-    has: <K extends keyof T>(key: K): boolean => Object.hasOwn(users, key),
+    has: <K extends keyof T>(key: K): boolean =>
+      Object.hasOwn(users, key) ||
+      Object.hasOwn(_presets as object, key as string),
 
     set: <K extends keyof T>(key: K, value: T[K]): void => {
       users[key] = value;

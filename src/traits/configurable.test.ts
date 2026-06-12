@@ -115,12 +115,13 @@ describe('configurable', () => {
   });
 
   describe('has', () => {
-    test('returns false for keys never set', () => {
+    test('returns true for keys with preset defaults', () => {
       const cfg = configurable(makePresets());
-      expect(cfg.has('timeout')).toBe(false);
+      expect(cfg.has('timeout')).toBe(true);
+      expect(cfg.has('retries')).toBe(true);
     });
 
-    test('returns true after set()', () => {
+    test('returns true after set() (still exists)', () => {
       const cfg = configurable(makePresets());
       cfg.set('timeout', 9000);
       expect(cfg.has('timeout')).toBe(true);
@@ -132,21 +133,26 @@ describe('configurable', () => {
       expect(cfg.has('label')).toBe(true);
     });
 
-    test('returns true after setAll', () => {
+    test('returns true after setAll (existing + new keys)', () => {
       const cfg = configurable(makePresets());
       cfg.setAll({ timeout: 500 });
       expect(cfg.has('timeout')).toBe(true);
-      expect(cfg.has('retries')).toBe(false);
+      expect(cfg.has('retries')).toBe(true); // preset key
     });
 
-    test('returns false after reset', () => {
+    test('returns true after reset (presets remain)', () => {
       const cfg = configurable(makePresets());
       cfg.set('timeout', 100);
       cfg.reset();
-      expect(cfg.has('timeout')).toBe(false);
+      expect(cfg.has('timeout')).toBe(true); // exists in presets
     });
 
-    test('"toString" is not falsely reported as set', () => {
+    test('returns false for keys not in presets and never set', () => {
+      const cfg = configurable<{ a?: number }>({});
+      expect(cfg.has('a')).toBe(false);
+    });
+
+    test('"toString" is not falsely reported', () => {
       const cfg = configurable(makePresets());
       expect(cfg.has('toString' as keyof ReturnType<typeof makePresets>)).toBe(
         false,
