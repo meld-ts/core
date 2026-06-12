@@ -6,7 +6,8 @@ export default defineConfig([
       // src root files
       'src/index.ts',
       'src/timer.ts',
-      'src/singleton.ts'
+      'src/singleton.ts',
+      'src/path.ts',
     ],
     name: 'core',
     format: ['esm', 'cjs'],

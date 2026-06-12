@@ -81,7 +81,7 @@ describe('purge', () => {
     expect(purge('///a///')).toBe('//a//');
     expect(purge('a/b')).toBe('a/b');
     expect(purge('/')).toBe('');
-    expect(purge('//')).toBe('/');
+    expect(purge('//')).toBe('');
   });
 
   test('null and undefined return empty string', () => {

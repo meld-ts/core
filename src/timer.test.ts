@@ -24,8 +24,20 @@ describe('createTimer', () => {
   test('set() replaces existing timer on same key', async () => {
     let count = 0;
     const t = createTimer('');
-    t.set('dup-test', () => { count++; }, 30);
-    t.set('dup-test', () => { count += 10; }, 30);
+    t.set(
+      'dup-test',
+      () => {
+        count++;
+      },
+      30,
+    );
+    t.set(
+      'dup-test',
+      () => {
+        count += 10;
+      },
+      30,
+    );
     await Bun.sleep(60);
     expect(count).toBe(10);
   });
