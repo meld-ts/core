@@ -19,16 +19,45 @@ export type EventUnsubscribeFn = () => void;
 /** 单个事件的监听函数 */
 export type EventCallbackFn<T> = (params: T) => MaybePromise<void>;
 
-/** 单个事件的回调声明：单个函数或函数数组 */
+/** 带 once 标记的回调包装 */
+export type MarkedCallback<T> = {
+  fn: EventCallbackFn<T>;
+  once: boolean;
+};
+
+/** 单个事件的回调声明：函数 / 标记回调 / 数组混合 */
 export type EventCallbackDeclaration<T> =
   | EventCallbackFn<T>
-  | EventCallbackFn<T>[];
+  | MarkedCallback<T>
+  | (EventCallbackFn<T> | MarkedCallback<T>)[];
 
 /** 多个事件的回调声明映射 */
 export type EventsCallbacks<E extends EventsDefinition = EventsDefinition> =
   Partial<{
     [K in keyof E]: EventCallbackDeclaration<E[K]>;
   }>;
+
+// ============================================================================
+// once() factory
+// ============================================================================
+
+/**
+ * 标记回调为"仅触发一次"
+ *
+ * 在 {@link EventsCallbacks} 声明中包裹回调，由 `createDelegator`
+ * 或 `linkEvents` 在注册时自动使用 `emitter.once()` 而非 `emitter.on()`。
+ *
+ * @example
+ * ```ts
+ * createDelegator({
+ *   connect: once(({ id }) => console.log('first connect only', id)),
+ *   tick: () => console.log('every tick'),
+ * });
+ * ```
+ */
+export const once = <T>(
+  fn: EventCallbackFn<T>,
+): MarkedCallback<T> => ({ fn, once: true });
 
 // ============================================================================
 // Interfaces
@@ -59,19 +88,12 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
    * 事件委托者接口
    *
    * 通过 inject/eject 将自身的事件处理映射附加到或从 emitter 上解除。
-   *
-   * `isOnce` 是**全局模式**——设为 `true` 时该 delegator 中所有回调
-   * 都以 `once` 方式注册。如需部分事件 `once`、部分持久，
-   * 请创建两个 delegator 分别 inject。
+   * 回调声明中通过 {@link once}() 标注的回调自动使用 `emitter.once()` 注册。
    */
   export interface EventsDelegator<
     E extends EventsDefinition = EventsDefinition,
   > {
-    /**
-     * @param emitter — 目标发射器；传 null/undefined 仅清理已绑定
-     * @param isOnce — 默认 false，设为 true 时所有回调以 once 注册
-     */
-    inject(emitter?: EventsEmitter<E>, isOnce?: boolean): void;
+    inject(emitter?: EventsEmitter<E>): void;
     eject(): void;
   }
 
@@ -214,23 +236,26 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
   mode: LinkEventMode = 'on',
 ): EventsEmitter<E> => {
   if (isEventsDelegator(input)) {
-    mode === 'off'
-      ? input.eject()
-      : input.inject(emitter, mode === 'once');
+    mode === 'off' ? input.eject() : input.inject(emitter);
     return emitter;
   }
 
   for (const key of Object.keys(input) as (keyof E)[]) {
     const declaration = (input as EventsCallbacks<E>)[key];
     if (declaration == null) continue;
-    const fns = Array.isArray(declaration) ? declaration : [declaration];
-    for (const fn of fns as EventCallbackFn<E[keyof E]>[]) {
-      if (mode === 'on') {
-        emitter.on(key, fn);
-      } else if (mode === 'once') {
+    const items = Array.isArray(declaration) ? declaration : [declaration];
+    for (const item of items as (EventCallbackFn<E[keyof E]> | MarkedCallback<E[keyof E]>)[]) {
+      const fn = typeof item === 'function' ? item : item.fn;
+      const useOnce =
+        mode === 'once' ||
+        (mode === 'on' && typeof item !== 'function' && item.once);
+
+      if (mode === 'off') {
+        emitter.off(key, fn);
+      } else if (useOnce) {
         emitter.once(key, fn);
       } else {
-        emitter.off(key, fn);
+        emitter.on(key, fn);
       }
     }
   }
@@ -294,7 +319,7 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
   let unsubscribers: EventUnsubscribeFn[] = [];
 
   return {
-    inject: (emitter, isOnce = false) => {
+    inject: (emitter) => {
       if (emitter == null) return;
       for (const unsub of unsubscribers) unsub();
       unsubscribers = [];
@@ -302,8 +327,10 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
       for (const key of Object.keys(callbacks) as (keyof E)[]) {
         const declaration = callbacks[key];
         if (declaration == null) continue;
-        const fns = Array.isArray(declaration) ? declaration : [declaration];
-        for (const fn of fns as EventCallbackFn<E[keyof E]>[]) {
+        const items = Array.isArray(declaration) ? declaration : [declaration];
+        for (const item of items as (EventCallbackFn<E[keyof E]> | MarkedCallback<E[keyof E]>)[]) {
+          const fn = typeof item === 'function' ? item : item.fn;
+          const isOnce = typeof item !== 'function' && item.once;
           unsubscribers.push(
             isOnce ? emitter.once(key, fn) : emitter.on(key, fn),
           );

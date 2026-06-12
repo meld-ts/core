@@ -6,6 +6,7 @@ import {
   isEventsDelegator,
   isEventsEmitter,
   linkEvents,
+  once,
 } from './index';
 
 // ── createEmitter ────────────────────────────────────────
@@ -193,13 +194,30 @@ describe('createDelegator', () => {
     expect(b).toBe(1);
   });
 
-  test('inject with isOnce=true registers all callbacks as once', async () => {
+  test('once()-marked callbacks fire only once in delegator', async () => {
+    const emitter = createEmitter<{ tick: void }>();
+    let onCount = 0;
+    let onceCount = 0;
+    const delegator = createDelegator({
+      tick: [
+        () => { onCount++; },
+        once(() => { onceCount++; }),
+      ],
+    });
+    delegator.inject(emitter);
+    await emitter.emit('tick', undefined as void);
+    await emitter.emit('tick', undefined as void);
+    expect(onCount).toBe(2);
+    expect(onceCount).toBe(1);
+  });
+
+  test('once()-marked single callback in delegator', async () => {
     const emitter = createEmitter<{ tick: void }>();
     let count = 0;
     const delegator = createDelegator({
-      tick: () => { count++; },
+      tick: once(() => { count++; }),
     });
-    delegator.inject(emitter, true);
+    delegator.inject(emitter);
     await emitter.emit('tick', undefined as void);
     await emitter.emit('tick', undefined as void);
     expect(count).toBe(1);
