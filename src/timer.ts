@@ -21,10 +21,15 @@ export const timer = (
 ): ReturnType<typeof setTimeout> => {
   clearTimer(key);
   timers[key] = setTimeout(() => {
-    const result = callback();
-    // 如果 callback 返回 Promise 且 reject，catch 避免 unhandled rejection
-    if (result instanceof Promise) {
-      result.catch(console.error);
+    try {
+      const result = callback();
+      // async reject → Promise.catch 兜底，避免 unhandled rejection
+      if (result instanceof Promise) {
+        result.catch(console.error);
+      }
+    } catch (err) {
+      // 同步 throw → catch 兜底，避免 uncaught exception
+      console.error(err);
     }
   }, ms);
   return timers[key];
@@ -78,9 +83,13 @@ export const ticker = (
 ): ReturnType<typeof setInterval> => {
   clearTicker(key);
   tickers[key] = setInterval(() => {
-    const result = callback();
-    if (result instanceof Promise) {
-      result.catch(console.error);
+    try {
+      const result = callback();
+      if (result instanceof Promise) {
+        result.catch(console.error);
+      }
+    } catch (err) {
+      console.error(err);
     }
   }, ms);
   return tickers[key];

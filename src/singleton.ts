@@ -1,5 +1,4 @@
-// biome-ignore lint/suspicious/noExplicitAny: base type for generic inference
-type AnyFn = (...args: any[]) => any;
+import type { AnyFunction } from './types';
 
 /**
  * 单例工厂
@@ -33,10 +32,10 @@ type AnyFn = (...args: any[]) => any;
 export function singleton<F extends (...args: any[]) => Promise<any>>(
   factory: F,
 ): (...args: Parameters<F>) => ReturnType<F>;
-export function singleton<F extends AnyFn>(
+export function singleton<F extends AnyFunction>(
   factory: F,
 ): (...args: Parameters<F>) => ReturnType<F>;
-export function singleton(factory: AnyFn): AnyFn {
+export function singleton(factory: AnyFunction): AnyFunction {
   let instance: unknown;
   let ready = false;
   let isAsync = false;
