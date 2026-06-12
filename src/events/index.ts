@@ -166,6 +166,11 @@ export const createEmitter = <
 >(): EventsEmitter<E> => {
   // biome-ignore lint/suspicious/noExplicitAny: listener map uses any for per-event type flexibility
   const listeners = new Map<keyof E, Set<EventCallbackFn<any>>>();
+  // once() 用 wrapper 注册，off(name, originalCb) 需要反向查 wrapper
+  const _onceWrappers = new Map<
+    EventCallbackFn<any>,
+    EventCallbackFn<any>
+  >();
 
   const on = <N extends keyof E>(
     name: N,
@@ -185,18 +190,22 @@ export const createEmitter = <
     name: N,
     callback: EventCallbackFn<E[N]>,
   ): EventUnsubscribeFn => {
-    const off = on(name, ((params: E[N]) => {
-      off();
+    const wrapper = ((params: E[N]) => {
+      off(name, wrapper);
       return callback(params);
-    }) as EventCallbackFn<E[N]>);
-    return off;
+    }) as EventCallbackFn<E[N]>;
+    _onceWrappers.set(callback, wrapper);
+    const offOnce = on(name, wrapper);
+    return offOnce;
   };
 
   const off = <N extends keyof E>(
     name: N,
     callback: EventCallbackFn<E[N]>,
   ): void => {
-    listeners.get(name)?.delete(callback);
+    // once() 注册的是 wrapper，通过映射找到实际存于 Set 中的 wrapper 引用
+    const actual = _onceWrappers.get(callback) ?? callback;
+    listeners.get(name)?.delete(actual);
   };
 
   const emit = async <N extends keyof E>(
@@ -227,18 +236,6 @@ export const createEmitter = <
 // ============================================================================
 // linkEvents
 // ============================================================================
-
-/**
- * `linkEvents` 内部维护的反注册映射：
- * emitter → key → callback → unsubscriber
- *
- * `once()` 回调注册的是 wrapper，不能用 `emitter.off(key, originalCb)` 移除，
- * 因此需要持有 unsubscriber 以便 `linkEvents('off')` 正确清理。
- */
-const _linkSubs = new WeakMap<
-  EventsEmitter,
-  Map<keyof any, Map<EventCallbackFn<any>, EventUnsubscribeFn>>
->();
 
 export type LinkEventMode = 'on' | 'once' | 'off';
 
@@ -274,21 +271,9 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
         (mode === 'on' && typeof item !== 'function' && item.once);
 
       if (mode === 'off') {
-        // once() 回调注册的是 wrapper，先查 _linkSubs
-        const unsub = _linkSubs.get(emitter)?.get(key)?.get(fn);
-        if (unsub) {
-          unsub();
-          _linkSubs.get(emitter)?.get(key)?.delete(fn);
-        } else {
-          emitter.off(key, fn);
-        }
+        emitter.off(key, fn);
       } else if (useOnce) {
-        const unsub = emitter.once(key, fn);
-        let subs = _linkSubs.get(emitter);
-        if (!subs) _linkSubs.set(emitter, (subs = new Map()));
-        let subMap = subs.get(key);
-        if (!subMap) subs.set(key, (subMap = new Map()));
-        subMap.set(fn, unsub);
+        emitter.once(key, fn);
       } else {
         emitter.on(key, fn);
       }
