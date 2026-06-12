@@ -1,10 +1,23 @@
+/**
+ * timer / ticker 实例的操作接口
+ *
+ * 由 {@link createTimer} 和 {@link createTicker} 返回。
+ * 每个实例管理自己前缀下的定时器，互不干扰。
+ */
 export interface TimerHandle {
+  /**
+   * 注册（或覆盖）一个定时任务，返回清除函数。
+   *
+   * 同 key 重复调用会先清除上一个定时器再注册新的。
+   */
   set(
     key: string,
     callback: () => void | Promise<void>,
     ms: number,
   ): () => void;
+  /** 清除指定 key 的定时器 */
   clear(key: string): void;
+  /** 清除此实例前缀下的所有定时器 */
   clearAll(): void;
 }
 

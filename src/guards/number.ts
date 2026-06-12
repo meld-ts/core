@@ -188,7 +188,7 @@ export const limitNumberMinMax = (
  * @param type — 调整类型：`'round'` 四舍五入 / `'ceil'` 向上取整 / `'floor'` 向下取整
  * @param value — 要调整的数值
  * @param exp — 指数（10 的 exp 次方）。0=个位，1=十位，-1=小数点后 1 位，-2=小数点后 2 位，以此类推。
- *   传 `undefined` 或 `null` 或 `0` 时退化为原生 `Math[type]`。
+ *   传 `undefined` 或 `0` 时退化为原生 `Math[type]`。
  * @returns 调整后的数值；若 value 为 NaN 或 exp 不是整数则返回 `NaN`
  *
  * @see https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Math/round#小数舍入

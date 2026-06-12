@@ -104,6 +104,7 @@
     "ts-check": "tsgo --noEmit",
     "test": "bun test src/ --coverage",
     "build": "bunup",
+    "build:browser": "bunup --config ./bunup.browser.config.ts",
     "build:exports": "bunup --exports",
     "doc": "bun typedoc --options typedoc.json --cleanOutputDir"
   },

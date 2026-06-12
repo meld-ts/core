@@ -36,7 +36,12 @@ export class PendingScopeConflictError extends Error {
 export type PendingFnParams = {
   /** 解析后的 scope key */
   scope: string;
-  /** 获取当前等待中的 caller 数量（实时值） */
+  /**
+   * 获取与当前调用共享同一 inflight 的额外等待者数量
+   *
+   * 首次触发者的 counter 初始为 0，后续并发 caller 会累加。
+   * 值为 0 表示只有当前调用在执行，无其他并发 caller 等待。
+   */
   getPendingCount: () => number;
 };
 

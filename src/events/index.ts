@@ -228,6 +228,18 @@ export const createEmitter = <
 // linkEvents
 // ============================================================================
 
+/**
+ * `linkEvents` 内部维护的反注册映射：
+ * emitter → key → callback → unsubscriber
+ *
+ * `once()` 回调注册的是 wrapper，不能用 `emitter.off(key, originalCb)` 移除，
+ * 因此需要持有 unsubscriber 以便 `linkEvents('off')` 正确清理。
+ */
+const _linkSubs = new WeakMap<
+  EventsEmitter,
+  Map<keyof any, Map<EventCallbackFn<any>, EventUnsubscribeFn>>
+>();
+
 export type LinkEventMode = 'on' | 'once' | 'off';
 
 /**
@@ -235,8 +247,8 @@ export type LinkEventMode = 'on' | 'once' | 'off';
  *
  * @param emitter 目标发射器
  * @param input   EventsCallbacks 或 EventsDelegator
- * @param mode    'on'（默认，添加监听）或 'off'（移除监听）
- * @returns       emitter 本身（链式调用）
+ * @param mode    `'on'`（默认，普通监听）/ `'once'`（单次监听）/ `'off'`（移除监听）
+ * @returns       emitter 本身，支持链式调用
  */
 export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
   emitter: EventsEmitter<E>,
@@ -262,11 +274,29 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
         (mode === 'on' && typeof item !== 'function' && item.once);
 
       if (mode === 'off') {
-        emitter.off(key, fn);
+        // once() 回调注册的是 wrapper，不能用 emitter.off 移除
+        const subs = _linkSubs.get(emitter)?.get(key);
+        if (subs) {
+          const unsub = subs.get(fn);
+          if (unsub) {
+            unsub();
+            subs.delete(fn);
+          }
+        }
       } else if (useOnce) {
-        emitter.once(key, fn);
+        const unsub = emitter.once(key, fn);
+        let subs = _linkSubs.get(emitter);
+        if (!subs) _linkSubs.set(emitter, (subs = new Map()));
+        let subMap = subs.get(key);
+        if (!subMap) subs.set(key, (subMap = new Map()));
+        subMap.set(fn, unsub);
       } else {
-        emitter.on(key, fn);
+        const unsub = emitter.on(key, fn);
+        let subs = _linkSubs.get(emitter);
+        if (!subs) _linkSubs.set(emitter, (subs = new Map()));
+        let subMap = subs.get(key);
+        if (!subMap) subs.set(key, (subMap = new Map()));
+        subMap.set(fn, unsub);
       }
     }
   }
