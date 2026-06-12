@@ -138,34 +138,34 @@ export interface DebuggableTrait<
    * @param scope 当前调试 scope，传 `null` / `undefined` 表示无 scope
    * @param args  要输出的内容
    */
-   debug(
-     scope: keyof Omit<Settings, 'debug'> | string | undefined | null,
-     ...args: unknown[]
-   ): this;
+  debug(
+    scope: keyof Omit<Settings, 'debug'> | string | undefined | null,
+    ...args: unknown[]
+  ): this;
 
-   /**
-    * 获取当前调用栈，返回每帧的文本数组。
-    *
-    * 基于 `new Error().stack`，兼容所有 JS 运行时（V8 / JSC / SpiderMonkey）。
-    * V8 环境可用的 `Error.captureStackTrace` 能更精确排除内部帧，
-    * 但作为通用库不依赖非标准 API。
-    *
-    * @param skipFrames — 额外跳过的栈帧数。默认 0
-    *   （"Error" 行始终被排除）。典型用法：传 1 跳过 `getStack` 自身，
-    *   传 2 再加上调用方的 wrapper。
-    * @returns 栈帧字符串数组，每帧已 trim 首尾空白
-    *
-    * @example
-    * ```ts
-    * // 输出从调用点开始的完整栈
-    * console.log(svc.getStack());
-    *
-    * // 跳过 getStack 自身，只展示更上层的调用栈
-    * console.log(svc.getStack(1));
-    * ```
-    */
-   getStack(skipFrames?: number): string[];
- }
+  /**
+   * 获取当前调用栈，返回每帧的文本数组。
+   *
+   * 基于 `new Error().stack`，兼容所有 JS 运行时（V8 / JSC / SpiderMonkey）。
+   * V8 环境可用的 `Error.captureStackTrace` 能更精确排除内部帧，
+   * 但作为通用库不依赖非标准 API。
+   *
+   * @param skipFrames — 额外跳过的栈帧数。默认 0
+   *   （"Error" 行始终被排除）。典型用法：传 1 跳过 `getStack` 自身，
+   *   传 2 再加上调用方的 wrapper。
+   * @returns 栈帧字符串数组，每帧已 trim 首尾空白
+   *
+   * @example
+   * ```ts
+   * // 输出从调用点开始的完整栈
+   * console.log(svc.getStack());
+   *
+   * // 跳过 getStack 自身，只展示更上层的调用栈
+   * console.log(svc.getStack(1));
+   * ```
+   */
+  getStack(skipFrames?: number): string[];
+}
 
 /**
  * 创建一个 `DebuggableTrait` 实现对象，配合 `implTraits` 混入到目标类。
@@ -312,9 +312,7 @@ export const createDebuggableTrait = <
       const err = new Error();
       const lines = (err.stack ?? '').split('\n');
       // 第一行是 "Error" 自身，跳过；skipFrames 让调用方排除自己的 wrapper 帧
-      return lines
-        .slice(1 + Math.max(0, skipFrames | 0))
-        .map((l) => l.trim());
+      return lines.slice(1 + Math.max(0, skipFrames | 0)).map((l) => l.trim());
     },
   };
 };

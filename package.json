@@ -50,6 +50,16 @@
         "default": "./dist/path.cjs"
       }
     },
+    "./traits": {
+      "import": {
+        "types": "./dist/traits/index.d.ts",
+        "default": "./dist/traits/index.js"
+      },
+      "require": {
+        "types": "./dist/traits/index.d.cts",
+        "default": "./dist/traits/index.cjs"
+      }
+    },
     "./events": {
       "import": {
         "types": "./dist/events/index.d.ts",
