@@ -10,7 +10,13 @@ describe('createTimer', () => {
   test('set() fires callback after delay', async () => {
     let called = false;
     const t = createTimer('');
-    t.set(key('fire'), () => { called = true; }, 20);
+    t.set(
+      key('fire'),
+      () => {
+        called = true;
+      },
+      20,
+    );
     await Bun.sleep(50);
     expect(called).toBe(true);
   });
@@ -18,8 +24,8 @@ describe('createTimer', () => {
   test('set() replaces existing timer on same key', async () => {
     let count = 0;
     const t = createTimer('');
-    t.set(key('dup'), () => { count++; }, 30);
-    t.set(key('dup'), () => { count += 10; }, 30);
+    t.set('dup-test', () => { count++; }, 30);
+    t.set('dup-test', () => { count += 10; }, 30);
     await Bun.sleep(60);
     expect(count).toBe(10);
   });
@@ -27,7 +33,13 @@ describe('createTimer', () => {
   test('returned cleanup function clears the timer', async () => {
     let called = false;
     const t = createTimer('');
-    const clear = t.set(key('cancel'), () => { called = true; }, 20);
+    const clear = t.set(
+      key('cancel'),
+      () => {
+        called = true;
+      },
+      20,
+    );
     clear();
     await Bun.sleep(50);
     expect(called).toBe(false);
@@ -37,7 +49,13 @@ describe('createTimer', () => {
     let called = false;
     const t = createTimer('');
     const k = key('x');
-    t.set(k, () => { called = true; }, 20);
+    t.set(
+      k,
+      () => {
+        called = true;
+      },
+      20,
+    );
     t.clear(k);
     await Bun.sleep(50);
     expect(called).toBe(false);
@@ -47,8 +65,20 @@ describe('createTimer', () => {
     let a = 0;
     let b = 0;
     const t = createTimer('');
-    t.set(key('a'), () => { a++; }, 20);
-    t.set(key('b'), () => { b++; }, 20);
+    t.set(
+      key('a'),
+      () => {
+        a++;
+      },
+      20,
+    );
+    t.set(
+      key('b'),
+      () => {
+        b++;
+      },
+      20,
+    );
     t.clearAll();
     await Bun.sleep(50);
     expect(a).toBe(0);
@@ -60,14 +90,32 @@ describe('createTimer', () => {
     let y = 0;
     const t1 = createTimer('a:');
     const t2 = createTimer('b:');
-    t1.set('t', () => { x++; }, 20);
-    t2.set('t', () => { y++; }, 20);
+    t1.set(
+      't',
+      () => {
+        x++;
+      },
+      20,
+    );
+    t2.set(
+      't',
+      () => {
+        y++;
+      },
+      20,
+    );
     await Bun.sleep(50);
     expect(x).toBe(1);
     expect(y).toBe(1);
     t1.clearAll();
     let z = 0;
-    t2.set('z', () => { z++; }, 20);
+    t2.set(
+      'z',
+      () => {
+        z++;
+      },
+      20,
+    );
     await Bun.sleep(50);
     expect(z).toBe(1);
   });
@@ -75,10 +123,14 @@ describe('createTimer', () => {
   test('supports async callback', async () => {
     let resolved = false;
     const t = createTimer('');
-    t.set(key('async'), async () => {
-      await Bun.sleep(5);
-      resolved = true;
-    }, 20);
+    t.set(
+      key('async'),
+      async () => {
+        await Bun.sleep(5);
+        resolved = true;
+      },
+      20,
+    );
     await Bun.sleep(60);
     expect(resolved).toBe(true);
   });
@@ -86,10 +138,14 @@ describe('createTimer', () => {
   test('rejected async callback does not cause unhandled rejection', async () => {
     let rejected = false;
     const t = createTimer('');
-    t.set(key('reject'), async () => {
-      rejected = true;
-      throw new Error('callback error');
-    }, 20);
+    t.set(
+      key('reject'),
+      async () => {
+        rejected = true;
+        throw new Error('callback error');
+      },
+      20,
+    );
     await Bun.sleep(60);
     expect(rejected).toBe(true);
   });
@@ -97,10 +153,14 @@ describe('createTimer', () => {
   test('sync throw does not cause uncaught exception', async () => {
     let thrown = false;
     const t = createTimer('');
-    t.set(key('sync-throw'), () => {
-      thrown = true;
-      throw new Error('sync boom');
-    }, 20);
+    t.set(
+      key('sync-throw'),
+      () => {
+        thrown = true;
+        throw new Error('sync boom');
+      },
+      20,
+    );
     await Bun.sleep(60);
     expect(thrown).toBe(true);
   });
@@ -117,7 +177,13 @@ describe('createTicker', () => {
   test('set() fires callback repeatedly', async () => {
     let count = 0;
     const t = createTicker('');
-    const clear = t.set(key('tick'), () => { count++; }, 20);
+    const clear = t.set(
+      key('tick'),
+      () => {
+        count++;
+      },
+      20,
+    );
     await Bun.sleep(90);
     clear();
     expect(count).toBeGreaterThanOrEqual(3);
@@ -127,8 +193,20 @@ describe('createTicker', () => {
     let count = 0;
     const t = createTicker('');
     const k = key('replace');
-    t.set(k, () => { count++; }, 20);
-    t.set(k, () => { count += 10; }, 20);
+    t.set(
+      k,
+      () => {
+        count++;
+      },
+      20,
+    );
+    t.set(
+      k,
+      () => {
+        count += 10;
+      },
+      20,
+    );
     await Bun.sleep(50);
     const clear = t.set('dummy', () => {}, 999);
     expect(count % 10).toBe(0);
@@ -139,7 +217,13 @@ describe('createTicker', () => {
   test('returned cleanup function stops the ticker', async () => {
     let count = 0;
     const t = createTicker('');
-    const clear = t.set(key('stop'), () => { count++; }, 20);
+    const clear = t.set(
+      key('stop'),
+      () => {
+        count++;
+      },
+      20,
+    );
     await Bun.sleep(50);
     const snapshot = count;
     clear();
@@ -156,8 +240,20 @@ describe('createTicker', () => {
     let a = 0;
     let b = 0;
     const t = createTicker('');
-    t.set(key('a'), () => { a++; }, 20);
-    t.set(key('b'), () => { b++; }, 20);
+    t.set(
+      key('a'),
+      () => {
+        a++;
+      },
+      20,
+    );
+    t.set(
+      key('b'),
+      () => {
+        b++;
+      },
+      20,
+    );
     t.clearAll();
     await Bun.sleep(50);
     expect(a).toBe(0);
@@ -167,10 +263,14 @@ describe('createTicker', () => {
   test('sync throw does not cause uncaught exception in ticker', async () => {
     let thrown = false;
     const t = createTicker('');
-    const clear = t.set(key('tick-sync-throw'), () => {
-      thrown = true;
-      throw new Error('tick sync boom');
-    }, 20);
+    const clear = t.set(
+      key('tick-sync-throw'),
+      () => {
+        thrown = true;
+        throw new Error('tick sync boom');
+      },
+      20,
+    );
     await Bun.sleep(30);
     clear();
     expect(thrown).toBe(true);
