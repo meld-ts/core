@@ -181,8 +181,9 @@ export const createEmitter = <
 >(): EventsEmitter<E> => {
   // biome-ignore lint/suspicious/noExplicitAny: listener map uses any for per-event type flexibility
   const listeners = new Map<keyof E, Set<EventCallbackFn<any>>>();
-  // 标记哪些回调是 once——不修改用户对象，不创建 wrapper
-  const _onceFlags = new WeakMap<EventCallbackFn<any>, true>();
+  // 按事件隔离的 once 标记——同一 callback 可用于不同事件，互不干扰
+  // biome-ignore lint/suspicious/noExplicitAny: uses any for per-event type flexibility
+  const _onceSets = new Map<keyof E, WeakSet<EventCallbackFn<any>>>();
 
   const on = <N extends keyof E>(
     name: N,
@@ -196,8 +197,19 @@ export const createEmitter = <
       listeners.set(name, set);
     }
     set.add(callback);
-    if (isOnce) _onceFlags.set(callback, true);
-    return () => off(name, callback);
+    if (isOnce) {
+      let ws = _onceSets.get(name);
+      if (!ws) {
+        ws = new WeakSet<EventCallbackFn<any>>();
+        _onceSets.set(name, ws);
+      }
+      ws.add(callback);
+    }
+    return () => {
+      // off 时同步清理 once 标记，防止重新 on(name, cb)（非 once）时被误删
+      _onceSets.get(name)?.delete(callback);
+      off(name, callback);
+    };
   };
 
   const off = <N extends keyof E>(
@@ -221,9 +233,13 @@ export const createEmitter = <
           .catch((err) => errors.push(err)),
       ),
     );
-    // 触发后清理 once 回调
+    // 触发后清理 once 回调（按事件隔离，不跨事件误删）
+    const onceSet = _onceSets.get(name);
     for (const fn of [...set]) {
-      if (_onceFlags.has(fn)) off(name, fn);
+      if (onceSet?.has(fn)) {
+        onceSet.delete(fn);
+        off(name, fn);
+      }
     }
     if (errors.length > 0) {
       throw new AggregateError(
@@ -235,10 +251,8 @@ export const createEmitter = <
 
   return {
     on,
-    once: <N extends keyof E>(
-      name: N,
-      callback: EventCallbackFn<E[N]>,
-    ) => on(name, callback, true),
+    once: <N extends keyof E>(name: N, callback: EventCallbackFn<E[N]>) =>
+      on(name, callback, true),
     off,
     emit,
   };

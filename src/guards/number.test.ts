@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-
+import { _errDenominatorZero } from '../_internal';
 import {
   calcProgress,
   ceil10,
@@ -140,14 +140,10 @@ describe('guards/number', () => {
     });
 
     test('should throw for zero or non-finite denominator', () => {
-      expect(() => calcProgress(50, 0)).toThrow(
-        'The denominator cannot be 0 or NaN',
-      );
-      expect(() => calcProgress(50, Number.NaN)).toThrow(
-        'The denominator cannot be 0 or NaN',
-      );
+      expect(() => calcProgress(50, 0)).toThrow(_errDenominatorZero);
+      expect(() => calcProgress(50, Number.NaN)).toThrow(_errDenominatorZero);
       expect(() => calcProgress(50, Number.POSITIVE_INFINITY)).toThrow(
-        'The denominator cannot be 0 or NaN',
+        _errDenominatorZero,
       );
     });
   });
