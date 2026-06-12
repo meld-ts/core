@@ -1,4 +1,4 @@
-interface TimerHandle {
+export interface TimerHandle {
   set(
     key: string,
     callback: () => void | Promise<void>,
