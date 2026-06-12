@@ -39,8 +39,8 @@
   ],
   "license": "MIT",
   "scripts": {
-    "lint": "biome lint --error-on-warnings ./src",
     "fmt": "biome format --write ./src",
+    "lint": "biome lint --error-on-warnings ./src",
     "ts-check": "tsgo --noEmit",
     "test": "bun test src/ --coverage",
     "build": "bunup",

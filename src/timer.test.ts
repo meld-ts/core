@@ -244,3 +244,107 @@ describe('clearAllTickers', () => {
     expect(count).toBe(0);
   });
 });
+
+// ── 工厂 API 测试 ──────────────────────────────────────────
+
+describe('createTimer', () => {
+  test('set() fires callback and returns cleanup function', async () => {
+    let called = false;
+    const t = createTimer('test:');
+    const clear = t.set('fire', () => { called = true; }, 20);
+    expect(typeof clear).toBe('function');
+    await Bun.sleep(50);
+    expect(called).toBe(true);
+  });
+
+  test('set() replaces existing timer on same key', async () => {
+    let count = 0;
+    const t = createTimer('test:');
+    t.set('dup', () => { count++; }, 30);
+    t.set('dup', () => { count += 10; }, 30);
+    await Bun.sleep(60);
+    expect(count).toBe(10);
+  });
+
+  test('returned cleanup function clears the timer', async () => {
+    let called = false;
+    const t = createTimer('test:');
+    const clear = t.set('cancel', () => { called = true; }, 20);
+    clear();
+    await Bun.sleep(50);
+    expect(called).toBe(false);
+  });
+
+  test('clear() removes a specific timer', async () => {
+    let called = false;
+    const t = createTimer('test:');
+    t.set('x', () => { called = true; }, 20);
+    t.clear('x');
+    await Bun.sleep(50);
+    expect(called).toBe(false);
+  });
+
+  test('clearAll() removes all timers for this instance', async () => {
+    let a = 0;
+    let b = 0;
+    const t = createTimer('test:');
+    t.set('a', () => { a++; }, 20);
+    t.set('b', () => { b++; }, 20);
+    t.clearAll();
+    await Bun.sleep(50);
+    expect(a).toBe(0);
+    expect(b).toBe(0);
+  });
+
+  test('different instances with different prefixes do not interfere', async () => {
+    let x = 0;
+    let y = 0;
+    const t1 = createTimer('a:');
+    const t2 = createTimer('b:');
+    t1.set('t', () => { x++; }, 20);
+    t2.set('t', () => { y++; }, 20);
+    await Bun.sleep(50);
+    expect(x).toBe(1);
+    expect(y).toBe(1);
+    // clearAll on t1 should not affect t2
+    t1.clearAll();
+    let z = 0;
+    t2.set('z', () => { z++; }, 20);
+    await Bun.sleep(50);
+    expect(z).toBe(1);
+  });
+});
+
+describe('createTicker', () => {
+  test('set() fires callback repeatedly and returns cleanup', async () => {
+    let count = 0;
+    const t = createTicker('test:');
+    const clear = t.set('tick', () => { count++; }, 20);
+    await Bun.sleep(90);
+    clear();
+    expect(count).toBeGreaterThanOrEqual(3);
+  });
+
+  test('returned cleanup function stops the ticker', async () => {
+    let count = 0;
+    const t = createTicker('test:');
+    const clear = t.set('stop', () => { count++; }, 20);
+    await Bun.sleep(50);
+    const snapshot = count;
+    clear();
+    await Bun.sleep(50);
+    expect(count).toBe(snapshot);
+  });
+
+  test('clearAll() removes all tickers for this instance', async () => {
+    let a = 0;
+    let b = 0;
+    const t = createTicker('test:');
+    t.set('a', () => { a++; }, 20);
+    t.set('b', () => { b++; }, 20);
+    t.clearAll();
+    await Bun.sleep(50);
+    expect(a).toBe(0);
+    expect(b).toBe(0);
+  });
+});
