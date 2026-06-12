@@ -10,8 +10,10 @@ export type Configurable<T extends object> = {
    */
   set<K extends keyof T>(key: K, value: T[K]): void;
   /**
-   * 检查 key 是否已被用户显式设置（仅查 users 层，不查 presets）
-   * 用于区分"用户设了 undefined"和"从未设置"。
+   * 检查 key 是否存在于配置中（users 或 presets 任一）。
+   *
+   * 若 key 在 presets 中有默认值，即使从未被 `set`，`has` 也返回 `true`。
+   * 若需区分"用户设了 undefined"和"从未设置"，结合 `get(key)` 判断。
    */
   has<K extends keyof T>(key: K): boolean;
   /**

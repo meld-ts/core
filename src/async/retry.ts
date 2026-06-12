@@ -242,7 +242,14 @@ export function sleep<F extends AnyFunction>(
   fn: F,
 ): Promise<Awaited<ReturnType<F>>>;
 export function sleep(ms: number, fn?: AnyFunction): Promise<unknown> {
-  return new Promise((resolve) =>
-    setTimeout(() => resolve(fn ? fn() : undefined), ms),
+  return new Promise((resolve, reject) =>
+    setTimeout(() => {
+      if (!fn) return resolve(undefined);
+      try {
+        resolve(fn());
+      } catch (err) {
+        reject(err);
+      }
+    }, ms),
   );
 }

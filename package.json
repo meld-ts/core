@@ -51,13 +51,23 @@
       }
     },
     "./traits": {
-      "import": {
-        "types": "./dist/traits/index.d.ts",
-        "default": "./dist/traits/index.js"
-      },
       "require": {
         "types": "./dist/traits/index.d.cts",
         "default": "./dist/traits/index.cjs"
+      },
+      "import": {
+        "types": "./dist/traits/index.d.ts",
+        "default": "./dist/traits/index.js"
+      }
+    },
+    "./async": {
+      "require": {
+        "types": "./dist/async/index.d.cts",
+        "default": "./dist/async/index.cjs"
+      },
+      "import": {
+        "types": "./dist/async/index.d.ts",
+        "default": "./dist/async/index.js"
       }
     },
     "./events": {
@@ -94,6 +104,7 @@
     "ts-check": "tsgo --noEmit",
     "test": "bun test src/ --coverage",
     "build": "bunup",
+    "build:exports": "bunup --exports",
     "doc": "bun typedoc --options typedoc.json --cleanOutputDir"
   },
   "devDependencies": {

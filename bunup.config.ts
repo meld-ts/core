@@ -18,6 +18,6 @@ export default defineConfig([
     outDir: './dist',
     sourcemap: 'linked',
     // minify: true,
-    exports: true,
+    // exports: true,
   },
 ]);

@@ -8,6 +8,12 @@ export interface TimerHandle {
   clearAll(): void;
 }
 
+const _validateMs = (ms: number) => {
+  if (!Number.isFinite(ms) || ms < 0) {
+    throw new RangeError(`ms must be a finite non-negative number, got ${ms}`);
+  }
+};
+
 /** 包裹 callback，try/catch 同步 throw + Promise.catch async reject */
 const _safeRun = (callback: () => void | Promise<void>) => {
   try {
@@ -55,6 +61,7 @@ export const createTimer = (prefix: string): TimerHandle => {
 
   return {
     set(key, callback, ms) {
+      _validateMs(ms);
       clear(key);
       const k = fullKey(key);
       store[k] = setTimeout(() => _safeRun(callback), ms);
@@ -101,6 +108,7 @@ export const createTicker = (prefix: string): TimerHandle => {
 
   return {
     set(key, callback, ms) {
+      _validateMs(ms);
       clear(key);
       const k = fullKey(key);
       store[k] = setInterval(() => _safeRun(callback), ms);

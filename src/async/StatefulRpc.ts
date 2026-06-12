@@ -135,8 +135,8 @@ export class StatefulRpc<Result = object, Params = object> {
     return count;
   }
 
-  /** @internal 创建 PendingItem，不写入 Map、不启动计时器 */
-  newPendingItem(
+  /** 创建 PendingItem，不写入 Map、不启动计时器 */
+  protected newPendingItem(
     key: string,
     params: Params,
     rest: Omit<PendingItem<Result, Params>, 'task'>,
@@ -148,8 +148,8 @@ export class StatefulRpc<Result = object, Params = object> {
     };
   }
 
-  /** @internal 将 item 写入 Map 并启动定时器 */
-  addPendingItem(
+  /** 将 item 写入 Map 并启动定时器 */
+  protected addPendingItem(
     item: PendingItem<Result, Params>,
   ): PendingItem<Result, Params> {
     const { key, taskId } = item.task;
@@ -177,8 +177,8 @@ export class StatefulRpc<Result = object, Params = object> {
     });
   };
 
-  /** @internal 从 Map 中移除 item 并清除其定时器 */
-  removePendingItem(item: PendingItem<Result, Params>) {
+  /** 从 Map 中移除 item 并清除其定时器 */
+  protected removePendingItem(item: PendingItem<Result, Params>) {
     const { key, taskId } = item.task;
     const map = this.#pendings.get(key);
     if (map != null) {
@@ -226,8 +226,12 @@ export class StatefulRpc<Result = object, Params = object> {
     for (const it of items) {
       const { task } = it;
       this.removePendingItem(it);
-      this.#emitter.emit(settled.type, { task, result: settled.result });
-      this.#emitter.emit('settle', { ...settled, task: it.task });
+      this.#emitter.emit(settled.type, { task, result: settled.result }).catch(
+        console.error,
+      );
+      this.#emitter
+        .emit('settle', { ...settled, task: it.task })
+        .catch(console.error);
       if (settled.type === 'resolve') {
         it.resolve(settled.result);
       } else {

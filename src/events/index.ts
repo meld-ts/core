@@ -75,6 +75,13 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
     callback: EventCallbackFn<E[N]>,
   ): EventUnsubscribeFn;
 
+  /**
+   * 注册仅触发一次的监听器。
+   *
+   * **重要**：`once()` 注册的是内部包装函数，而非 `callback` 本身。
+   * 因此 `emitter.off(name, originalCallback)` **无法移除** once 监听器。
+   * 请始终通过返回的 `off` 函数来取消，或使用 `emitter.emit` 触发后自动移除。
+   */
   once<N extends keyof E>(
     name: N,
     callback: EventCallbackFn<E[N]>,

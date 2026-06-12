@@ -24,6 +24,9 @@ export const cloneObjectByJson = <T extends object>(obj: T): T => {
   try {
     return JSON.parse(JSON.stringify(obj));
   } catch {
+    console.warn(
+      'cloneObjectByJson: JSON.stringify failed, falling back to shallow copy (Object.assign)',
+    );
     return cloneObjectByAssign(obj);
   }
 };

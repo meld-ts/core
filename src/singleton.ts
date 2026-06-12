@@ -48,9 +48,9 @@ export function singleton(factory: AnyFunction): AnyFunction {
     if (inflight != null) return inflight;
 
     const result = factory(...args);
+    isAsync = result instanceof Promise;
 
     if (result instanceof Promise) {
-      isAsync = true;
       inflight = result
         .then((resolved: unknown) => {
           instance = resolved;
