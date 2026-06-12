@@ -40,6 +40,26 @@
         "default": "./dist/singleton.cjs"
       }
     },
+    "./path": {
+      "import": {
+        "types": "./dist/path.d.ts",
+        "default": "./dist/path.js"
+      },
+      "require": {
+        "types": "./dist/path.d.cts",
+        "default": "./dist/path.cjs"
+      }
+    },
+    "./events": {
+      "import": {
+        "types": "./dist/events/index.d.ts",
+        "default": "./dist/events/index.js"
+      },
+      "require": {
+        "types": "./dist/events/index.d.cts",
+        "default": "./dist/events/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "keywords": [
