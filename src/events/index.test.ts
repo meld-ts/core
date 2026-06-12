@@ -75,9 +75,9 @@ describe('createEmitter', () => {
       emitter.on('boom', () => {
         throw new Error('e2');
       });
-      await expect(emitter.emit('boom', undefined as undefined)).rejects.toThrow(
-        AggregateError,
-      );
+      await expect(
+        emitter.emit('boom', undefined as undefined),
+      ).rejects.toThrow(AggregateError);
     });
   });
 
@@ -323,13 +323,14 @@ describe('linkEvents', () => {
     expect(count).toBe(1);
   });
 
-  test('links delegator with mode=once', async () => {
+  test('links delegator with mode=once overrides once() marks', async () => {
     const emitter = createEmitter<{ tick: undefined }>();
     let count = 0;
+    // once()-marked callback, but mode='once' should still force single fire
     const delegator = createDelegator({
-      tick: () => {
+      tick: once(() => {
         count++;
-      },
+      }),
     });
     linkEvents(emitter, delegator, 'once');
     await emitter.emit('tick', undefined as undefined);
