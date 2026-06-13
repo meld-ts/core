@@ -40,6 +40,54 @@ describe('createEmitter', () => {
       expect(count).toBe(0);
     });
 
+    test('off(name) with no callback clears all listeners for that event', async () => {
+      const emitter = createEmitter<{ a: number; b: number }>();
+      let a = 0;
+      let b = 0;
+      emitter.on('a', () => {
+        a++;
+      });
+      emitter.on('a', () => {
+        a++;
+      });
+      emitter.on('b', () => {
+        b++;
+      });
+      emitter.off('a');
+      await emitter.emit('a', 1);
+      await emitter.emit('b', 1);
+      expect(a).toBe(0);
+      expect(b).toBe(1);
+    });
+
+    test('off() with no args clears all listeners for all events', async () => {
+      const emitter = createEmitter<{ a: number; b: number }>();
+      let a = 0;
+      let b = 0;
+      emitter.on('a', () => {
+        a++;
+      });
+      emitter.on('b', () => {
+        b++;
+      });
+      emitter.off();
+      await emitter.emit('a', 1);
+      await emitter.emit('b', 1);
+      expect(a).toBe(0);
+      expect(b).toBe(0);
+    });
+
+    test('emitter.once() fires only once', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let count = 0;
+      emitter.once('tick', () => {
+        count++;
+      });
+      await emitter.emit('tick', undefined as undefined);
+      await emitter.emit('tick', undefined as undefined);
+      expect(count).toBe(1);
+    });
+
     test('on returns unsubscribe function', async () => {
       const emitter = createEmitter<{ tick: undefined }>();
       let count = 0;
@@ -412,5 +460,16 @@ describe('initEventsEmitter', () => {
     const emitter = initEventsEmitter(delegator);
     await emitter.emit('ping', 'hello');
     expect(received).toBe('hello');
+  });
+
+  test('custom factory function is used when provided', () => {
+    let factoryCalled = false;
+    const factory = () => {
+      factoryCalled = true;
+      return createEmitter();
+    };
+    const emitter = initEventsEmitter(null, factory);
+    expect(factoryCalled).toBe(true);
+    expect(isEventsEmitter(emitter)).toBe(true);
   });
 });

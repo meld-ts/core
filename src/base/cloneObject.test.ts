@@ -49,6 +49,20 @@ describe('cloneObject', () => {
   test('throws TypeError when called with number', () => {
     expect(() => cloneObject(42 as unknown as object)).toThrow(TypeError);
   });
+
+  test('falls back to cloneObjectByJson when structuredClone is unavailable', () => {
+    const original = globalThis.structuredClone;
+    // @ts-ignore
+    globalThis.structuredClone = undefined;
+    try {
+      const src = { a: { b: 1 } };
+      const cloned = cloneObject(src);
+      expect(cloned).toEqual(src);
+      expect(cloned).not.toBe(src);
+    } finally {
+      globalThis.structuredClone = original;
+    }
+  });
 });
 
 describe('cloneObjectByJson', () => {
@@ -107,6 +121,16 @@ describe('cloneObjectByJson', () => {
 
   test('throws TypeError when called with number', () => {
     expect(() => cloneObjectByJson(42 as unknown as object)).toThrow(TypeError);
+  });
+
+  test('falls back to array spread on circular array', () => {
+    const arr = [1, 2, 3] as unknown[];
+    arr.push(arr);
+    const cloned = cloneObjectByJson(arr as unknown as object);
+    expect(Array.isArray(cloned)).toBe(true);
+    expect(cloned).not.toBe(arr);
+    expect((cloned as unknown[])[0]).toBe(1);
+    expect((cloned as unknown[])[2]).toBe(3);
   });
 });
 

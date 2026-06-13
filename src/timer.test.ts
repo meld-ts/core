@@ -181,6 +181,39 @@ describe('createTimer', () => {
     const t = createTimer('');
     expect(() => t.clear('toString')).not.toThrow();
   });
+
+  test('set() throws RangeError for negative ms', () => {
+    const t = createTimer('');
+    expect(() => t.set('k', () => {}, -1)).toThrow(RangeError);
+  });
+
+  test('set() throws RangeError for Infinity', () => {
+    const t = createTimer('');
+    expect(() => t.set('k', () => {}, Infinity)).toThrow(RangeError);
+  });
+
+  test('set() throws RangeError for NaN', () => {
+    const t = createTimer('');
+    expect(() => t.set('k', () => {}, Number.NaN)).toThrow(RangeError);
+  });
+
+  test('supports custom mode object', async () => {
+    let count = 0;
+    const customMode = {
+      set: (fn: () => void, ms: number) => setTimeout(fn, ms),
+      clear: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
+    };
+    const t = createTimer('custom', customMode);
+    t.set(
+      'k',
+      () => {
+        count++;
+      },
+      20,
+    );
+    await Bun.sleep(50);
+    expect(count).toBe(1);
+  });
 });
 
 // ── createTicker ──────────────────────────────────────────
