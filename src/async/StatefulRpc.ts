@@ -115,12 +115,12 @@ export class StatefulRpc<Result = object, Params = object> {
   }
 
   /** 实例唯一 id */
-  get id() {
+  get id(): string {
     return this.#id;
   }
 
   /** 实例级默认超时毫秒数 */
-  get timeout() {
+  get timeout(): number {
     return this.#timeout;
   }
 
@@ -169,7 +169,10 @@ export class StatefulRpc<Result = object, Params = object> {
    *
    * 子类可覆盖此方法实现自定义超时策略（如只 reject 超时的单个 task）。
    */
-  protected onTimeout = ({ task, timeout }: PendingItem<Result, Params>) => {
+  protected onTimeout: (item: PendingItem<Result, Params>) => void = ({
+    task,
+    timeout,
+  }: PendingItem<Result, Params>): void => {
     this.settle({
       key: task.key,
       type: 'reject',
@@ -178,7 +181,7 @@ export class StatefulRpc<Result = object, Params = object> {
   };
 
   /** 从 Map 中移除 item 并清除其定时器 */
-  protected removePendingItem(item: PendingItem<Result, Params>) {
+  protected removePendingItem(item: PendingItem<Result, Params>): void {
     const { key, taskId } = item.task;
     const map = this.#pendings.get(key);
     if (map != null) {
@@ -188,7 +191,6 @@ export class StatefulRpc<Result = object, Params = object> {
       }
     }
     this.#timer.clear(taskId);
-    return item;
   }
 
   /**

@@ -176,4 +176,4 @@ export const createTimer = <Mode extends TimerMode = 'timeout'>(
  */
 export const createTicker = (
   prefixOrOptions?: string | Omit<TimerOptions<'interval'>, 'mode'> | null,
-) => createTimer(prefixOrOptions, 'interval');
+): TimerHandle => createTimer(prefixOrOptions, 'interval');

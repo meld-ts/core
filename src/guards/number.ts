@@ -121,7 +121,7 @@ export const limitNumberMin = (
   val: unknown,
   min: number,
   dft: number = _numZero,
-) => {
+): number => {
   const v = toNumber(val, dft);
   return v < min ? min : v;
 };
@@ -146,7 +146,7 @@ export const limitNumberMax = (
   val: unknown,
   max: number,
   dft: number = _numZero,
-) => {
+): number => {
   const v = toNumber(val, dft);
   return v > max ? max : v;
 };
@@ -175,7 +175,7 @@ export const limitNumberMinMax = (
   min: number,
   max: number,
   dft: number = _numZero,
-) => {
+): number => {
   const v = toNumber(val, dft);
   return Math.min(max, Math.max(min, v));
 };
@@ -271,7 +271,7 @@ export const ceil10 = (value: number, exp?: number): number =>
  * calcProgress(50, 0);     // 抛 Error
  * ```
  */
-export const calcProgress = (value: number, total: number) => {
+export const calcProgress = (value: number, total: number): number => {
   if (total === 0 || !isNumber(total)) {
     throw new Error(_errDenominatorZero);
   }

@@ -5,7 +5,8 @@
     "target": "ES2022",
     "module": "ES2022",
     "moduleDetection": "force",
-    "allowJs": true,
+    "declaration": true,
+    "isolatedDeclarations": true,
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": false,
@@ -24,5 +25,5 @@
 
     "resolveJsonModule": true
   },
-  "exclude": ["node_modules", "dist", "docs", "browser"]
+  "exclude": ["node_modules", "dist", "docs", "browser", "bunup.*.ts"]
 }

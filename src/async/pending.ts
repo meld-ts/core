@@ -238,7 +238,7 @@ export const clearPendingRegistry = (): void => _defaultPending.clear();
  * await Promise.all([mountScript('/lib.js'), mountScript('/lib.js')]);
  * ```
  */
-export const pendingFn = _defaultPending.pendingFn;
+export const pendingFn: PendingHandle['pendingFn'] = _defaultPending.pendingFn;
 
 /**
  * 基于 scope 的 inflight 去重（全局实例）
@@ -271,4 +271,4 @@ export const pendingFn = _defaultPending.pendingFn;
  * await Promise.all([fetchUser('1'), fetchUser('1'), fetchUser('2')]);
  * ```
  */
-export const pending = _defaultPending.pending;
+export const pending: PendingHandle['pending'] = _defaultPending.pending;

@@ -48,6 +48,21 @@ export type PathUtilsOptions = {
 };
 
 /**
+ * `createPathUtils` 的返回值接口
+ */
+export interface PathUtils {
+  /**
+   * 清理单个路径段：去除首尾空白与分隔符，执行 dangerReplace / duplicateReplace。
+   * `null` / `undefined` / 空字符串返回 `''`。
+   */
+  purge(path: PathInput): string;
+  /**
+   * 拼接多个路径段，支持 `.`（跳过）和 `..`（消除前一段）。
+   */
+  join(...paths: PathInput[]): string;
+}
+
+/**
  * 创建路径处理工具
  *
  * 返回 `{ purge, join }` 两个方法。所有操作基于统一的 `separator`，
@@ -81,7 +96,7 @@ export const createPathUtils = ({
   separator: inputSeparator,
   dangerReplace,
   duplicateReplace,
-}: PathUtilsOptions) => {
+}: PathUtilsOptions): PathUtils => {
   const separator = !inputSeparator
     ? UnixDS
     : inputSeparator.length > 1
