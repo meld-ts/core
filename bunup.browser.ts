@@ -10,7 +10,5 @@ export default defineConfig([
     target: 'browser',
     outDir: './browser',
     sourcemap: 'linked',
-    // minify: true,
-    // exports: true,
   },
 ]);

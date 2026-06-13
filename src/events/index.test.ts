@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import {
   createDelegator,
   createEmitter,
@@ -67,17 +66,20 @@ describe('createEmitter', () => {
       expect(b).toBe(1);
     });
 
-    test('emit collects errors into AggregateError', async () => {
-      const emitter = createEmitter<{ boom: undefined }>();
+    test('emit should not the error', async () => {
+      const errors: unknown[] = [];
+      const emitter = createEmitter<{ boom: undefined }>({
+        onError: (err) => errors.push(err),
+      });
       emitter.on('boom', () => {
         throw new Error('e1');
       });
       emitter.on('boom', () => {
         throw new Error('e2');
       });
-      await expect(
-        emitter.emit('boom', undefined as undefined),
-      ).rejects.toThrow(AggregateError);
+      expect(() => emitter.emit('boom', undefined)).not.toThrow(Error);
+      expect(errors.length).toBe(2);
+      // expect(emitter.emit('boom', undefined)).rejects.toThrow(Error);
     });
   });
 

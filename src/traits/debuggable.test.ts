@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-
 import {
   type DebugSettings,
   type DebuggableTrait,
-  createDebuggableTrait,
   debugTimeFlag,
+  debuggable,
 } from './debuggable';
 import { implTraits } from './implTraits';
 
@@ -40,7 +39,7 @@ describe('setDebug', () => {
   let obj: DebuggableTrait<Settings>;
 
   beforeEach(() => {
-    obj = createDebuggableTrait<Settings>({ name: 'Test' });
+    obj = debuggable<Settings>({ name: 'Test' });
   });
 
   it('setDebug(true) sets debug: true', () => {
@@ -85,7 +84,7 @@ describe('shouldDebug', () => {
   let obj: DebuggableTrait<Settings>;
 
   beforeEach(() => {
-    obj = createDebuggableTrait<Settings>({ name: 'Test' });
+    obj = debuggable<Settings>({ name: 'Test' });
   });
 
   it('returns false when no settings set', () => {
@@ -173,13 +172,13 @@ describe('debug output', () => {
   });
 
   it('does not call console.log when shouldDebug is false', () => {
-    const obj = createDebuggableTrait({ name: 'App' });
+    const obj = debuggable({ name: 'App' });
     obj.debug('fetch', 'hello');
     expect(logSpy).not.toHaveBeenCalled();
   });
 
   it('calls console.log with args when debug is on', () => {
-    const obj = createDebuggableTrait({ name: 'App' });
+    const obj = debuggable({ name: 'App' });
     obj.setDebug(true);
     obj.debug(null, 'hello', 42);
     expect(logSpy).toHaveBeenCalled();
@@ -189,7 +188,7 @@ describe('debug output', () => {
   });
 
   it('includes name in output when name is set', () => {
-    const obj = createDebuggableTrait({ name: 'MyApp' });
+    const obj = debuggable({ name: 'MyApp' });
     obj.setDebug(true);
     obj.debug(null, 'data');
     const head = logSpy.mock.calls[0][0] as string;
@@ -197,7 +196,7 @@ describe('debug output', () => {
   });
 
   it('includes scope in output', () => {
-    const obj = createDebuggableTrait({ name: 'App' });
+    const obj = debuggable({ name: 'App' });
     obj.setDebug(true);
     obj.debug('fetch', 'payload');
     const head = logSpy.mock.calls[0][0] as string;
@@ -205,7 +204,7 @@ describe('debug output', () => {
   });
 
   it('includes %c prefix when color is set', () => {
-    const obj = createDebuggableTrait({ name: 'App', color: 'blue' });
+    const obj = debuggable({ name: 'App', color: 'blue' });
     obj.setDebug(true);
     obj.debug(null);
     const args = logSpy.mock.calls[0] as string[];
@@ -214,7 +213,7 @@ describe('debug output', () => {
   });
 
   it('style takes priority over color', () => {
-    const obj = createDebuggableTrait({
+    const obj = debuggable({
       name: 'App',
       color: 'blue',
       style: 'color: red; font-weight: bold',
@@ -226,7 +225,7 @@ describe('debug output', () => {
   });
 
   it('includes timestamp when timeFlag: true', () => {
-    const obj = createDebuggableTrait({ name: 'App', timeFlag: true });
+    const obj = debuggable({ name: 'App', timeFlag: true });
     obj.setDebug(true);
     obj.debug(null);
     const head = logSpy.mock.calls[0][0] as string;
@@ -234,7 +233,7 @@ describe('debug output', () => {
   });
 
   it('omits timestamp when timeFlag is not set', () => {
-    const obj = createDebuggableTrait({ name: 'App' });
+    const obj = debuggable({ name: 'App' });
     obj.setDebug(true);
     obj.debug(null);
     const head = logSpy.mock.calls[0][0] as string;
@@ -242,7 +241,7 @@ describe('debug output', () => {
   });
 
   it('timeFlag as function uses returned string', () => {
-    const obj = createDebuggableTrait({ name: 'App', timeFlag: () => 'T=0' });
+    const obj = debuggable({ name: 'App', timeFlag: () => 'T=0' });
     obj.setDebug(true);
     obj.debug(null);
     const head = logSpy.mock.calls[0][0] as string;
@@ -251,7 +250,7 @@ describe('debug output', () => {
 
   it('uses console.debug when method: "debug"', () => {
     const debugSpy = spyOn(console, 'debug').mockImplementation(() => {});
-    const obj = createDebuggableTrait({ name: 'App', method: 'debug' });
+    const obj = debuggable({ name: 'App', method: 'debug' });
     obj.setDebug(true);
     obj.debug(null, 'msg');
     expect(debugSpy).toHaveBeenCalled();
@@ -261,7 +260,7 @@ describe('debug output', () => {
 
   it('uses custom function when method is a function', () => {
     const calls: unknown[][] = [];
-    const obj = createDebuggableTrait({
+    const obj = debuggable({
       name: 'App',
       method: (...args) => calls.push(args),
     });
@@ -274,7 +273,7 @@ describe('debug output', () => {
 
   it('custom format function receives vars and styles', () => {
     let capturedVars: Record<string, string | null | undefined> | undefined;
-    const obj = createDebuggableTrait({
+    const obj = debuggable({
       name: 'App',
       format: (vars, _styles) => {
         capturedVars = vars;
@@ -288,7 +287,7 @@ describe('debug output', () => {
   });
 
   it('returns this for chaining', () => {
-    const obj = createDebuggableTrait({ name: 'App' });
+    const obj = debuggable({ name: 'App' });
     obj.setDebug(true);
     expect(obj.debug(null)).toBe(obj);
   });
@@ -298,14 +297,14 @@ describe('debug output', () => {
 
 describe('getStack', () => {
   it('returns a non-empty array', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     const stack = obj.getStack();
     expect(Array.isArray(stack)).toBe(true);
     expect(stack.length).toBeGreaterThan(0);
   });
 
   it('all elements are non-empty trimmed strings', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     const stack = obj.getStack();
     for (const line of stack) {
       expect(typeof line).toBe('string');
@@ -315,7 +314,7 @@ describe('getStack', () => {
   });
 
   it('first element is not the "Error" header line', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     const stack = obj.getStack();
     for (const line of stack) {
       expect(line).not.toBe('Error');
@@ -323,7 +322,7 @@ describe('getStack', () => {
   });
 
   it('skipFrames=1 returns a valid stack array', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     const s = obj.getStack(1);
     expect(Array.isArray(s)).toBe(true);
     expect(s.length).toBeGreaterThan(0);
@@ -334,7 +333,7 @@ describe('getStack', () => {
   });
 
   it('skipFrames=2 does not throw even if stack is too shallow', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     // 栈浅时结果为空数组，不抛异常
     const s = obj.getStack(2);
     expect(Array.isArray(s)).toBe(true);
@@ -342,7 +341,7 @@ describe('getStack', () => {
   });
 
   it('negative skipFrames does not throw and returns valid stack', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     const s = obj.getStack(-5);
     expect(Array.isArray(s)).toBe(true);
     expect(s.length).toBeGreaterThan(0);
@@ -351,7 +350,7 @@ describe('getStack', () => {
   });
 
   it('non-integer skipFrames does not throw and returns valid stack', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     const s = obj.getStack(1.9);
     expect(Array.isArray(s)).toBe(true);
     expect(s.length).toBeGreaterThan(0);
@@ -361,7 +360,7 @@ describe('getStack', () => {
   });
 
   it('stack frames contain function or file references', () => {
-    const obj = createDebuggableTrait({ name: 'Test' });
+    const obj = debuggable({ name: 'Test' });
     const stack = obj.getStack();
     const hasFrame = stack.some(
       (l) => l.startsWith('at ') || l.includes('@') || l.includes('http'),
@@ -379,10 +378,7 @@ class AppService {
   name = 'app-service';
 }
 
-implTraits(
-  AppService,
-  createDebuggableTrait<AppDebugSettings>({ name: 'AppService' }),
-);
+implTraits(AppService, debuggable<AppDebugSettings>({ name: 'AppService' }));
 // biome-ignore lint/correctness/noUnusedVariables: trait type extension via implTraits
 interface AppService extends DebuggableTrait<AppDebugSettings> {}
 

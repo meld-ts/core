@@ -25,8 +25,7 @@ export type TimeFlagFunction = (date?: Date | null) => string;
 
  * **可变性是有意设计**——`debugConfig` 的字段（如 `name`、`color`）可在
  * `constructor` 中按实例修改。在原型上改一个字段，该字段对所有实例生效；
- * 在实例自有属性上改，仅影响该实例。`createDebuggableTrait` 提供的默认值
- * 只是起点，不是锁死的契约。
+ * 在实例自有属性上改，仅影响该实例。`debuggable` 提供的默认值只是起点，不是锁死的契约。
  *
  * **安全注意**：`color` / `scopeColor` / `style` / `scopeStyle`
  * 直接拼入 `console.log` 的 `%c` 格式字符串，未做转义。
@@ -68,13 +67,13 @@ export interface DebugSettings {
 }
 
 /**
- * `createDebuggableTrait` 返回的 trait 接口，供 interface 声明合并使用。
+ * `debuggable` 返回的 trait 接口，供 interface 声明合并使用。
  *
  * ```ts
  * // biome-ignore lint/suspicious/noUnsafeDeclarationMerging: implTraits guarantees runtime implementation
  * class MyService { ... }
  *
- * implTraits(MyService, createDebuggableTrait({ name: 'MyService', color: 'color: #6bcb77' }))
+ * implTraits(MyService, debuggable({ name: 'MyService', color: 'color: #6bcb77' }))
  *
  * // biome-ignore lint/correctness/noUnusedVariables: trait type extension via implTraits
  * interface MyService extends DebuggableTrait {}
@@ -183,7 +182,7 @@ export interface DebuggableTrait<
  * // biome-ignore lint/suspicious/noUnsafeDeclarationMerging: implTraits guarantees runtime implementation
  * class AppService {}
  *
- * implTraits(AppService, createDebuggableTrait<AppSettings>({
+ * implTraits(AppService, debuggable<AppSettings>({
  *   name: 'AppService',
  *   color: '#4dabf7',           // 仅颜色值，自动包装为 color: #4dabf7
  *   // style: 'color: #4dabf7; font-weight: bold',  // 或传完整 CSS
@@ -199,9 +198,7 @@ export interface DebuggableTrait<
  * svc.debug('ws', 'connected')                               // 静默
  * ```
  */
-export const createDebuggableTrait = <
-  Settings extends DebugSettings = DebugSettings,
->(
+export const debuggable = <Settings extends DebugSettings = DebugSettings>(
   config: Partial<DebugConfiguration>,
 ): DebuggableTrait<Settings> => {
   const debugFn = (method?: DebugConfiguration['method']): DebugFunction =>

@@ -17,7 +17,5 @@ export default defineConfig([
     target: 'node',
     outDir: './dist',
     sourcemap: 'linked',
-    // minify: true,
-    // exports: true,
   },
 ]);

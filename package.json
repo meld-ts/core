@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "files": [
-    "./dist"
+    "./dist",
+    "./browser"
   ],
   "module": "./dist/index.js",
   "main": "./dist/index.cjs",
@@ -60,16 +61,6 @@
         "default": "./dist/traits/index.js"
       }
     },
-    "./async": {
-      "require": {
-        "types": "./dist/async/index.d.cts",
-        "default": "./dist/async/index.cjs"
-      },
-      "import": {
-        "types": "./dist/async/index.d.ts",
-        "default": "./dist/async/index.js"
-      }
-    },
     "./events": {
       "import": {
         "types": "./dist/events/index.d.ts",
@@ -78,6 +69,16 @@
       "require": {
         "types": "./dist/events/index.d.cts",
         "default": "./dist/events/index.cjs"
+      }
+    },
+    "./async": {
+      "require": {
+        "types": "./dist/async/index.d.cts",
+        "default": "./dist/async/index.cjs"
+      },
+      "import": {
+        "types": "./dist/async/index.d.ts",
+        "default": "./dist/async/index.js"
       }
     },
     "./package.json": "./package.json"
@@ -95,6 +96,9 @@
   "contributors": [
     {
       "name": "KAI@AI-SOUL"
+    },
+    {
+      "name": "思源@AI-SOUL"
     }
   ],
   "license": "MIT",
@@ -103,9 +107,10 @@
     "lint": "biome lint --error-on-warnings ./src",
     "ts-check": "tsgo --noEmit",
     "test": "bun test src/ --coverage",
-    "build": "bunup",
-    "build:browser": "bunup --config ./bunup.browser.config.ts",
     "build:exports": "bunup --exports",
+    "build:browser": "bunup --config bunup.browser.ts",
+    "build:dist": "bunup",
+    "build": "bun run build:browser && bun run build:dist",
     "doc": "bun typedoc --options typedoc.json --cleanOutputDir"
   },
   "devDependencies": {

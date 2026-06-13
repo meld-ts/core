@@ -236,11 +236,11 @@ interface MyClass extends GreetTrait {}
 
 `get` priority: user value → preset. `has` returns true if key exists in either layer. `reset` clears all user values.
 
-### `createDebuggableTrait`
+### `debuggable`
 
 | Export | Description |
 |--------|-------------|
-| `createDebuggableTrait<Settings>(config)` | Returns `DebuggableTrait<Settings>` object for use with `implTraits` |
+| `debuggable<Settings>(config)` | Returns `DebuggableTrait<Settings>` object for use with `implTraits` |
 | `DebuggableTrait<Settings>` | Interface: `setDebug()` / `shouldDebug(scope)` / `debug(scope, ...args)` / `getStack(skipFrames?)` |
 | `DebugConfiguration` | Config interface: `name`, `color`, `style`, `scopeColor`, `scopeStyle`, `method`, `timeFlag`, `format` |
 | `DebugSettings` | Runtime settings interface: `debug?: boolean; [key: string]: unknown` |
