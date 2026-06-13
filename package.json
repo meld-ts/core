@@ -112,14 +112,19 @@
     "build:browser": "bunup --config bunup.browser.ts",
     "build:dist": "bunup",
     "build": "bun run build:browser && bun run build:dist",
-    "doc": "bun typedoc --options typedoc.json --cleanOutputDir"
+    "doc": "bun typedoc --options typedoc.json --cleanOutputDir",
+    "doc:watch": "bun typedoc  --options typedoc.json --watch"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
     "@types/bun": "latest",
     "@typescript/native-preview": "^7.0.0-dev.20260611.2",
     "bunup": "^0.16.32",
-    "lefthook": "^2.1.9"
+    "lefthook": "^2.1.9",
+    "typedoc": "^0.28.19",
+    "typedoc-material-theme": "^1.4.1",
+    "typedoc-plugin-expand-object-like-types": "^0.1.2",
+    "typedoc-plugin-merge-modules": "^7.0.0"
   },
   "peerDependencies": {
     "typescript": "^6"

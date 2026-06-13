@@ -12,18 +12,18 @@
   ],
   "router": "structure",
   "entryPointStrategy": "resolve",
-  "themeColor": "#1C2D24",
+  "themeColor": "#13231A",
   "plugin": [
     "typedoc-material-theme",
-    "typedoc-plugin-expand-object-like-types",
-    "typedoc-plugin-inline-sources"
+    "typedoc-plugin-merge-modules",
+    "typedoc-plugin-expand-object-like-types"
   ],
-  "customCss": "./docs/typedoc.css",
+  "customCss": "./assets/typedoc.css",
   "cleanOutputDir": true,
   "sourceLinkExternal": true,
   "githubPages": true,
   "mergeModulesMergeMode": "module-category",
-  "out": "./docs/pages",
+  "out": "./docs/typedoc",
   "readme": "./README.md",
   "markdownItOptions": {
     "html": true,

@@ -1,5 +1,7 @@
 # @meld-ts/core
 
+<img src="assets/meld-ts.png" width="320" />
+
 [![version](https://img.shields.io/npm/v/@meld-ts/core?style=for-the-badge)](https://www.npmjs.com/package/@meld-ts/core)
 
 从 [@zenstone/ts-utils](https://www.npmjs.com/package/@zenstone/ts-utils) 拆分的 TypeScript 核心工具库。
