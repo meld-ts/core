@@ -83,6 +83,9 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
     callback: EventCallbackFn<E[N]>,
   ): EventUnsubscribeFn;
 
+  /** 清除指定事件的全部监听器，或不传参数清除所有事件的全部监听器 */
+  off(): void;
+  off<N extends keyof E>(name: N): void;
   off<N extends keyof E>(name: N, callback: EventCallbackFn<E[N]>): void;
 
   emit<N extends keyof E>(name: N, params: E[N]): Promise<void>;
@@ -221,9 +224,19 @@ export const createEmitter = <E extends EventsDefinition = EventsDefinition>(
   };
 
   const off = <N extends keyof E>(
-    name: N,
-    callback: EventCallbackFn<E[N]>,
+    name?: N,
+    callback?: EventCallbackFn<E[N]>,
   ): void => {
+    if (name == null) {
+      listeners.clear();
+      _onceSets.clear();
+      return;
+    }
+    if (callback == null) {
+      listeners.get(name)?.clear();
+      _onceSets.delete(name);
+      return;
+    }
     listeners.get(name)?.delete(callback);
   };
 

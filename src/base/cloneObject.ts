@@ -25,9 +25,12 @@ export const cloneObjectByJson = <T extends object>(obj: T): T => {
     return JSON.parse(JSON.stringify(obj));
   } catch {
     console.warn(
-      'cloneObjectByJson: JSON.stringify failed, falling back to shallow copy (Object.assign)',
+      'cloneObjectByJson: JSON.stringify failed, falling back to shallow copy',
     );
-    return cloneObjectByAssign(obj);
+    // 数组降级必须保持数组形态——Object.assign({}, arr) 会变成普通对象
+    return Array.isArray(obj)
+      ? ([...obj] as unknown as T)
+      : cloneObjectByAssign(obj);
   }
 };
 

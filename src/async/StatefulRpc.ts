@@ -219,6 +219,10 @@ export class StatefulRpc<Result = object, Params = object> {
    * 以指定的 `settled` 结果一次性 settle `key` 下的所有 task，
    * 并触发对应事件。settle 后该 key 的所有 task 及定时器均被清除。
    *
+   * **执行顺序**：先 resolve/reject 所有 pending Promise，
+   * 再触发事件通知。事件仅作**通知**之用，不阻塞 settle 流程，
+   * 其错误由 emitter 的 `onError` 接管（不会中断后续处理）。
+   *
    * @returns `this`，支持链式调用
    */
   settle(settled: StatefulRpcSettled<Result>): this {

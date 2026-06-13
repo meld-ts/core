@@ -206,7 +206,7 @@ export const decimalAdjust = (
   }
   _value = +_value;
   _exp = +_exp;
-  if (Number.isNaN(_value) || !(typeof _exp === _typeNum && _exp % 1 === 0)) {
+  if (Number.isNaN(_value) || !(_exp % 1 === 0)) {
     return Number.NaN;
   }
   let _parts = (_value as number).toString().split('e');

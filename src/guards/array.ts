@@ -47,7 +47,7 @@ export const notEmptyArray = <T = unknown>(
   val: unknown,
   guard?: TypeGuard<T>,
 ): val is T[] =>
-  Array.isArray(val) && val.length
+  Array.isArray(val) && val.length > 0
     ? typeof guard === _typeFunc
       ? val.every(guard as TypeGuard)
       : true
