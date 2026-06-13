@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import type { TimerCustomMode } from './timer';
 import { createTicker, createTimer } from './timer';
 
 let seq = 0;
@@ -199,9 +200,19 @@ describe('createTimer', () => {
 
   test('supports custom mode object', async () => {
     let count = 0;
-    const customMode = {
-      set: (fn: () => void, ms: number) => setTimeout(fn, ms),
-      clear: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
+    // TimerMode 约束 Id 必须是 string，用 string key 封装原生 timer
+    const nativeIds = new Map<string, ReturnType<typeof setTimeout>>();
+    let seq = 0;
+    const customMode: TimerCustomMode<string> = {
+      set: (fn: () => void, ms: number) => {
+        const id = String(++seq);
+        nativeIds.set(id, setTimeout(fn, ms));
+        return id;
+      },
+      clear: (id: string) => {
+        clearTimeout(nativeIds.get(id));
+        nativeIds.delete(id);
+      },
     };
     const t = createTimer('custom', customMode);
     t.set(

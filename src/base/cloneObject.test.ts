@@ -52,7 +52,7 @@ describe('cloneObject', () => {
 
   test('falls back to cloneObjectByJson when structuredClone is unavailable', () => {
     const original = globalThis.structuredClone;
-    // @ts-ignore
+    // @ts-expect-error
     globalThis.structuredClone = undefined;
     try {
       const src = { a: { b: 1 } };
