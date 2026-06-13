@@ -3,6 +3,8 @@
 <img src="assets/meld-ts.png" width="320" />
 
 [![version](https://img.shields.io/npm/v/@meld-ts/core?style=for-the-badge)](https://www.npmjs.com/package/@meld-ts/core)
+[![bundlephobia](https://img.shields.io/bundlephobia/min/@meld-ts/core?style=for-the-badge)](https://www.npmjs.com/package/@meld-ts/core)
+[![coverage](https://img.shields.io/badge/coverage-100%25-orange?style=for-the-badge)](https://www.npmjs.com/package/@meld-ts/core)
 [![GitHub](https://img.shields.io/badge/GitHub-meld--ts%2Fcore-181717?style=for-the-badge&logo=github)](https://github.com/meld-ts/core)
 [![Docs](https://img.shields.io/badge/Docs-meld--ts.github.io%2Fcore-1C2D24?style=for-the-badge)](https://meld-ts.github.io/core/)
 

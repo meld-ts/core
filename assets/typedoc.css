@@ -1,6 +1,10 @@
+@import url("https://cdn.jsdelivr.net/npm/@fontsource/roboto-condensed@5.2.8/index.min.css");
+@import url("https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.2.8/index.min.css");
+/*@import url("https://cdn.jsdelivr.net/npm/@xz/fonts@1/serve/jetbrains-mono.min.css");*/
+
 :root, :root[data-theme="light"], :root[data-theme="dark"] {
   --font-sans: Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif !important;
-  --font-condensed-sans: "Roboto Condensed", "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif !important;
+  --font-condensed-sans: "Roboto Condensed", "Roboto", "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif !important;
   --font-mono: "JetBrains Mono", "Roboto Mono", "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", monospace !important;
 }
 
