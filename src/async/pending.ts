@@ -157,12 +157,13 @@ export const createPending = (): PendingHandle => {
         getPendingCount: () => counter.value,
       };
 
-      // 用 Promise.resolve 链式处理：同步抛出被捕获，异步 reject 被传播
-      const promise = Promise.resolve()
-        .then(() => fn(params, ...args) as Awaited<T> | PromiseLike<Awaited<T>>)
-        .finally(() => {
-          inflight.delete(key);
-        });
+      // new Promise executor 同步执行，fn 在 inflight.set 前调用，
+      // 保证 getPendingCount() 首次返回 0；constructor 同时捕获同步 throw
+      const promise = new Promise<Awaited<T>>((resolve) => {
+        resolve(fn(params, ...args) as Awaited<T> | PromiseLike<Awaited<T>>);
+      }).finally(() => {
+        inflight.delete(key);
+      });
 
       inflight.set(key, { promise, counter });
       return promise;
