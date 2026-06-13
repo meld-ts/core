@@ -11,6 +11,9 @@ Zero-dependency TypeScript utility library, extracted from
 [@zenstone/ts-utils](https://www.npmjs.com/package/@zenstone/ts-utils).
 Targets Node.js / Bun (`dist/` ESM + CJS) and browsers (`browser/` ESM + iife).
 
+- GitHub: https://github.com/meld-ts/core
+- Docs: https://meld-ts.github.io/core/
+
 Install: `npm install @meld-ts/core` / `bun add @meld-ts/core`
 
 ---

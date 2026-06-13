@@ -3,6 +3,8 @@
 <img src="assets/meld-ts.png" width="320" />
 
 [![version](https://img.shields.io/npm/v/@meld-ts/core?style=for-the-badge)](https://www.npmjs.com/package/@meld-ts/core)
+[![GitHub](https://img.shields.io/badge/GitHub-meld--ts%2Fcore-181717?style=for-the-badge&logo=github)](https://github.com/meld-ts/core)
+[![Docs](https://img.shields.io/badge/Docs-meld--ts.github.io%2Fcore-1C2D24?style=for-the-badge)](https://meld-ts.github.io/core/)
 
 从 [@zenstone/ts-utils](https://www.npmjs.com/package/@zenstone/ts-utils) 拆分的 TypeScript 核心工具库。
 零运行时依赖，面向 Node.js / Bun 和浏览器双平台。
@@ -14,7 +16,7 @@
 - **高阶函数模式** — `retry`、`timeout` 等是 `fn => fn` 的包装器，返回增强后的函数而非立即执行。
 - **不过度抽象** — 没有 DI、没有装饰器、没有配置体系。三行能解决的事不封装成类。
 
-API 文档由 TypeDoc 生成（`bun run doc`）。
+API 文档由 TypeDoc 生成，在线浏览：[meld-ts.github.io/core](https://meld-ts.github.io/core/)
 
 ## 安装
 
