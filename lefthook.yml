@@ -1,0 +1,9 @@
+pre-commit:
+  commands:
+    fmt:
+      run: bun run fmt && git add -u src/
+
+pre-push:
+  scripts:
+    "check.sh":
+      runner: sh

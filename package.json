@@ -103,6 +103,7 @@
   ],
   "license": "MIT",
   "scripts": {
+    "prepare": "lefthook install",
     "fmt": "biome format --write ./src",
     "lint": "biome lint --error-on-warnings ./src",
     "ts-check": "tsgo --noEmit",
@@ -117,7 +118,8 @@
     "@biomejs/biome": "^2.4.16",
     "@types/bun": "latest",
     "@typescript/native-preview": "^7.0.0-dev.20260611.2",
-    "bunup": "^0.16.32"
+    "bunup": "^0.16.32",
+    "lefthook": "^2.1.9"
   },
   "peerDependencies": {
     "typescript": "^6"
