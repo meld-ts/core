@@ -101,6 +101,11 @@
       "name": "思源@AI-SOUL"
     }
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meld-ts/core.git"
+  },
+  "homepage": "https://meld-ts.github.io/core/",
   "license": "MIT",
   "scripts": {
     "prepare": "lefthook install",
