@@ -1,0 +1,29 @@
+:root, :root[data-theme="light"], :root[data-theme="dark"] {
+  --font-sans: Inter, Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Roboto Mono", "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", monospace;
+}
+
+:root[data-theme='light'] {
+  --color-text: rgba(0, 0, 0, 0.75) !important;
+}
+
+:root[data-theme='dark'] {
+  --color-text: rgba(255, 255, 255, 0.75) !important;
+}
+
+body {
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-east-asian: simplified;
+  hyphenate-character: auto;
+}
+
+/** {*/
+/*  font-weight: 400 !important;*/
+/*  scrollbar-width: unset;*/
+/*  scrollbar-color: unset;*/
+/*}*/
+
+/*.page-menu, .site-menu {*/
+/*  font-weight: 400 !important;*/
+/*}*/

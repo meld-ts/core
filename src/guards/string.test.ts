@@ -26,13 +26,18 @@ describe('guards/string', () => {
 
   describe('notEmptyString', () => {
     test('should return true for non-empty strings', () => {
-      expect(notEmptyString(' ')).toBe(true);
-      expect(notEmptyString('\n')).toBe(true);
-      expect(notEmptyString(' \n\t')).toBe(true);
+      expect(notEmptyString('hello')).toBe(true);
+      expect(notEmptyString('  hello  ')).toBe(true);
     });
 
-    test('should return false for empty or non-string', () => {
+    test('should return false for blank or empty strings', () => {
+      expect(notEmptyString(' ')).toBe(false);
+      expect(notEmptyString('\n')).toBe(false);
+      expect(notEmptyString(' \n\t')).toBe(false);
       expect(notEmptyString('')).toBe(false);
+    });
+
+    test('should return false for non-string', () => {
       expect(notEmptyString(null)).toBe(false);
       expect(notEmptyString(false)).toBe(false);
       expect(notEmptyString(undefined)).toBe(false);

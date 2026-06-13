@@ -23,22 +23,21 @@ export const isString = (val: unknown): val is string =>
   typeof val === _typeStr;
 
 /**
- * 检查 val 是否为非空字符串（长度 > 0，含类型收窄）
+ * 检查 val 是否为非空字符串（trim 后长度 > 0，含类型收窄）
  *
- * 先通过 {@link isString} 判定，再检查 `length > 0`。
- * 空白字符（空格、`\t`、`\n` 等）视为"非空"——长度大于 0 即通过。
- * 如需过滤纯空白，请组合使用额外的 trim 检查。
+ * 先通过 {@link isString} 判定，再检查 `val.trim().length > 0`。
+ * 纯空白字符串（`' '`、`'\t'`、`'\n'` 等）视为空，返回 `false`。
  *
  * @param val — 待检查的任意值
- * @returns `true` 当且仅当 val 是长度大于 0 的字符串，同时收窄为 `string`
+ * @returns `true` 当且仅当 val 是 trim 后长度大于 0 的字符串，同时收窄为 `string`
  *
  * @example
  * ```ts
  * notEmptyString('hello');  // true
- * notEmptyString(' ');      // true（空白字符也通过！）
+ * notEmptyString(' ');      // false（纯空白视为空）
  * notEmptyString('');       // false
  * notEmptyString(null);     // false
  * ```
  */
 export const notEmptyString = (val: unknown): val is string =>
-  isString(val) && val.length > 0;
+  isString(val) && val.trim().length > 0;

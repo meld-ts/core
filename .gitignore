@@ -36,3 +36,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 tmp
 temp
+
+# typedoc generated output (deployed via GitHub Actions, not committed)
+docs/typedoc

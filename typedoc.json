@@ -1,0 +1,62 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "@meld-ts/core",
+  "entryPoints": [
+    "src/index.ts",
+    "src/timer.ts",
+    "src/singleton.ts",
+    "src/path.ts",
+    "src/traits/index.ts",
+    "src/events/index.ts",
+    "src/async/index.ts"
+  ],
+  "router": "structure",
+  "entryPointStrategy": "resolve",
+  "themeColor": "#1C2D24",
+  "plugin": [
+    "typedoc-material-theme",
+    "typedoc-plugin-expand-object-like-types",
+    "typedoc-plugin-inline-sources"
+  ],
+  "customCss": "./docs/typedoc.css",
+  "cleanOutputDir": true,
+  "sourceLinkExternal": true,
+  "githubPages": true,
+  "mergeModulesMergeMode": "module-category",
+  "out": "./docs/pages",
+  "readme": "./README.md",
+  "markdownItOptions": {
+    "html": true,
+    "linkify": true
+  },
+  "sort": [
+    "kind",
+    "visibility"
+  ],
+  "sortEntryPoints": true,
+  "kindSortOrder": [
+    "Reference",
+    "Project",
+    "Module",
+    "Namespace",
+    "Interface",
+    "TypeAlias",
+    "Enum",
+    "EnumMember",
+    "Variable",
+    "Function",
+    "Class",
+    "Constructor",
+    "Property",
+    "Accessor",
+    "Method",
+    "Parameter",
+    "TypeParameter",
+    "TypeLiteral",
+    "CallSignature",
+    "ConstructorSignature",
+    "IndexSignature",
+    "GetSignature",
+    "SetSignature"
+  ]
+}
