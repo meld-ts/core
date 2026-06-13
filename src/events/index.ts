@@ -88,6 +88,13 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
   emit<N extends keyof E>(name: N, params: E[N]): Promise<void>;
 }
 
+export interface EventsEmitterOptions<
+  E extends EventsDefinition = EventsDefinition,
+> {
+  onError?: (err: unknown, name: keyof E | PropertyKey) => void;
+  [key: string]: unknown;
+}
+
 /**
  * 事件委托者接口
  *
@@ -163,7 +170,7 @@ export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
  * - 同一事件的所有监听器并发执行（Promise.all）
  * - `on(name, cb, true)` 等同于 `once()`——触发后自动移除
  * - `off(name, cb)` 直接通过引用匹配移除，对 `isOnce` 回调同样有效
- * - 任意监听器抛出时，emit 返回的 Promise 以 AggregateError 拒绝
+ * - 任意监听器抛出时，emit 皆静默，可通过 `options.onError` 进行对错误发生时的处理
  *
  * @example
  * ```ts
@@ -176,9 +183,9 @@ export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
  * off(); // 取消监听
  * ```
  */
-export const createEmitter = <
-  E extends EventsDefinition = EventsDefinition,
->(): EventsEmitter<E> => {
+export const createEmitter = <E extends EventsDefinition = EventsDefinition>(
+  options?: EventsEmitterOptions<E>,
+): EventsEmitter<E> => {
   // biome-ignore lint/suspicious/noExplicitAny: listener map uses any for per-event type flexibility
   const listeners = new Map<keyof E, Set<EventCallbackFn<any>>>();
   // 按事件隔离的 once 标记——同一 callback 可用于不同事件，互不干扰
@@ -200,6 +207,7 @@ export const createEmitter = <
     if (isOnce) {
       let ws = _onceSets.get(name);
       if (!ws) {
+        // biome-ignore lint/suspicious/noExplicitAny: uses any for per-event type flexibility
         ws = new WeakSet<EventCallbackFn<any>>();
         _onceSets.set(name, ws);
       }
@@ -225,12 +233,13 @@ export const createEmitter = <
   ): Promise<void> => {
     const set = listeners.get(name);
     if (set == null || set.size === 0) return;
-    const errors: unknown[] = [];
+    // 缺省 emit 遇到异常时，采取静默，不抛出异常，只通过 onError 将错误通知
     await Promise.all(
       [...set].map((fn) =>
         Promise.resolve()
           .then(async () => fn(params))
-          .catch((err) => errors.push(err)),
+          // 异常是否处理，由调用方决策
+          .catch((err) => options?.onError?.(err, name)),
       ),
     );
     // 触发后清理 once 回调（按事件隔离，不跨事件误删）
@@ -240,12 +249,6 @@ export const createEmitter = <
         onceSet.delete(fn);
         off(name, fn);
       }
-    }
-    if (errors.length > 0) {
-      throw new AggregateError(
-        errors,
-        `emit(${String(name)}) had ${errors.length} error(s)`,
-      );
     }
   };
 
@@ -317,15 +320,23 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
  * - input 已是 EventsEmitter：直接返回
  * - input 为 EventsCallbacks 或 EventsDelegator：创建新 emitter 并挂载
  *
- * @param input  可选输入（三种类型之一）
- * @param create 自定义创建函数（默认 createEmitter）
+ * @param input           可选输入（三种类型之一）
+ * @param createOrOptions 自定义创建函数（默认 createEmitter），或创建 EventsEmitter 时的参数
+ * @param options         创建 EventsEmitter 时的参数
  */
 export const initEventsEmitter = <
   E extends EventsDefinition = EventsDefinition,
 >(
-  input?: EventsInput<E> | null,
-  create: () => EventsEmitter<E> = createEmitter,
+  input: EventsInput<E> | null | undefined,
+  createOrOptions?:
+    | EventsEmitterOptions<E>
+    | ((o?: EventsEmitterOptions<E>) => EventsEmitter<E>),
+  options?: EventsEmitterOptions<E>,
 ): EventsEmitter<E> => {
+  const create = () =>
+    typeof createOrOptions === 'function'
+      ? createOrOptions(options)
+      : createEmitter(createOrOptions);
   if (input == null) return create();
   if (isEventsEmitter<E>(input)) return input;
   return linkEvents(create(), input);

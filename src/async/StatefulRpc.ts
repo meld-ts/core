@@ -33,7 +33,7 @@ export type StatefulRpcOptions<Result, Params> = {
 export interface StatefulRpcTask<Params> {
   /** 外部资源 key，同一个 key 可同时存在多个 task */
   readonly key: string;
-  /** 内部唯一 task id，格式：`{instanceId}:{key}:{counter}` */
+  /** 内部唯一 task id，格式：`{instanceId}_{key}_{counter}` */
   readonly taskId: string;
   /** 调用 `pending()` 时传入的参数 */
   readonly params: Params;
@@ -111,7 +111,7 @@ export class StatefulRpc<Result = object, Params = object> {
     this.#timeout = isNumber(timeout) && timeout > 0 ? timeout : 30 * 1000;
     this.#timer = createTimer(this.#id);
     this.#pendings = new Map();
-    this.#emitter = initEventsEmitter(events);
+    this.#emitter = initEventsEmitter(events, { onError: console.warn });
   }
 
   /** 实例唯一 id */
@@ -141,7 +141,7 @@ export class StatefulRpc<Result = object, Params = object> {
     params: Params,
     rest: Omit<PendingItem<Result, Params>, 'task'>,
   ): PendingItem<Result, Params> {
-    const taskId = `${key}:${this.#taskCounter++}`;
+    const taskId = `${this.#id}_${key}_${this.#taskCounter++}`;
     return {
       ...rest,
       task: Object.freeze({ key, taskId, params, date: new Date() }),
@@ -159,8 +159,8 @@ export class StatefulRpc<Result = object, Params = object> {
     } else {
       map.set(taskId, item);
     }
-    this.#emitter.emit('pending', { task: item.task });
     this.#timer.set(taskId, () => this.onTimeout(item), item.timeout);
+    this.#emitter.emit('pending', { task: item.task });
     return item;
   }
 
@@ -226,17 +226,14 @@ export class StatefulRpc<Result = object, Params = object> {
     for (const it of items) {
       const { task } = it;
       this.removePendingItem(it);
-      this.#emitter
-        .emit(settled.type, { task, result: settled.result })
-        .catch(console.error);
-      this.#emitter
-        .emit('settle', { ...settled, task: it.task })
-        .catch(console.error);
+      // 确保优先 resolve or reject ，而后再触发事件以通知调用者
       if (settled.type === 'resolve') {
         it.resolve(settled.result);
       } else {
         it.reject(settled.result);
       }
+      this.#emitter.emit(settled.type, { task, result: settled.result });
+      this.#emitter.emit('settle', { ...settled, task: it.task });
     }
     return this;
   }

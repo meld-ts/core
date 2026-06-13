@@ -17,6 +17,11 @@ export type PathUtilsOptions = {
    * 在 `purge` 阶段最先执行。默认不传则不做任何安全检查——
    * 这意味着 `join('/var/www', '../../../etc')` 会返回 `../etc`。
    *
+   * **调用时机**：`join(...paths)` 中，每个顶层 `path` 参数调用一次 `purge`，
+   * 即 `dangerReplace` 每个参数只执行一次。若传入含分隔符的参数（如
+   * `` join(`${prefix}/a/b`) ``），回调看到的是完整的 `"prefix/a/b"` 字符串；
+   * `join` 在内部 split 后得到的子段不会再次触发 `dangerReplace`。
+   *
    * **强烈建议**在此回调中实现路径遍历拦截，例如：
    * - 检测并移除 `..` 段
    * - 检测并拒绝绝对路径
@@ -119,7 +124,11 @@ export const createPathUtils = ({
   /**
    * 拼接多个路径段
    *
-   * 每个段经 {@link purge} 清理后拼接。支持 `.`（跳过）和 `..`（消除前一段）。
+   * 每个顶层参数调用一次 {@link purge}（含 `dangerReplace`），
+   * 若结果含分隔符则内部 split 后逐段处理，子段不再重复执行 `purge`。
+   * 因此 `dangerReplace` 对每个传入参数恰好执行一次。
+   *
+   * 支持 `.`（跳过）和 `..`（消除前一段）。
    * `..` 不会穿越到结果为空以上——多余的 `..` 会原样保留。
    *
    * @returns 拼接后的路径字符串
@@ -127,14 +136,14 @@ export const createPathUtils = ({
   const join = (...paths: PathInput[]): string => {
     let parts: string[] = [];
 
-    const handlePart = (input: string) => {
-      const part = purge(input);
+    const handlePart = (input: string, isPurged = false) => {
+      const part = isPurged ? input.trim() : purge(input);
       if (part === '' || part === '.') return;
 
       if (part.includes(separator)) {
         const _parts = part.split(separator);
         for (const _part of _parts) {
-          handlePart(_part);
+          handlePart(_part, true);
         }
         return;
       }
