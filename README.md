@@ -71,13 +71,14 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 `browser/` 目录提供针对浏览器环境的构建产物，所有模块合并为单文件：
 
 - **ESM**：`browser/index.js`
-- **iife**：`browser/index.global.js`，全局变量 `MeldTS`
+- **iife**：`browser/iife.global.js`，全局变量 `MeldTS`
 
 通过 CDN 直接引用：
 
 ```html
 <!-- iife，适合直接在页面中使用 -->
 <script src="https://cdn.jsdelivr.net/npm/@meld-ts/core/browser/iife.global.js"></script>
+<!--<script src="https://unpkg.com/@meld-ts/core@1.0.0/browser/iife.global.js"></script>-->
 <script>
   const { isString, createEmitter } = MeldTS;
 </script>
@@ -85,8 +86,18 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 <!-- ESM，适合现代构建环境或原生 ES modules -->
 <script type="module">
   import { isString } from 'https://cdn.jsdelivr.net/npm/@meld-ts/core/browser/index.js';
+  // import { isString } from 'https://unpkg.com/@meld-ts/core@1.0.0/browser/index.js';
 </script>
 ```
+
+可以在项目中的 d.ts 中添加全局变量声明（针对 iife）
+
+```ts
+declare global {
+  var MeldTS: typeof import("@meld-ts/core/browser");
+}
+```
+
 
 ## 开发
 
