@@ -396,7 +396,6 @@ describe('implTraits integration', () => {
     const b = new AppService();
     expect(a.debugConfig).toBeDefined();
     expect(b.debugConfig).toBeDefined();
-    // biome-ignore lint/style/noNonNullAssertion: toBeDefined() asserts above
     expect(a.debugConfig!).toBe(b.debugConfig!);
   });
 
