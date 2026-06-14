@@ -96,9 +96,9 @@ describe('retry', () => {
       await wrapped();
 
       expect(params.length).toBe(2);
-      expect(params[0].attempt).toBe(1);
-      expect(params[0].error).toBeInstanceOf(Error);
-      expect(params[1].attempt).toBe(2);
+      expect(params[0]!.attempt).toBe(1);
+      expect(params[0]!.error).toBeInstanceOf(Error);
+      expect(params[1]!.attempt).toBe(2);
     });
 
     test('should support delay as function with RetryFnParams', async () => {
@@ -151,10 +151,10 @@ describe('retry', () => {
 
       await wrapped();
       expect(receivedParams.length).toBe(2);
-      expect(receivedParams[0].attempt).toBe(1);
-      expect(receivedParams[0].error).toBeUndefined();
-      expect(receivedParams[1].attempt).toBe(2);
-      expect(receivedParams[1].error).toBeInstanceOf(Error);
+      expect(receivedParams[0]!.attempt).toBe(1);
+      expect(receivedParams[0]!.error).toBeUndefined();
+      expect(receivedParams[1]!.attempt).toBe(2);
+      expect(receivedParams[1]!.error).toBeInstanceOf(Error);
     });
 
     test('should strip RetryFnParams from returned function signature', async () => {
