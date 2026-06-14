@@ -78,7 +78,6 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 ```html
 <!-- iife，适合直接在页面中使用 -->
 <script src="https://cdn.jsdelivr.net/npm/@meld-ts/core/browser/iife.global.js"></script>
-<!--<script src="https://unpkg.com/@meld-ts/core@1.0.0/browser/iife.global.js"></script>-->
 <script>
   const { isString, createEmitter } = MeldTS;
 </script>
@@ -86,9 +85,18 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 <!-- ESM，适合现代构建环境或原生 ES modules -->
 <script type="module">
   import { isString } from 'https://cdn.jsdelivr.net/npm/@meld-ts/core/browser/index.js';
-  // import { isString } from 'https://unpkg.com/@meld-ts/core@1.0.0/browser/index.js';
 </script>
 ```
+
+**unpkg**
+
+- iife：https://unpkg.com/@meld-ts/core/browser/iife.global.js
+- esm bundle: https://unpkg.com/@meld-ts/core/browser/index.js
+
+JSDmirror
+
+- iife: https://cdn.jsdmirror.com/npm/@meld-ts/core/browser/iife.global.js
+- esm bundle: https://cdn.jsdmirror.com/npm/@meld-ts/core/browser/index.js
 
 可以在项目中的 d.ts 中添加全局变量声明（针对 iife）
 
