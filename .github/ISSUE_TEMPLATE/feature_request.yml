@@ -1,0 +1,40 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting, please check if a similar request already exists.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve? What's the use case?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work? A code sketch is helpful.
+      render: typescript
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds you've tried?
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Please confirm your proposal fits these constraints
+      options:
+        - label: Zero runtime dependencies
+          required: true
+        - label: Compatible with Node.js ESM + CJS and Browser
+          required: true

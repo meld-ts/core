@@ -25,5 +25,5 @@
 
     "resolveJsonModule": true
   },
-  "exclude": ["node_modules", "dist", "docs", "browser", "assets", "bunup.config.ts", "bunup.browser.ts"]
+  "exclude": ["node_modules", "dist", "docs", "browser", "assets", "bunup.*.ts"]
 }
