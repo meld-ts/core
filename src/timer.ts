@@ -1,7 +1,7 @@
 import { _typeFunc } from './_internal';
 import { isInferObject, isString } from './guards';
 
-export const _errTimerModeInvalid = 'Timer mode invalid';
+const _errTimerModeInvalid = 'Timer mode invalid';
 
 /**
  * timer / ticker 实例的操作接口

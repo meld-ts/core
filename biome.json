@@ -15,7 +15,14 @@
     }
   },
   "files": {
-    "includes": ["scripts/**/*.{ts,js}", "src/**/*.{ts,js}", "!docs", "!dist"]
+    "includes": [
+      "scripts/**/*.{ts,js}",
+      "src/**/*.{ts,js}",
+      "bunup.*.ts",
+      "!docs",
+      "!dist",
+      "!browser/**/*"
+    ]
   },
   "formatter": {
     "enabled": true,
