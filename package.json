@@ -111,7 +111,7 @@
     "prepare": "lefthook install",
     "fmt": "biome format --write ./src",
     "lint": "biome lint --error-on-warnings ./src",
-    "ts-check": "tsgo --noEmit",
+    "ts-check": "tsc --noEmit",
     "test": "bun test src/ --coverage",
     "build:exports": "bunup --config bunup.exports.ts",
     "build:browser": "bunup --config bunup.browser.ts",
@@ -124,7 +124,6 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
     "@types/bun": "latest",
-    "@typescript/native-preview": "^7.0.0-dev.20260611.2",
     "bunup": "^0.16.32",
     "lefthook": "^2.1.9",
     "typedoc": "^0.28.19",
@@ -133,6 +132,6 @@
     "typedoc-plugin-merge-modules": "^7.0.0"
   },
   "peerDependencies": {
-    "typescript": "^6"
+    "typescript": "^7"
   }
 }

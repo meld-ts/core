@@ -107,7 +107,7 @@ export interface EventsEmitterOptions<
 export interface EventsDelegator<
   E extends EventsDefinition = EventsDefinition,
 > {
-  inject(emitter?: EventsEmitter<E>): void;
+  inject(emitter?: EventsEmitter<E>, once?: boolean): void;
   eject(): void;
 }
 
@@ -294,7 +294,8 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
   mode: LinkEventMode = 'on',
 ): EventsEmitter<E> => {
   if (isEventsDelegator(input)) {
-    mode === 'off' ? input.eject() : input.inject(emitter);
+    if (mode === 'off') input.eject();
+    else input.inject(emitter, mode === 'once');
     return emitter;
   }
 
@@ -387,7 +388,7 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
   let unsubscribers: EventUnsubscribeFn[] = [];
 
   return {
-    inject: (emitter) => {
+    inject: (emitter, forceOnce = false) => {
       if (emitter == null) return;
       for (const unsub of unsubscribers) unsub();
       unsubscribers = [];
@@ -401,7 +402,7 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
           | MarkedCallback<E[keyof E]>
         )[]) {
           const fn = typeof item === 'function' ? item : item.fn;
-          const isOnce = typeof item !== 'function' && item.once;
+          const isOnce = forceOnce || (typeof item !== 'function' && item.once);
           unsubscribers.push(emitter.on(key, fn, isOnce));
         }
       }

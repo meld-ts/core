@@ -71,7 +71,7 @@ export const configurable = <T extends object>(presets: T): Configurable<T> => {
       users[key] = value;
     },
 
-    getAll: (): T => ({ ..._presets, ...users }) as T,
+    getAll: (): T => cloneObject({ ..._presets, ...users }) as T,
 
     setAll: (data: Partial<T>): void => {
       Object.assign(users, data);

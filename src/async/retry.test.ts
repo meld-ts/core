@@ -74,7 +74,8 @@ describe('retry', () => {
         const err = e as RetryExhaustedError;
         expect(err.attempt).toBe(3);
         expect(err.error).toBeInstanceOf(Error);
-        expect(err.options).toBe(opts);
+        expect(err.options).toEqual(opts);
+        expect(Object.isFrozen(err.options)).toBe(true);
       }
       expect(attempts).toBe(3);
     });
