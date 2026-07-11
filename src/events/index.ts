@@ -107,7 +107,15 @@ export interface EventsEmitterOptions<
 export interface EventsDelegator<
   E extends EventsDefinition = EventsDefinition,
 > {
+  /**
+   * 将回调映射注册到 emitter 上，存储反注册函数。
+   *
+   * @param emitter 目标发射器，传 `null`/`undefined` 为 no-op
+   * @param once 若为 `true`，强制所有回调以 once 模式注册，
+   *   覆盖回调自身的 `once` 标记。由 {@link linkEvents} 在 `mode='once'` 时传入
+   */
   inject(emitter?: EventsEmitter<E>, once?: boolean): void;
+  /** 解除所有已注册的回调 */
   eject(): void;
 }
 
@@ -378,8 +386,9 @@ export const initEventsEmitter = <
  *   close: [() => console.log('closed'), () => cleanup()],
  * });
  *
- * delegator.inject(emitter);  // 注册所有回调
- * delegator.eject();          // 取消所有回调（无需传 emitter）
+ * delegator.inject(emitter);        // 注册所有回调
+ * delegator.inject(emitter, true);  // 强制所有回调只触发一次
+ * delegator.eject();                // 取消所有回调（无需传 emitter）
  * ```
  */
 export const createDelegator = <E extends EventsDefinition = EventsDefinition>(

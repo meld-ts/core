@@ -24,13 +24,29 @@ describe('retry — options immutability', () => {
     expect(attempts).toBe(3);
   });
 
-  test('retry options should be frozen — object.isFrozen', async () => {
+  test('retry does not mutate the original options object', async () => {
     const opts = { attempts: 3, delay: 10 };
     retry(async () => 'ok', opts);
-    // The original opts object should not be mutated by retry.
-    // (retry may freeze a copy internally; original doesn't need to be frozen,
-    // but the copy used at runtime must be frozen.)
-    expect(opts.attempts).toBe(3); // original untouched
+    // retry may freeze a copy internally; original should remain untouched
+    expect(opts.attempts).toBe(3);
+    expect(opts.delay).toBe(10);
+  });
+
+  test('RetryExhaustedError.options is frozen for retry (not just retryFn)', async () => {
+    const wrapped = retry(
+      async () => {
+        throw new Error('always fails');
+      },
+      { attempts: 2, delay: 10 },
+    );
+    try {
+      await wrapped();
+      expect.unreachable('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(RetryExhaustedError);
+      const err = e as RetryExhaustedError;
+      expect(Object.isFrozen(err.options)).toBe(true);
+    }
   });
 });
 
