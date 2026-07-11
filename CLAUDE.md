@@ -21,7 +21,7 @@ src/
   traits/           # Mixin 系统：implTraits / configurable / debuggable
   events/           # EventsEmitter（Promise.all 并发）/ linkEvents / createDelegator
   async/            # StatefulRpc / pending / retry / timeout / sleep
-  browser.ts        # Browser 全量入口（iife 全局变量 MeldTS）
+  browser/          # Browser 全量入口（iife.ts 全局变量 MeldTS + index.ts ESM）
 docs/
   reviews/          # 代码审查记录，命名格式：YYYYMMDD-描述.md
 ```
@@ -29,12 +29,16 @@ docs/
 ## 常用命令
 
 ```bash
-bun run fmt          # Biome 格式化（src/）
-bun run lint         # Biome lint，warning 视为错误
-bun run ts-check     # tsgo --noEmit，TS 6.x 原生检查
-bun run test         # 运行所有测试 + 覆盖率
-bun run build        # bunup，产物到 dist/（node esm + cjs）
-bun run build:browser # bunup，产物到 browser/（iife + esm）
+bun run fmt            # Biome 格式化（src/）
+bun run lint           # Biome lint，warning 视为错误
+bun run ts-check       # tsgo --noEmit，TS 6.x 原生类型检查
+bun run test           # 运行所有测试 + 覆盖率
+bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
+bun run build:browser  # bunup，产物到 browser/（esm + iife）
+bun run build:dist     # bunup，产物到 dist/（node esm + cjs）
+bun run build          # build:browser && build:dist
+bun run doc            # 生成 TypeDoc API 文档
+bun run doc:watch      # TypeDoc 文档监听模式
 ```
 
 ## 代码规范
@@ -74,25 +78,35 @@ interface MyClass extends MyTrait {}
 ```
 `implTraits` 复制属性描述符（含 Symbol 键），跳过 `constructor`，支持 getter/setter。
 
+`configurable` 的 `getAll()` 返回深拷贝（`cloneObject`），修改返回值不会污染内部 presets。
+`get(key)` 返回的是内部引用（未拷贝），嵌套对象仍与内部共享——若需隔离请使用 `getAll()`。
+
 ### events 模块
-- 监听器并发执行（`Promise.all`），任意一个抛出时以 `AggregateError` 拒绝
+- 监听器并发执行（`Promise.all`），**emit 不会因监听器异常而 reject**——异常被静默 catch，通过 `options.onError` 回调通知
 - `once` 回调无论成功失败都在触发后清理（不重试失败的 once）
-- 目前无 `removeAllListeners`，长期存活的 emitter 需要用户手动管理订阅生命周期
+- `off()` 三档重载：`off()` 清除所有事件全部监听器、`off(name)` 清除指定事件全部监听器、`off(name, callback)` 清除特定回调
+- `linkEvents` 的 `mode='once'` 对 `EventsDelegator` 同样生效——`inject(emitter, forceOnce)` 会强制所有回调只触发一次
+- `createDelegator` 返回的 `inject` 接受可选第二参数 `forceOnce`，为 `true` 时覆盖回调自身的 `once` 标记
 
 ### async 模块
-- `pending` / `pendingFn` 使用全局 `scopeRegistry` 检测静态 scope 重复注册，测试中务必在 `afterEach` 调用 `clearPendingRegistry()`
-- `StatefulRpc.settle()` 中事件发射是 fire-and-forget（`.catch(console.error)`），**不等待事件处理完成**再 resolve/reject Promise，事件处理器不应依赖"此时 Promise 未 settle"的假设
-- `path.ts` 的 `dangerReplace` 在处理含分隔符的路径段时会被多次调用，有状态实现需注意
+- `pending` / `pendingFn` 使用全局 `scopeRegistry` 检测静态 scope 重复注册，测试中务必在 `afterEach` 调用 `clearPendingRegistry()`；HMR 场景改用 `createPending()` 创建模块级独立实例
+- `retry` 和 `retryFn` 都在内部冻结 options 副本（`Object.freeze`），`RetryExhaustedError.options` 存储的是冻结副本，调用方后续修改原始 options 不影响已创建的 wrapper 行为
+- `timeout` 内部对 fnPromise 添加 `.catch(() => {})`，防止 timeout 赢之后 fn 延迟 reject 产生 unhandled rejection
+- `StatefulRpc.settle()` 中事件发射是 fire-and-forget，**不等待事件处理完成**再 resolve/reject Promise——先 settle Promise 再 emit 事件，事件处理器不应依赖"此时 Promise 未 settle"的假设。emit 的异常由 emitter 的 `onError` 接管（StatefulRpc 默认 `console.warn`）
+- `path.ts` 的 `dangerReplace` 对每个顶层 `join(...paths)` 参数恰好执行一次——`handlePart` 内部 split 出的子段跳过 `purge`，不会重复触发 `dangerReplace`
 
 ## 构建产物说明
 
 | 命令 | 产物目录 | 格式 | target |
 |------|----------|------|--------|
-| `build` | `dist/` | esm + cjs | node |
+| `build:dist` | `dist/` | esm + cjs | node |
 | `build:browser` | `browser/` | esm + iife | browser |
+| `build` | `dist/` + `browser/` | 同上 | 同上 |
 
 `package.json` 的 `exports` 字段声明了以下子路径：
 - `.` — 主入口（types + guards + base）
 - `./timer` `./singleton` `./path`
 - `./traits` `./events` `./async`
 - `./package.json`
+
+`browser/` 目录不在 `exports` 中——它只应被网页 `<script>` 直接引用，不应被打包工具作为模块导入。

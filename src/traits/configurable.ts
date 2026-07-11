@@ -3,6 +3,9 @@ import { cloneObject } from '../base';
 export type Configurable<T extends object> = {
   /**
    * 读取配置值，优先级：用户设置 > 预设值
+   *
+   * 返回的是内部引用（未拷贝），嵌套对象与内部 presets/users 共享——
+   * 修改返回值的嵌套属性会污染内部状态。若需隔离请使用 {@link getAll}。
    */
   get<K extends keyof T>(key: K): T[K];
   /**
@@ -18,6 +21,8 @@ export type Configurable<T extends object> = {
   has<K extends keyof T>(key: K): boolean;
   /**
    * 获取合并后的完整配置：{ ...presets, ...users }
+   *
+   * 返回深拷贝（`cloneObject`），修改返回值不会污染内部 presets/users。
    */
   getAll(): T;
   /**
@@ -71,7 +76,7 @@ export const configurable = <T extends object>(presets: T): Configurable<T> => {
       users[key] = value;
     },
 
-    getAll: (): T => ({ ..._presets, ...users }) as T,
+    getAll: (): T => cloneObject({ ..._presets, ...users }) as T,
 
     setAll: (data: Partial<T>): void => {
       Object.assign(users, data);

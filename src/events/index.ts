@@ -107,7 +107,15 @@ export interface EventsEmitterOptions<
 export interface EventsDelegator<
   E extends EventsDefinition = EventsDefinition,
 > {
-  inject(emitter?: EventsEmitter<E>): void;
+  /**
+   * 将回调映射注册到 emitter 上，存储反注册函数。
+   *
+   * @param emitter 目标发射器，传 `null`/`undefined` 为 no-op
+   * @param once 若为 `true`，强制所有回调以 once 模式注册，
+   *   覆盖回调自身的 `once` 标记。由 {@link linkEvents} 在 `mode='once'` 时传入
+   */
+  inject(emitter?: EventsEmitter<E>, once?: boolean): void;
+  /** 解除所有已注册的回调 */
   eject(): void;
 }
 
@@ -294,7 +302,8 @@ export const linkEvents = <E extends EventsDefinition = EventsDefinition>(
   mode: LinkEventMode = 'on',
 ): EventsEmitter<E> => {
   if (isEventsDelegator(input)) {
-    mode === 'off' ? input.eject() : input.inject(emitter);
+    if (mode === 'off') input.eject();
+    else input.inject(emitter, mode === 'once');
     return emitter;
   }
 
@@ -377,8 +386,9 @@ export const initEventsEmitter = <
  *   close: [() => console.log('closed'), () => cleanup()],
  * });
  *
- * delegator.inject(emitter);  // 注册所有回调
- * delegator.eject();          // 取消所有回调（无需传 emitter）
+ * delegator.inject(emitter);        // 注册所有回调
+ * delegator.inject(emitter, true);  // 强制所有回调只触发一次
+ * delegator.eject();                // 取消所有回调（无需传 emitter）
  * ```
  */
 export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
@@ -387,7 +397,7 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
   let unsubscribers: EventUnsubscribeFn[] = [];
 
   return {
-    inject: (emitter) => {
+    inject: (emitter, forceOnce = false) => {
       if (emitter == null) return;
       for (const unsub of unsubscribers) unsub();
       unsubscribers = [];
@@ -401,7 +411,7 @@ export const createDelegator = <E extends EventsDefinition = EventsDefinition>(
           | MarkedCallback<E[keyof E]>
         )[]) {
           const fn = typeof item === 'function' ? item : item.fn;
-          const isOnce = typeof item !== 'function' && item.once;
+          const isOnce = forceOnce || (typeof item !== 'function' && item.once);
           unsubscribers.push(emitter.on(key, fn, isOnce));
         }
       }

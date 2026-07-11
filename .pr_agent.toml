@@ -1,0 +1,18 @@
+# Repo-local PR-Agent config.
+# Loaded from the default branch by PR-Agent; keep in sync with workflow env
+# overrides in .github/workflows/pr-agent.yml for feature-branch PRs.
+# Docs: https://docs.pr-agent.ai/usage-guide/configuration_options/
+
+[pr_reviewer]
+enable_review_labels_security = true
+enable_review_labels_effort = true
+extra_instructions = """\
+Security bar for this repo: only report / label "possible security issue" \
+for high-confidence, newly introduced, exploitable issues in library code \
+(path traversal via ../ or absolute paths in path.ts, prototype pollution \
+via __proto__/constructor, type confusion bypassing guards, unhandled \
+promise rejections in async utilities, regex DoS). Do NOT label or treat \
+as blocking: missing tests, code style, speculative defense-in-depth, \
+or issues in test files. Focus-area findings may still be listed as \
+advisory review notes. \
+"""

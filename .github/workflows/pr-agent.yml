@@ -1,0 +1,84 @@
+# PR-Agent — AI review on pull requests (no GitHub Copilot billing).
+# Docs: https://docs.pr-agent.ai/installation/github/
+# Local notes: docs/pr-agent.md
+#
+# Setup (once per repo):
+#   1. GitHub → Settings → Secrets and variables → Actions
+#   2. New repository secret: DEEPSEEK_API_KEY = <platform.deepseek.com key>
+#   3. Merge this workflow (+ .pr_agent.toml) to the default branch
+#   4. Open a PR — github-actions bot posts /review (+ describe)
+#
+# PR comments (slash commands):
+#   /review   /describe   /improve   /ask <question>
+
+name: PR Agent
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+
+jobs:
+  pr_agent_job:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: write
+    name: PR Agent review
+    steps:
+      - name: Run PR Agent
+        id: pragent
+        uses: the-pr-agent/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # DeepSeek — pay the model vendor, not GitHub Copilot
+          config.model: "deepseek/deepseek-chat"
+          config.fallback_models: '["deepseek/deepseek-chat"]'
+          DEEPSEEK.KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # Auto tools on PR open / sync (keep improve off — noisier)
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_improve: "false"
+          # Default skips synchronize; include it explicitly
+          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "synchronize"]'
+          # Chinese review comments
+          config.response_language: "zh-CN"
+          # Label only high-confidence security; gate below keys off this label
+          pr_reviewer.enable_review_labels_security: "true"
+          pr_reviewer.enable_review_labels_effort: "true"
+          # Mirrored in .pr_agent.toml (default-branch load); env so feature PRs get it too
+          pr_reviewer.extra_instructions: >-
+            Security bar for this repo: only report / label "possible security issue"
+            for high-confidence, newly introduced, exploitable issues in library code
+            (path traversal via ../ or absolute paths in path.ts, prototype pollution
+            via __proto__/constructor, type confusion bypassing guards, unhandled
+            promise rejections in async utilities, regex DoS). Do NOT label or treat
+            as blocking: missing tests, code style, speculative defense-in-depth,
+            or issues in test files. Focus-area findings may still be listed as
+            advisory review notes.
+
+      # Advisory review stays green. Only the security label fails the check
+      # (human can remove the label to override — documented on the PR).
+      - name: Gate on security label
+        if: github.event_name == 'pull_request' || github.event.issue.pull_request != null
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+
+          labels="$(gh api "repos/${REPO}/issues/${ISSUE_NUMBER}/labels" --jq '[.[].name] | join("\n")')"
+          echo "PR labels:"
+          echo "${labels:-"(none)"}"
+
+          if printf '%s\n' "$labels" | grep -qi '^possible security issue$'; then
+            echo "::error::PR-Agent label: possible security issue"
+            echo "Remove the label after triage to override, then re-run this check."
+            exit 1
+          fi
+
+          echo "PR-Agent gate passed (no possible security issue label)."

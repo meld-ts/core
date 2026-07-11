@@ -144,8 +144,9 @@ export const retry = <F extends AnyFunction>(
   fn: F,
   options: RetryOptions = {},
 ): ((...args: Parameters<F>) => Promise<Awaited<ReturnType<F>>>) => {
+  const frozenOptions = Object.freeze({ ...options });
   return (...args: Parameters<F>) =>
-    executeWithRetry((_attempt, _error) => fn(...args), options);
+    executeWithRetry((_attempt, _error) => fn(...args), frozenOptions);
 };
 
 /**
@@ -181,7 +182,7 @@ export const retryFn = <T, Args extends unknown[]>(
     executeWithRetry(
       (attempt, error) =>
         fn({ attempt, error, options: frozenOptions }, ...args),
-      options,
+      frozenOptions,
     );
 };
 
@@ -211,8 +212,14 @@ export const timeout = <F extends AnyFunction>(
 ): ((...args: Parameters<F>) => Promise<Awaited<ReturnType<F>>>) => {
   return (...args: Parameters<F>) => {
     let timerId: ReturnType<typeof setTimeout>;
+    const fnPromise = Promise.resolve(fn(...args)).finally(() =>
+      clearTimeout(timerId),
+    );
+    // 吞掉 timeout 赢之后的延迟 reject/resolve，防止 unhandled rejection
+    // （Promise.race settle 后不再监听输家的后续状态）
+    fnPromise.catch(() => {});
     return Promise.race([
-      Promise.resolve(fn(...args)).finally(() => clearTimeout(timerId)),
+      fnPromise,
       new Promise<never>((_, reject) => {
         timerId = setTimeout(() => reject(new TimeoutError(ms)), ms);
       }),
