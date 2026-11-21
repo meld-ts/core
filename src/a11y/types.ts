@@ -445,8 +445,11 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
       RoleDefiniteCheck<R> &
       PropsDefiniteCheck<I>,
   ): A11yAttrs<R, I, O>;
+  // aria 也拦 union props（同 a11y(role, props) 挂 PropsDefiniteCheck）：
+  // AriaAttrs 对 union 分布成各分支输出的并集，keyof 取公共键是 never，
+  // 一个键都读不出来，运行时却发其中一个分支的属性（§12.9）。
   aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(
-    props: I & Exact<I, AriaKey>,
+    props: I & Exact<I, AriaKey> & PropsDefiniteCheck<I>,
   ): AriaAttrs<I, O>;
 };
 

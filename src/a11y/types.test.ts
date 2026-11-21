@@ -194,6 +194,17 @@ describe.skip('a11y() input constraints', () => {
     check(a11yBiome.aria({ focusable: true }));
   });
 
+  test('aria() rejects union props', () => {
+    const cond = Math.random() > 0.5;
+    // @ts-expect-error props 是 union：AriaAttrs 对两个分支各映射一份，
+    // keyof 取公共键是 never，一个键都读不出来，运行时却发其中一个分支的
+    // 属性，类型和实际输出漂移
+    check(a11yBiome.aria(cond ? { expanded: true } : { controls: ['a'] }));
+    // 单分支各写各的调用不受影响
+    check(a11yBiome.aria({ expanded: true }));
+    check(a11yBiome.aria({ controls: ['a'] }));
+  });
+
   test('required idlist keys reject the literal empty tuple', () => {
     // @ts-expect-error 必填的 controls 传空元组：NoEmpty 会把输出键丢掉，
     // 输出就过不了 oxlint 的表

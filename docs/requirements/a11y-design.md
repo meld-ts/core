@@ -603,12 +603,13 @@ round 1–4 给实现加了几组检查，此前没入档，此处补记（定�
 
 | 检查 | 语义 |
 |---|---|
-| `NoEmpty` / `NoEmptyRequired` | 空 idlist（字面量空元组）按「没传」处理：join 出的 `''` 不是合法 id 列表，类型层把空元组归一成 `undefined`，输出键随之省略或变可选（§3 输出表的 `controls: []` 一行）；必填 idlist 键传空元组在 `a11y()` 调用点报错——否则输出键被丢掉，「输出过选中的表」的承诺落空。已知限制：非元组（`string[]` 变量持有 `[]`）认不出空数组 |
+| `NoEmpty` / `NoEmptyRequired` | 空 idlist（字面量空元组）按「没传」处理：join 出的 `''` 不是合法 id 列表，类型层把空元组归一成 `undefined`，输出键随之省略或变可选（§3 输出表的 `controls: []` 一行）；必填 idlist 键传空元组（round 13 起含空元组的 union 同拦，见 §12.9）在 `a11y()` 调用点报错——否则输出键被丢掉，「输出过选中的表」的承诺落空。已知限制：非元组（`string[]` 变量持有 `[]`）认不出空数组 |
 | `LintSelectionCheck` | `lint` 传空数组 / `never[]` 在 `createA11y` 调用点报错：空选择归约成 never 表，带 aria 属性的 `a11y()` 调用虽会在各自调用点报错，但信息不可读（"not assignable to never"）；这个检查把错误前移到 `createA11y`，换成一条可读的消息。数组类型的变量（`A11yLintName[]`）不拦 |
 | `OptionsKeyCheck` | 拼错的选项键（如 `outpt`）在 `createA11y` 调用点报错，不静默退回默认值 |
 
 round 11 补记：`NameEmptyCheck`（挂 `a11y()` 的 `props` 参数上，同
-`NoEmptyRequired`）——名字必填的 role，`labelledBy` 传字面量空元组在调用点
+`NoEmptyRequired`）——名字必填的 role，`labelledBy` 传字面量空元组（round 13
+起含空元组的 union 同拦，见 §12.9）在调用点
 报错：空 idlist 按「没传」处理（`NoEmpty`），对名字必填的 role 等于没给名字，
 §4 的「label / labelledBy 至少一个」落空。非元组数组（`string[]` 变量持有
 `[]`）认不出，仍是 `NoEmpty` 已记录的限制；名字规则非 required 的 role（如
@@ -646,6 +647,21 @@ round 12 修三个同源的漏网（定义都在 `src/a11y/types.ts`，tsc 5.9.3
 | `NameEmptyCheck` 误报 `a11y('img', { label: 'x', labelledBy: [] })`：label 已给名，空 labelledBy 只是死键（NoEmpty 丢掉它），§4 的「label / labelledBy 至少一个」已满足 | label 在 I 里（`I extends { label: string }`）就跳过空元组检查 |
 
 顺带更正 §12.6 的 never role 说法（见该节），以及 `FocusRequirement` 旧注释里「外层条件对 I 分布即可逐成员强制」的说法：分布的产物是「某成员要求 \| 其余 unknown」，吸收后强制整个消失，正是第二个漏网的机制；union 现在在调用点被 `PropsDefiniteCheck` 拦下，键存在门（被检类型是字面量）也不再分布。
+
+### 12.9 round 13–14：空元组 union 值与 aria 的 union props
+
+round 13 起，值是**含空元组的 union**（`readonly [] | readonly ['a']`）和字面量空元组同样拦截（定义在 `src/a11y/types.ts`，tsc 5.9.3 实测）：
+
+| 检查 | 语义 |
+|---|---|
+| `EmptyTupleKeys` / `NoEmptyRequired` | required / requiredWhenFocusable 的 idlist 键，值含 `readonly []` 就在 `a11y()` 调用点报错：`NoEmpty` 分布归一后输出键可能整个丢掉，「输出过选中的表」的承诺落空。判据用分布的 `Extract<I[K], readonly []>`——非分布的 `I[K] extends readonly []` 对 union 判不中 |
+| `NameEmptyCheck` | 名字必填的 role，`labelledBy` 值含 `readonly []` 同样报错（等于可能没给名字）；判据同样用 `Extract<V, readonly []>`——分布判的 `V extends readonly []` 会把错误对象和 unknown 并起来吸收成 unknown。label 在 I 里（已给名）不触发 |
+
+非空元组的 union（`readonly ['a'] | readonly ['a', 'b']`）不触发；`string[]` 变量不受影响——非元组认不出空数组，仍是 `NoEmpty` 已记录的限制（§12.5）。
+
+round 14 起，`a11y.aria()` 的 props 也挂 `PropsDefiniteCheck`（与 `a11y(role, props)` 一致，机制见 §12.8）：union props 下 `AriaAttrs` 分布成各分支输出的并集，`keyof` 取公共键是 `never`，调用方拿到一个键都读不出的输出类型，运行时却发其中一个分支的属性——类型承诺和实际输出漂移，宁可在调用点报错，让调用方把分支写进一个对象或拆成两次调用。
+
+测试证据：`src/a11y/types.test.ts`（required idlist / 名字必填的 `labelledBy` 传含空元组 union 报错，非空 union 与 `string[]` 变量通过；aria 的 union props 报错、单分支调用通过）。
 
 ## 附录 A：类型原型（已实测）
 
@@ -723,7 +739,7 @@ type Exact<I, Allowed extends PropertyKey> = { [K in Exclude<keyof I, Allowed>]:
 // §12.8：这道形状匹配门（I extends { focusable: unknown }）已被实现取代——
 // 键存在判定（'focusable' extends keyof I 先于 true extends I['focusable']），
 // 形状匹配判不中条件展开推出的可选键；原型还缺 PropsDefiniteCheck /
-// NameEmptyCheck / NoEmptyRequired（rounds 3–12 新增）。
+// NameEmptyCheck / NoEmptyRequired（rounds 3–14 新增）。
 type FocusRequirement<P extends A11yProfile, R extends A11yRole, I> =
   I extends { focusable: unknown } ? (true extends I['focusable'] ? { [K in Rule<P, R>['requiredWhenFocusable']]-?: AriaValue<K> } : unknown) : unknown;
 
@@ -740,7 +756,7 @@ type TabKey<O extends A11yOutputMode> = O extends 'html' ? 'tabindex' : 'tabInde
 type TabVal<O extends A11yOutputMode> = O extends 'html' ? '0' : 0;
 // §12.8：同 FocusRequirement 的门——已被键存在判定取代（'focusable'
 // extends keyof I 先于 true extends I['focusable']）；原型还缺
-// PropsDefiniteCheck / NameEmptyCheck / NoEmptyRequired（rounds 3–12 新增）。
+// PropsDefiniteCheck / NameEmptyCheck / NoEmptyRequired（rounds 3–14 新增）。
 type FocusAttr<I, O extends A11yOutputMode> = I extends { focusable: unknown }
   ? true extends I['focusable']
     ? undefined extends I['focusable']
@@ -752,6 +768,8 @@ export type A11yAttrs<R, I, O extends A11yOutputMode> = { readonly role: R } & F
 
 export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
   <R extends A11yRole, const I extends A11yInput<P, R>>(role: R, props: I & Exact<I, Rule<P, R>['supported'] | 'focusable'> & FocusRequirement<P, R, I>): A11yAttrs<R, I, O>;
+  // §12.9：aria 的 props 实现里还挂 PropsDefiniteCheck（union props 报错，
+  // 输出 keyof 才不会退化成 never）——原型没带这道检查，是实现后补的。
   aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(props: I & Exact<I, AriaKey>): AriaAttrs<I, O>;
 };
 export type A11yOptions = { readonly lint: A11yLintName | readonly A11yLintName[]; readonly output?: A11yOutputMode };
