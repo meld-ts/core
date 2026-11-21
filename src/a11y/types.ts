@@ -135,7 +135,7 @@ type Rule<P extends A11yProfile, R extends A11yRole> = P['roles'][R];
 
 type NameRequirement<N> = N extends 'required'
   ? { label: string } | { labelledBy: string | readonly string[] }
-  : {};
+  : Record<never, never>;
 
 export type A11yInput<P extends A11yProfile, R extends A11yRole> = {
   [K in Rule<P, R>['required']]-?: AriaValue<K>;
@@ -212,8 +212,8 @@ type FocusAttr<I, O extends A11yOutputMode> = I extends {
     ? undefined extends I['focusable']
       ? { readonly [K in TabKey<O>]?: TabVal<O> }
       : { readonly [K in TabKey<O>]: TabVal<O> }
-    : {}
-  : {};
+    : Record<never, never>
+  : Record<never, never>;
 
 export type A11yAttrs<R, I, O extends A11yOutputMode> = {
   readonly role: R;
