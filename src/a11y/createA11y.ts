@@ -1,5 +1,10 @@
 import type { AriaIdListKey } from './aria.generated';
-import type { A11yOf, A11yOptions, OverrideKeyCheck } from './types';
+import type {
+  A11yOf,
+  A11yOptions,
+  LintSelectionCheck,
+  OverrideKeyCheck,
+} from './types';
 
 /**
  * idlist 属性的运行时最小表：只有这些键的数组值用空格拼接。
@@ -28,8 +33,29 @@ interface A11yCallable {
   aria(props: Record<string, unknown>): Record<string, unknown>;
 }
 
+/**
+ * 绑定项目的 lint 规则表和输出模式，返回可调用的 a11y。
+ *
+ * 项目里只建一次（`export const a11y = createA11y({ lint: 'biome' })`），
+ * 两个入口：
+ * - `a11y(role, props)`：按 role 的规则表约束输入，输出带 role 的属性
+ * - `a11y.aria(props)`：给原生元素补 ARIA 状态，不带 role
+ *
+ * 不认识、拼错的属性名是类型错误；缺必填属性同样是类型错误。
+ *
+ * @param options lint 用哪张（或哪几张）规则表；output 是值的输出形式
+ * @returns 可调用的 a11y，附带 a11y.aria 入口
+ *
+ * @example
+ * ```ts
+ * const a11y = createA11y({ lint: 'biome' });
+ *
+ * a11y('switch', { checked: true, label: 'Wi-Fi' });
+ * a11y.aria({ expanded: true });
+ * ```
+ */
 export function createA11y<const Opt extends A11yOptions>(
-  options: Opt & OverrideKeyCheck,
+  options: Opt & OverrideKeyCheck & LintSelectionCheck<Opt>,
 ): A11yOf<Opt>;
 export function createA11y(options: A11yOptions): unknown {
   const html: boolean = options.output === 'html';
@@ -49,7 +75,13 @@ export function createA11y(options: A11yOptions): unknown {
     for (const key of Object.keys(props)) {
       if (key === 'focusable') continue;
       const value = props[key];
-      if (value === undefined) continue;
+      // 空数组按没传处理：[] join 出 ''，不是合法 id 列表
+      if (
+        value === undefined ||
+        (IDLIST_SET.has(key) && Array.isArray(value) && value.length === 0)
+      ) {
+        continue;
+      }
       out[`aria-${key.toLowerCase()}`] = convert(key, value);
     }
     return out;

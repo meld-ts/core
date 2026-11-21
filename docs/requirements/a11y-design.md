@@ -580,6 +580,10 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' --glob '*.{tsx,jsx}'
 
 审查 02 之外顺带发现的一点：core 的 `package.json` 写的是 `typescript: ^7`，但 `bun.lock` 里锁的是 5.9.3（typedoc 0.28 的 peer 只到 6.0.x），所以仓库现在跑 `ts-check` 用的其实是 5.9.3。这不是 a11y 的问题，单独处理。
 
+### 12.3 附录 A 修订：r4 断言
+
+附录 A r4 的原断言 `Eq<(typeof r4)['aria-expanded'], true | undefined>` 对 react 模式下的 `boolean | undefined` 输入过于乐观：tsc 5.9.3 实测推导是 `boolean | undefined`，字面量 `true` 不会凭空出现。实现不变（见 commit 1cd71a2 与 `docs/reviews/20261121-a11y-plan-a.md` 决定三），只把该行断言改为 `boolean | undefined`，已用 tsc 5.9.3 复测。
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。
@@ -734,7 +738,7 @@ both('separator', { focusable: true });
 const r4 = a11y.aria({ expanded: onOpt, controls: ['a', 'b'] });
 assert<Eq<(typeof r4)['aria-controls'], string>>();
 assert<Eq<keyof typeof r4, 'aria-expanded' | 'aria-controls'>>();
-assert<Eq<(typeof r4)['aria-expanded'], true | undefined>>();
+assert<Eq<(typeof r4)['aria-expanded'], boolean | undefined>>();
 const r5 = a11y('separator', { focusable: maybe, valueNow: 2 });
 assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>>();
 void r2;

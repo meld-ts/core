@@ -6,12 +6,18 @@ import type {
   AriaKey,
   AriaValue,
 } from './aria.generated';
+import { createA11y } from './createA11y';
 import type {
   A11yBuiltinLints,
   BiomeA11yProfile,
   OxlintA11yProfile,
 } from './lints';
-import type { A11yOf, A11yProfile, ResolveProfile } from './types';
+import type {
+  A11yLintName,
+  A11yOf,
+  A11yProfile,
+  ResolveProfile,
+} from './types';
 
 /** 类型相等断言：Eq<A, B> 为 true 当且仅当 A、B 互相可赋值 */
 type Eq<A, B> =
@@ -152,6 +158,16 @@ describe.skip('a11y() output inference', () => {
     check(a, b, c, d);
   });
 
+  test('html output stringifies boolean variables', () => {
+    const r = a11yBoth('combobox', {
+      expanded: onBool,
+      controls: 'm',
+      label: 'x',
+    });
+    const a: Assert<Eq<(typeof r)['aria-expanded'], 'true' | 'false'>> = true;
+    check(a);
+  });
+
   test('img with details compiles and keeps exact keys', () => {
     const r2 = a11yBiome('img', { label: 'x', details: 'd' });
     const a: Assert<
@@ -211,5 +227,21 @@ describe.skip('multi-lint merge', () => {
     const c: Assert<Eq<ResolveProfile<'biome'>['meta']['lint'], 'biome'>> =
       true;
     check(a, b, c);
+  });
+});
+
+describe.skip('createA11y lint selection', () => {
+  test('empty lint array is a type error', () => {
+    // @ts-expect-error 空表退化为没有必填的表，调用会静默通过
+    check(createA11y({ lint: [] }));
+    // @ts-expect-error as const 的空数组同样拒绝
+    check(createA11y({ lint: [] as const }));
+  });
+
+  test('array-typed lint variables still compile', () => {
+    const mutable: A11yLintName[] = ['biome'];
+    const readonlyArr: readonly A11yLintName[] = ['biome'];
+    check(createA11y({ lint: mutable }));
+    check(createA11y({ lint: readonlyArr }));
   });
 });

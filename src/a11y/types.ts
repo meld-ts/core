@@ -78,6 +78,19 @@ export type OverrideKeyCheck = ([UnknownOverrideKeys] extends [never]
         readonly 'Invalid A11yLintOverrides shape, rerun meld a11y probe': BadShapeKeys;
       });
 
+/**
+ * 空 lint 表检查：lint 传空数组字面量时，合并退化为一张没有任何必填的
+ * 表，部分调用静默通过（设计 §4 的不变量禁止）。判据是选中的字面量类型
+ * 可赋给 `readonly []`：只有空元组满足，`A11yLintName[]` /
+ * `readonly A11yLintName[]` 变量不可赋给零长元组，不受影响。
+ * 和 OverrideKeyCheck 同一机制，挂到 createA11y 参数上在调用点报错。
+ */
+export type LintSelectionCheck<Opt extends A11yOptions> = [
+  Opt['lint'],
+] extends [readonly []]
+  ? { readonly 'lint array must not be empty': Opt['lint'] }
+  : unknown;
+
 /** 实际生效的表：有重载、且结构对，用重载；否则用内置 */
 export type A11yLints = { [K in A11yLintName]: CheckOverride<K> };
 
@@ -183,20 +196,27 @@ type OutValue<V, O extends A11yOutputMode> = V extends readonly string[]
     ? Str<V>
     : V;
 
+/**
+ * 空 idlist 数组按「没传」处理：join 出的 '' 不是合法 id 列表，运行时
+ * 跳过空数组。类型层把空元组归一成 undefined，输出键和 undefined 一样
+ * 消失或变可选，两边不漂。
+ */
+type NoEmpty<V> = V extends readonly [] ? undefined : V;
+
 type AriaAttrs<I, O extends A11yOutputMode> = {
   readonly [K in keyof I as K extends string
-    ? undefined extends I[K]
+    ? undefined extends NoEmpty<I[K]>
       ? never
       : `aria-${Lowercase<K>}`
-    : never]: OutValue<I[K], O>;
+    : never]: OutValue<NoEmpty<I[K]>, O>;
 } & {
   readonly [K in keyof I as K extends string
-    ? undefined extends I[K]
-      ? [I[K]] extends [undefined]
+    ? undefined extends NoEmpty<I[K]>
+      ? [NoEmpty<I[K]>] extends [undefined]
         ? never
         : `aria-${Lowercase<K>}`
       : never
-    : never]?: OutValue<Exclude<I[K], undefined>, O>;
+    : never]?: OutValue<Exclude<NoEmpty<I[K]>, undefined>, O>;
 };
 
 type TabKey<O extends A11yOutputMode> = O extends 'html'

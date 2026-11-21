@@ -53,6 +53,20 @@ describe('createA11y runtime', () => {
     });
   });
 
+  test('empty idlist array emits no key', () => {
+    expect(
+      react('combobox', { expanded: true, controls: [], label: 'x' }),
+    ).toEqual({
+      role: 'combobox',
+      'aria-expanded': true,
+      'aria-label': 'x',
+    });
+    expect(react('img', { label: 'x', labelledBy: [] })).toEqual({
+      role: 'img',
+      'aria-label': 'x',
+    });
+  });
+
   test('undefined optional value emits no key', () => {
     expect(react('img', { label: 'x', details: undefined })).toEqual({
       role: 'img',
