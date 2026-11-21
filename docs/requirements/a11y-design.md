@@ -720,6 +720,10 @@ export type A11yInput<P extends A11yProfile, R extends A11yRole> =
   & { focusable?: true | undefined }
   & NameRequirement<A11yNameRule[R]>;
 type Exact<I, Allowed extends PropertyKey> = { [K in Exclude<keyof I, Allowed>]: never };
+// §12.8：这道形状匹配门（I extends { focusable: unknown }）已被实现取代——
+// 键存在判定（'focusable' extends keyof I 先于 true extends I['focusable']），
+// 形状匹配判不中条件展开推出的可选键；原型还缺 PropsDefiniteCheck /
+// NameEmptyCheck / NoEmptyRequired（rounds 3–12 新增）。
 type FocusRequirement<P extends A11yProfile, R extends A11yRole, I> =
   I extends { focusable: unknown } ? (true extends I['focusable'] ? { [K in Rule<P, R>['requiredWhenFocusable']]-?: AriaValue<K> } : unknown) : unknown;
 
@@ -734,6 +738,9 @@ type AriaAttrs<I, O extends A11yOutputMode> = {
 };
 type TabKey<O extends A11yOutputMode> = O extends 'html' ? 'tabindex' : 'tabIndex';
 type TabVal<O extends A11yOutputMode> = O extends 'html' ? '0' : 0;
+// §12.8：同 FocusRequirement 的门——已被键存在判定取代（'focusable'
+// extends keyof I 先于 true extends I['focusable']）；原型还缺
+// PropsDefiniteCheck / NameEmptyCheck / NoEmptyRequired（rounds 3–12 新增）。
 type FocusAttr<I, O extends A11yOutputMode> = I extends { focusable: unknown }
   ? true extends I['focusable']
     ? undefined extends I['focusable']

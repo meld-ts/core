@@ -105,6 +105,8 @@ declare const maybeFocus: true | undefined;
 declare const onBool: boolean;
 declare const maybeBool: boolean | undefined;
 declare const idList: string[];
+declare const maybeEmptyIds: readonly [] | readonly ['a'];
+declare const nonEmptyIds: readonly ['a'] | readonly ['a', 'b'];
 declare const rolePair: 'switch' | 'img';
 declare const roleUnion: A11yRole;
 
@@ -205,6 +207,26 @@ describe.skip('a11y() input constraints', () => {
     );
   });
 
+  test('required idlist keys reject union values containing the empty tuple', () => {
+    check(
+      // @ts-expect-error 值是含空元组的 union：NoEmpty 归一后输出键可能
+      // 整个丢掉，同样过不了 oxlint 的表
+      a11yOxlint('combobox', {
+        expanded: true,
+        controls: maybeEmptyIds,
+        label: 'x',
+      }),
+    );
+    // 非空元组的 union 不触发
+    check(
+      a11yOxlint('combobox', {
+        expanded: true,
+        controls: nonEmptyIds,
+        label: 'x',
+      }),
+    );
+  });
+
   test('name-required roles reject the literal empty tuple for labelledBy', () => {
     // @ts-expect-error img 名字必填：labelledBy 空元组被 NoEmpty 归一成
     // undefined，等于没给名字（§4 的 label / labelledBy 至少一个落空）
@@ -216,6 +238,14 @@ describe.skip('a11y() input constraints', () => {
     check(a11yBiome('img', { label: 'x', labelledBy: [] }));
     // string[] 变量仍允许：非元组认不出空数组（NoEmpty 已记录的限制）
     check(a11yBiome('img', { labelledBy: idList }));
+  });
+
+  test('name-required roles reject union values containing the empty tuple', () => {
+    // @ts-expect-error 值是含空元组的 union：NoEmpty 归一后等于可能没给
+    // 名字，label / labelledBy 至少一个落空
+    check(a11yBiome('img', { labelledBy: maybeEmptyIds }));
+    // 非空元组的 union 不触发
+    check(a11yBiome('img', { labelledBy: nonEmptyIds }));
   });
 });
 

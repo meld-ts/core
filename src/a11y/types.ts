@@ -293,17 +293,19 @@ type EmptyTupleScope<P extends A11yProfile, R extends A11yRole, I> =
  */
 type EmptyTupleKeys<Keys extends PropertyKey, I> = {
   [K in Keys]: [K] extends [keyof I]
-    ? I[K] extends readonly []
-      ? K
-      : never
+    ? Extract<I[K], readonly []> extends never
+      ? never
+      : K
     : never;
 }[Keys];
 
 /**
  * 必填键的空元组拦截：`controls: []` 满足 AriaValue，但 NoEmpty 会把
- * 输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。只拦得到
- * 字面量空元组；非元组（string[] 变量持有 []）类型层认不出，是 NoEmpty
- * 已记录的同一限制。
+ * 输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。值是含
+ * 空元组的 union（`readonly [] | readonly ['a']`）也拦（round 13 起：
+ * Extract 分布取出空元组成员判，非分布的 `I[K] extends readonly []`
+ * 对 union 判不中）；非元组（string[] 变量持有 []）类型层认不出，是
+ * NoEmpty 已记录的同一限制。
  *
  * 报错形状：触发键名编码进 message 属性的值（同 OverrideKeyCheck 的做法）。
  * 不要改回「把触发键映射成 never」：tsc 会把 props 里每个键都报成
@@ -323,7 +325,9 @@ type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
 /**
  * 名字必填的 role，labelledBy 传字面量空元组在调用点报错：空 idlist 按
  * 「没传」处理（NoEmpty），对名字必填的 role 等于没给名字，§4 的
- * 「label / labelledBy 至少一个」落空。label 在 I 里（label 已给名）不
+ * 「label / labelledBy 至少一个」落空。值是含空元组的 union 也拦
+ * （round 13 起：分布判的 `V extends readonly []` 会把错误对象和
+ * unknown 并起来吸收成 unknown）；label 在 I 里（label 已给名）不
  * 触发：此时空 labelledBy 只是死键，NoEmpty 丢掉它不算失约；非元组
  * （string[] 变量持有 []）认不出，是 NoEmpty 已记录的同一限制。
  */
@@ -331,9 +335,9 @@ type NameEmptyCheck<N, I> = N extends 'required'
   ? I extends { label: string }
     ? unknown
     : I extends { labelledBy: infer V }
-      ? V extends readonly []
-        ? { readonly 'accessible name must not be an empty id list': V }
-        : unknown
+      ? Extract<V, readonly []> extends never
+        ? unknown
+        : { readonly 'accessible name must not be an empty id list': V }
       : unknown
   : unknown;
 
