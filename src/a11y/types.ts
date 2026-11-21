@@ -57,9 +57,17 @@ type CheckOverride<K extends A11yLintName> =
 
 type UnknownOverrideKeys = Exclude<keyof A11yLintOverrides, A11yLintName>;
 
+/**
+ * 结构不对的键：值不是 A11yProfile，或是 union——探针只生成单张表，
+ * union 值会让 Rule<P, R> 对 union 分布式取表，supported 变并集，
+ * 只有单侧支持的属性静默通过（lint 名 union 漏洞的同型），两种都算
+ * 结构不对，用同一条错误信息在 createA11y 调用点报错。
+ */
 type BadShapeKeys = {
   [K in keyof A11yLintOverrides]: A11yLintOverrides[K] extends A11yProfile
-    ? never
+    ? IsUnion<A11yLintOverrides[K]> extends true
+      ? K
+      : never
     : K;
 }[keyof A11yLintOverrides];
 
@@ -183,16 +191,23 @@ type IsUnion<T, U = T> = T extends unknown
  * lint 名是 union 时必须走 MergeProfiles（supported 取交集）：
  * 分布式条件类型会把 union 拆成几张表的并集，supported 变成并集，
  * 只有部分 lint 支持的属性会静默通过，违反「按项目的 lint 分表」。
+ * 数组（含单元素数组）同样走 MergeProfiles（§4：传数组就是合并）：
+ * 约束结果和单表一致，只有 meta.source 变 'merged'。
  *
  * 分布检查走牺牲参数 _D：条件类型分布时会按成员替换 _D，但 L 不被替换，
- * 名字分支里 IsUnion<L> 看到的仍是完整 union。顶层保持分布式条件类型的
- * 原因：A11yOf 在泛型 Opt 下要靠它算出各分支的约束（非分布的
- * `[L] extends [...]` 会让约束退化为 unknown，A11yOf 编译不过）。
+ * 名字分支里 IsUnion<L> 看到的仍是完整 union。数组与否走牺牲参数 _Orig
+ * （展平前的原始 L）：单元素数组被 FlattenLint 展平成单个名字，
+ * IsUnion<L> 是 false，只有 _Orig 还认得出它是数组——round 4 删掉的
+ * 数组分支因此不可达，本分支是它在可达位置的等价恢复。顶层保持分布式
+ * 条件类型的原因：A11yOf 在泛型 Opt 下要靠它算出各分支的约束（非分布
+ * 的 `[L] extends [...]` 会让约束退化为 unknown，A11yOf 编译不过）。
  */
-type ResolveProfileImpl<L, _D = L> = _D extends A11yLintName
+type ResolveProfileImpl<L, _Orig = L, _D = L> = _D extends A11yLintName
   ? IsUnion<L> extends true
     ? MergeProfiles<L extends A11yLintName ? A11yLints[L] : never>
-    : A11yLints[L extends A11yLintName ? L : never]
+    : [_Orig] extends [readonly A11yLintName[]]
+      ? MergeProfiles<L extends A11yLintName ? A11yLints[L] : never>
+      : A11yLints[L extends A11yLintName ? L : never]
   : never;
 
 /**
@@ -203,7 +218,7 @@ type ResolveProfileImpl<L, _D = L> = _D extends A11yLintName
  */
 type FlattenLint<L> = L extends readonly A11yLintName[] ? L[number] : L;
 
-export type ResolveProfile<L> = ResolveProfileImpl<FlattenLint<L>>;
+export type ResolveProfile<L> = ResolveProfileImpl<FlattenLint<L>, L>;
 
 // ---- 输入 ----
 
@@ -234,6 +249,13 @@ type Exact<I, Allowed extends PropertyKey> = {
  * 条件必须是 `true extends I['focusable']`：变量类型含 true（如
  * true | undefined）也要打开额外必填。用 `I extends { focusable: true }`
  * 会判不中含 undefined 的变量。
+ *
+ * 这里的 `I extends { focusable: unknown } ? true extends I['focusable'] …`
+ * 两段式和 EmptyTupleScope / FocusAttr 里的重复是有意的，不要抽成共享
+ * 谓词：三处的输出形状不同（必填键映射 / 键集合 / tabIndex 键），且外层
+ * 条件对 I 分布——I 是 union 时每个成员各选各的分支；抽成布尔谓词会把
+ * 按成员的判定压成 boolean，而 `boolean extends true` 是 false，全体
+ * 成员只会走同一个分支。
  */
 type FocusRequirement<
   P extends A11yProfile,

@@ -613,8 +613,8 @@ round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者
 
 | 选择 | 语义 |
 |---|---|
-| lint 名是 union（`'biome' \| 'oxlint'` 变量 / 条件表达式）或名字与数组混合的形状（`'biome' \| readonly ['oxlint']`） | 走 `MergeProfiles`（`supported` 取交集），不拆成几张表的并集。`FlattenLint` 先把混合形状展平成名字并集，`ResolveProfileImpl` 用非分布的 `IsUnion` 判定是 union 就合并。单名字直接取表、数组形式行为不变 |
-| role 是 union（`'switch' \| 'img'` 变量、整个 `A11yRole` 的包装） | 在 `a11y()` 调用点报错：`RoleDefiniteCheck` 挂在 `props` 参数上（机制同 `OutputDefiniteCheck`），role 类型不是单个字面量就报错，让调用方收窄成单个 role。**不取交集**：一个 role 的必填可能不在另一个的 supported 里（switch 必填 `checked`、img 的 supported 不含 `checked`），交集会把合法组合变成不可满足 |
+| lint 名是 union（`'biome' \| 'oxlint'` 变量 / 条件表达式）或名字与数组混合的形状（`'biome' \| readonly ['oxlint']`） | 走 `MergeProfiles`（`supported` 取交集），不拆成几张表的并集。`FlattenLint` 先把混合形状展平成名字并集，`ResolveProfileImpl` 用非分布的 `IsUnion` 判定是 union 就合并。单名字直接取表；数组（含单元素数组）一律走 `MergeProfiles`（§4 的既定行为，round 8 修复：单元素数组此前被展平成单名字而直接取表，只有 `meta.source` 与 §4 不符，约束结果不受影响） |
+| role 是 union（`'switch' \| 'img'` 变量、整个 `A11yRole` 的包装） | 在 `a11y()` 调用点报错：`RoleDefiniteCheck` 挂在 `props` 参数上（机制同 `OutputDefiniteCheck`），role 类型是 union 就报错，让调用方收窄成单个 role。never 类型的 role 不触发（`IsUnion<never>` 是 `never` 不是 `true`）。**不取交集**：一个 role 的必填可能不在另一个的 supported 里（switch 必填 `checked`、img 的 supported 不含 `checked`），交集会把合法组合变成不可满足 |
 
 为什么必须拦：`Rule<P, R> = P['roles'][R]` 和 `ResolveProfile` 的分布式定义对 union 都是把几张表并起来——`supported` 变并集，只有部分成员支持的属性静默通过；role 并集还让 `A11yNameRule[R]` 变成 `'required' | 'optional'`，`NameRequirement` 分布出一个 `Record<never, never>` 分支，名字必填被空对象满足。lint 侧违反 §2「替谁把关就按谁的表」，role 侧是同一漏洞的镜像。
 

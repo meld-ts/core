@@ -265,7 +265,11 @@ describe.skip('multi-lint merge', () => {
     const b: Assert<Eq<Merged['meta']['source'], 'merged'>> = true;
     const c: Assert<Eq<ResolveProfile<'biome'>['meta']['lint'], 'biome'>> =
       true;
-    check(a, b, c);
+    // §4：数组（含单元素）一律走 MergeProfiles，meta.source 是 'merged'
+    const d: Assert<
+      Eq<ResolveProfile<readonly ['biome']>['meta']['source'], 'merged'>
+    > = true;
+    check(a, b, c, d);
   });
 
   test('lint name union resolves through the merge, not a union of tables', () => {

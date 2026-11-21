@@ -45,4 +45,12 @@ describe('A11yLintOverrides', () => {
       'Invalid A11yLintOverrides shape, rerun meld a11y probe',
     );
   });
+
+  test('union-typed override value errors at createA11y with readable message', () => {
+    const { exitCode, output } = tsc('override-union');
+    expect(exitCode).not.toBe(0);
+    expect(output).toContain(
+      'Invalid A11yLintOverrides shape, rerun meld a11y probe',
+    );
+  });
 });
