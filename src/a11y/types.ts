@@ -87,12 +87,15 @@ export type OverrideKeyCheck = ([UnknownOverrideKeys] extends [never]
       });
 
 /**
- * 空 lint 表检查：lint 传空数组字面量时，合并退化为一张没有任何必填的
- * 表，部分调用静默通过（设计 §4 的不变量禁止）。判据是选中的字面量类型
+ * 空 lint 表检查：lint 传空数组字面量时，选择归约成 never 表（不是
+ * 「没有任何必填的表」）：Exact 把所有 aria 键映射成 never，每个带
+ * aria 属性的 a11y() 调用都报错——没有静默漏网，只是错误散落在每个
+ * 调用点上且不可读（"not assignable to never"）。这个检查把错误前移
+ * 到 createA11y 调用点，换成一条可读的消息。判据是选中的字面量类型
  * 可赋给 `readonly []`（空元组）或 `readonly never[]`（never 数组同样
- * 退化成空表）：`A11yLintName[]` / `readonly A11yLintName[]` 变量两个
- * 都不可赋，不受影响。和 OverrideKeyCheck 同一机制，挂到 createA11y
- * 参数上在调用点报错。
+ * 归约成 never 表）：`A11yLintName[]` / `readonly A11yLintName[]` 变量
+ * 两个都不可赋，不受影响。和 OverrideKeyCheck 同一机制，挂到
+ * createA11y 参数上在调用点报错。
  */
 export type LintSelectionCheck<Opt extends A11yOptions> = [
   Opt['lint'],
@@ -420,9 +423,14 @@ type AsProfile<P> = P extends A11yProfile ? P : never;
 /**
  * 已知限制：挂在 createA11y 参数上的调用点检查（OverrideKeyCheck、
  * LintSelectionCheck、OptionsKeyCheck、OutputDefiniteCheck）只拦
- * createA11y 这个正式入口；直接构造 `A11yOf` 会整体绕过这层检查
- * （如 `A11yOf<{ lint: [] }>` 仍得到一张没有必填的退化表）。
- * 类型层的保证以走 createA11y 为前提。
+ * createA11y 这个正式入口；直接构造 `A11yOf` 会整体绕过这层检查。
+ * 真正的绕过危险在 output 维度：`A11yOf<{ lint: 'biome'; output:
+ * A11yOutputMode }>` 绕过 OutputDefiniteCheck 后，TabKey 对双模式
+ * union 分布，输出类型同时要求 tabIndex 和 tabindex 两个键（值都推成
+ * `0 | '0'`），运行时只发一个。lint 维度没有静默漏网：`A11yOf<{
+ * lint: [] }>` 归约成 never 表，带 aria 属性的调用在各自调用点报错
+ * （见 LintSelectionCheck），只是错误不可读。类型层的保证以走
+ * createA11y 为前提。
  */
 export type A11yOf<Opt extends A11yOptions> = A11y<
   AsProfile<ResolveProfile<Opt['lint']>>,

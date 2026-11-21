@@ -93,6 +93,7 @@ grep -A4 '"./a11y"' package.json
 - 四种模式（用户/维护者 × 生成/测试）按设计 §6 工作
 - `bun run test:a11y-lint` 在 lab 里可重复运行
 - 发版前检查包含构建产物重载测试
+- 发版前检查包含一次 TS 7 验证：lockfile / peer 的 TypeScript 版本错位修复后，在声明的 `^7` 下复跑 `ts-check`（设计 §12.7）
 
 ---
 

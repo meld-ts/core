@@ -604,7 +604,7 @@ round 1–4 给实现加了几组检查，此前没入档，此处补记（定�
 | 检查 | 语义 |
 |---|---|
 | `NoEmpty` / `NoEmptyRequired` | 空 idlist（字面量空元组）按「没传」处理：join 出的 `''` 不是合法 id 列表，类型层把空元组归一成 `undefined`，输出键随之省略或变可选（§3 输出表的 `controls: []` 一行）；必填 idlist 键传空元组在 `a11y()` 调用点报错——否则输出键被丢掉，「输出过选中的表」的承诺落空。已知限制：非元组（`string[]` 变量持有 `[]`）认不出空数组 |
-| `LintSelectionCheck` | `lint` 传空数组 / `never[]` 在 `createA11y` 调用点报错：空表会退化成没有任何必填的表，部分调用静默通过。数组类型的变量（`A11yLintName[]`）不拦 |
+| `LintSelectionCheck` | `lint` 传空数组 / `never[]` 在 `createA11y` 调用点报错：空选择归约成 never 表，带 aria 属性的 `a11y()` 调用虽会在各自调用点报错，但信息不可读（"not assignable to never"）；这个检查把错误前移到 `createA11y`，换成一条可读的消息。数组类型的变量（`A11yLintName[]`）不拦 |
 | `OptionsKeyCheck` | 拼错的选项键（如 `outpt`）在 `createA11y` 调用点报错，不静默退回默认值 |
 
 ### 12.6 round 7：union 选择的 fail-closed 语义
@@ -623,6 +623,10 @@ round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者
 附录 A 的 `ResolveProfile` 是分布式定义，对 union / 混合形状的选择已被本节取代（单名字 / 数组两分支与实现一致），代码块里已加注。
 
 命名例外（round 9 记）：`MergeProfiles` / `ResolveProfile` 保留 §4/§5 的原名，不按前缀约定加 `A11y`/`Aria`——已核对兄弟模块（types/guards/base/timer/singleton/path/traits/events/async）的导出，无撞名，前缀约定的目的（browser `export *` 命名空间不撞名）已满足。
+
+### 12.7 round 10：TypeScript 7 验证推迟（ND 裁定）
+
+§7 第 1 层要求类型测试在 core 声明的 TypeScript 版本（`^7`）下跑。仓库今天跑不了 ^7：`bun.lock` 锁的是 5.9.3，typedoc 0.28 的 peer 只到 6.0.x（§12.2 已记录）。控制器裁定（ND）：等 lockfile / peer 的版本错位修好后再补一次 TS 7.0.2 的验证；附录 A 已在 7.0.2 和 5.9.3 双测过（§12.2）。验证项记入 [a11y-roadmap.md](./a11y-roadmap.md) Plan C 的发版前检查。
 
 ## 附录 A：类型原型（已实测）
 

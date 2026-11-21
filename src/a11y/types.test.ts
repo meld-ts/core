@@ -140,6 +140,12 @@ describe.skip('a11y() input constraints', () => {
     check(a11yBiome('separator', { focusable: maybeFocus, valueNow: 1 }));
   });
 
+  test('focusable: false is rejected', () => {
+    // @ts-expect-error focusable 只收 true（§3 / 审查 02 M1）：
+    // 不可聚焦就不写 focusable
+    check(a11yBiome('separator', { focusable: false, valueNow: 1 }));
+  });
+
   test('required props reject undefined', () => {
     // @ts-expect-error 必填 checked 不接受 boolean | undefined
     check(a11yBiome('switch', { checked: maybeBool, label: 'x' }));
@@ -149,6 +155,14 @@ describe.skip('a11y() input constraints', () => {
   test('single-id props reject arrays', () => {
     // @ts-expect-error details 只接受单个 id
     check(a11yBiome('img', { label: 'x', details: ['a', 'b'] }));
+  });
+
+  test('aria() rejects misspelled keys and focusable', () => {
+    // @ts-expect-error 拼错的 cheked 不在 AriaKey 里（Exact 拦截）
+    check(a11yBiome.aria({ cheked: true }));
+    // @ts-expect-error focusable 不是 ARIA 属性，aria() 不收；
+    // 可聚焦的 role 走 a11y(role, ...)
+    check(a11yBiome.aria({ focusable: true }));
   });
 
   test('required idlist keys reject the literal empty tuple', () => {
@@ -231,6 +245,13 @@ describe.skip('a11y() output inference', () => {
       valueNow: 2,
     });
     const a: Assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>> = true;
+    check(a);
+  });
+
+  test('optional idlist empty tuple drops the output key', () => {
+    const r = a11yBiome('separator', { labelledBy: [] });
+    const a: Assert<Eq<Extract<keyof typeof r, 'aria-labelledby'>, never>> =
+      true;
     check(a);
   });
 });
@@ -332,7 +353,8 @@ describe.skip('multi-lint merge', () => {
 
 describe.skip('createA11y lint selection', () => {
   test('empty lint array is a type error', () => {
-    // @ts-expect-error 空表退化为没有必填的表，调用会静默通过
+    // @ts-expect-error 空选择归约成 never 表，在 createA11y 拦下、
+    // 给一条可读的错，而不是把 never 错误漏到每个调用点
     check(createA11y({ lint: [] }));
     // @ts-expect-error as const 的空数组同样拒绝
     check(createA11y({ lint: [] as const }));
@@ -346,7 +368,7 @@ describe.skip('createA11y lint selection', () => {
   });
 
   test('never-typed lint array is a type error', () => {
-    // @ts-expect-error never[] 同样退化成没有任何必填的空表
+    // @ts-expect-error never[] 同样归约成 never 表
     check(createA11y({ lint: [] as never[] }));
     // @ts-expect-error readonly never[] 同样拒绝
     check(createA11y({ lint: [] as readonly never[] }));
