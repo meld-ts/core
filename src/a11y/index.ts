@@ -19,3 +19,11 @@ export type {
   OxlintA11yProfile,
 } from './lints';
 export type { A11yLintName, A11yProfile, A11yRoleRule } from './types';
+export { createA11y } from './createA11y';
+export type {
+  A11yLintOverrides,
+  A11yLints,
+  A11yOptions,
+  A11yOutputMode,
+  OverrideKeyCheck,
+} from './types';
