@@ -302,6 +302,19 @@ describe.skip('a11y() output inference', () => {
     check(a);
   });
 
+  test('html output maps the section 3 value table', () => {
+    const h1 = a11yBoth('switch', { checked: false, label: 'x' });
+    const a: Assert<Eq<(typeof h1)['aria-checked'], 'false'>> = true;
+    const h2 = a11yBoth('switch', { checked: 'mixed', label: 'x' });
+    const b: Assert<Eq<(typeof h2)['aria-checked'], 'mixed'>> = true;
+    const h3 = a11yBoth('separator', { valueNow: 50, label: 'x' });
+    const c: Assert<Eq<(typeof h3)['aria-valuenow'], '50'>> = true;
+    const h4 = a11yBoth('separator', { focusable: true, valueNow: 50 });
+    const d: Assert<Eq<(typeof h4)['tabindex'], '0'>> = true;
+    const e: Assert<Eq<Extract<keyof typeof h4, 'tabIndex'>, never>> = true;
+    check(a, b, c, d, e);
+  });
+
   test('img with details compiles and keeps exact keys', () => {
     const r2 = a11yBiome('img', { label: 'x', details: 'd' });
     const a: Assert<
