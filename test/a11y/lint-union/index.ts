@@ -69,3 +69,18 @@ export const attrs: Record<string, unknown> = a11y('switch', {
   // @ts-expect-error hidden is supported by only biome; a union must intersect
   hidden: true,
 });
+
+/**
+ * 混合形状（名字 | 数组，条件表达式推出来的类型）同一条不变量：
+ * 展平成名字并集后取交集，不能拆成两张表的并集。
+ */
+const mixed: 'biome' | readonly ['oxlint'] =
+  Math.random() > 0.5 ? 'biome' : ['oxlint'] as const;
+const a11yMixed = createA11y({ lint: mixed });
+
+export const attrsMixed: Record<string, unknown> = a11yMixed('switch', {
+  checked: true,
+  label: 'x',
+  // @ts-expect-error hidden is supported by only biome; a mixed selection must intersect
+  hidden: true,
+});

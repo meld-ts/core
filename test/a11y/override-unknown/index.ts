@@ -4,7 +4,7 @@ declare module '../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
     /** 拼错的键名：biome → biom（形状故意完整，只测键名错误） */
     biom: {
-      meta: { lint: 'biom'; version: '2.6.8'; source: 'probe' };
+      meta: { lint: 'biome'; version: '2.6.8'; source: 'probe' };
       roles: {
         switch: {
           required: 'checked';

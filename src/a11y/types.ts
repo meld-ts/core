@@ -19,11 +19,11 @@ export type A11yRoleRule = {
 /** 一张 lint 规则表：某个 lint、某个版本下的规则。由探针生成，不手写。 */
 export type A11yProfile = {
   readonly meta: {
-    readonly lint: string;
+    readonly lint: A11yLintName;
     readonly version: string;
     readonly source: 'builtin' | 'probe' | 'merged';
     /** 这张表直接沿用另一个 lint 的表（bun 表 aliasOf eslint） */
-    readonly aliasOf?: string;
+    readonly aliasOf?: A11yLintName;
   };
   readonly roles: { readonly [R in A11yRole]: A11yRoleRule };
 };
@@ -174,7 +174,15 @@ type ResolveProfileImpl<L, _D = L> = _D extends A11yLintName
     ? MergeProfiles<A11yLints[L[number]]>
     : never;
 
-export type ResolveProfile<L> = ResolveProfileImpl<L>;
+/**
+ * 混合形状（`'biome' | readonly ['oxlint']`，条件表达式推出来的类型）先
+ * 展平成名字并集：不展平就直接分布，名字和数组两个成员各走各的分支，
+ * 得到两张表的并集（supported 变并集，fail-open）；展平后统一走名字
+ * 并集的合并（supported 取交集）。
+ */
+type FlattenLint<L> = L extends readonly A11yLintName[] ? L[number] : L;
+
+export type ResolveProfile<L> = ResolveProfileImpl<FlattenLint<L>>;
 
 // ---- 输入 ----
 
@@ -215,6 +223,18 @@ type FocusRequirement<
     ? { [K in Rule<P, R>['requiredWhenFocusable']]-?: AriaValue<K> }
     : unknown
   : unknown;
+
+/**
+ * 必填键的空元组拦截：`controls: []` 满足 AriaValue，但 NoEmpty 会把
+ * 输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。只拦得到
+ * 字面量空元组；非元组（string[] 变量持有 []）类型层认不出，是 NoEmpty
+ * 已记录的同一限制。成员可选：键缺失时（A11yInput 已报错）不叠加错误。
+ */
+type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = {
+  [K in Rule<P, R>['required']]?: I[K & keyof I] extends readonly []
+    ? never
+    : unknown;
+};
 
 // ---- 输出 ----
 
@@ -288,7 +308,8 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
     role: R,
     props: I &
       Exact<I, Rule<P, R>['supported'] | 'focusable'> &
-      FocusRequirement<P, R, I>,
+      FocusRequirement<P, R, I> &
+      NoEmptyRequired<P, R, I>,
   ): A11yAttrs<R, I, O>;
   aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(
     props: I & Exact<I, AriaKey>,

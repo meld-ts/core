@@ -94,6 +94,7 @@ describe('builtin lint profiles', () => {
 // 以下断言全部在编译期生效（ts-check 为准）；declare 的值运行时
 // 不存在，describe.skip 让 bun test 只登记不执行，避免 ReferenceError。
 declare const a11yBiome: A11yOf<{ lint: 'biome' }>;
+declare const a11yOxlint: A11yOf<{ lint: 'oxlint' }>;
 declare const a11yBoth: A11yOf<{
   lint: readonly ['biome', 'oxlint'];
   output: 'html';
@@ -101,6 +102,7 @@ declare const a11yBoth: A11yOf<{
 declare const maybeFocus: true | undefined;
 declare const onBool: boolean;
 declare const maybeBool: boolean | undefined;
+declare const idList: string[];
 
 describe.skip('a11y() input constraints', () => {
   test('missing required prop', () => {
@@ -143,6 +145,19 @@ describe.skip('a11y() input constraints', () => {
   test('single-id props reject arrays', () => {
     // @ts-expect-error details 只接受单个 id
     check(a11yBiome('img', { label: 'x', details: ['a', 'b'] }));
+  });
+
+  test('required idlist keys reject the literal empty tuple', () => {
+    // @ts-expect-error 必填的 controls 传空元组：NoEmpty 会把输出键丢掉，
+    // 输出就过不了 oxlint 的表
+    check(a11yOxlint('combobox', { expanded: true, controls: [], label: 'x' }));
+    check(
+      a11yOxlint('combobox', { expanded: true, controls: ['a'], label: 'x' }),
+    );
+    // string[] 变量仍允许：非元组认不出空数组（NoEmpty 已记录的限制）
+    check(
+      a11yOxlint('combobox', { expanded: true, controls: idList, label: 'x' }),
+    );
   });
 });
 
@@ -234,6 +249,13 @@ describe.skip('multi-lint merge', () => {
     const a: Assert<Eq<Merged['meta']['source'], 'merged'>> = true;
     const b: Assert<Eq<Merged['meta']['lint'], 'biome' | 'oxlint'>> = true;
     check(a, b);
+  });
+
+  test('mixed name-or-array selection resolves like the array form', () => {
+    type Mixed = ResolveProfile<'biome' | readonly ['oxlint']>;
+    const a: Assert<Eq<Mixed, ResolveProfile<readonly ['biome', 'oxlint']>>> =
+      true;
+    check(a);
   });
 
   /** 每个 role 归约成 never 的形状：不变量成立的判据 */
