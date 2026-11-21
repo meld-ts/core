@@ -19,12 +19,12 @@
 
 **目标**：按 lint 规则表在类型层约束 aria 属性输入、精确推断输出；只经 exports 子路径提供 `createA11y`，不导出默认实例。
 
-**执行记录**：分支 `feat/a11y`，2026-11-21，SDD 流程（每任务独立实现 + 审查），共 10 个 commit。
+**执行记录**：分支 `feat/a11y`，2026-11-21，SDD 流程（每任务独立实现 + 审查），commit 数以 `git log --oneline main..feat/a11y` 为准。
 
 | Task | 内容 | 状态 |
 |---|---|---|
 | 1 | 数据层类型（手写缩小版：4 role × biome/oxlint） | ✅ |
-| 2 | 注册表与重载检查（`A11yLintOverrides`、`OverrideKeyCheck`、3 个 tsc fixture） | ✅ |
+| 2 | 注册表与重载检查（`A11yLintOverrides`、`OverrideKeyCheck`、4 个 tsc fixture） | ✅ |
 | 3 | 输入输出类型、多 lint 合并、选项解析 | ✅ |
 | 4 | `createA11y` 运行时实现 + 单测 | ✅ |
 | 5 | 接线（bunup / browser / exports / README / CLAUDE.md） | ✅ |
@@ -35,7 +35,7 @@
 ```bash
 bun run ts-check   # 类型断言（含 @ts-expect-error）全部生效
 bun run lint       # 0 warning
-bun run test       # 448 pass / 26 skip / 0 fail；src/a11y 覆盖率 100%（round 4 复审后实测计数）
+bun run test       # 448 pass / 27 skip / 0 fail；src/a11y 覆盖率 100%（round 5 复审后实测计数）
 ls dist/a11y       # esm/cjs/d.ts/d.cts 四产物
 grep -A4 '"./a11y"' package.json
 ```

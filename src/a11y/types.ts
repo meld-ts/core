@@ -111,7 +111,7 @@ export type OutputDefiniteCheck<Opt extends A11yOptions> =
       : [Opt['output']] extends ['html']
         ? unknown
         : {
-            readonly "output must be exactly 'react' or 'html', not a union of both modes": Opt['output'];
+            readonly "output must be exactly 'react' or 'html', not a union of both modes nor a type containing undefined": Opt['output'];
           }
     : unknown;
 
