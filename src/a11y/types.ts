@@ -291,6 +291,20 @@ type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
       >;
     };
 
+/**
+ * role 单字面量检查：`Rule<P, R>` 对 role 并集分布式取表，supported 变成
+ * 各 role 的并集，只有部分 role 支持的属性会静默通过；`A11yNameRule[R]`
+ * 变成 'required' | 'optional'，NameRequirement 分布出一个 Record<never,
+ * never> 分支，名字必填被空对象满足（lint 名 union 漏洞的镜像）。不取
+ * 交集：一个 role 的必填可能不在另一个的 supported 里（switch 必填
+ * checked、img 的 supported 不含 checked），交集会把合法组合变成不可
+ * 满足。宁可在调用点报错，让调用方收窄成单个 role。
+ */
+type RoleDefiniteCheck<R extends A11yRole> =
+  IsUnion<R> extends true
+    ? { readonly 'role must be a single literal, not a union': R }
+    : unknown;
+
 // ---- 输出 ----
 
 type Str<V> = V extends readonly string[]
@@ -364,7 +378,8 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
     props: I &
       Exact<I, Rule<P, R>['supported'] | 'focusable'> &
       FocusRequirement<P, R, I> &
-      NoEmptyRequired<P, R, I>,
+      NoEmptyRequired<P, R, I> &
+      RoleDefiniteCheck<R>,
   ): A11yAttrs<R, I, O>;
   aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(
     props: I & Exact<I, AriaKey>,

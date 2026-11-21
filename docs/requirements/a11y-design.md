@@ -281,7 +281,7 @@ declare module '@meld-ts/core/a11y' {
 
 名字规则来自 aria-query，不分 lint，不需要合并。
 
-合并后的 `meta`：`lint` 和 `version` 是参与合并的各表取值的联合，`source` 是 `'merged'`。类型操作是 `MergeProfiles` 和 `ResolveProfile`，定义见附录 A；`lint` 传单个名字时 `ResolveProfile` 直接取那张表，传数组时走 `MergeProfiles`。
+合并后的 `meta`：`lint` 和 `version` 是参与合并的各表取值的联合，`source` 是 `'merged'`。类型操作是 `MergeProfiles` 和 `ResolveProfile`（原型见附录 A，union / 混合形状以 §12.6 为准）：`lint` 传单个名字时 `ResolveProfile` 直接取那张表，传数组时走 `MergeProfiles`；名字是 union（变量 / 条件表达式的类型）或名字与数组混合的形状时，先展平再同样走 `MergeProfiles`（`supported` 取交集），不拆成几张表的并集。
 
 合并后的输出保证数组里每个 lint 都过。要四家都过，就写 `lint: ['eslint', 'bun', 'oxlint', 'biome']`。
 
@@ -607,6 +607,21 @@ round 1–4 给实现加了几组检查，此前没入档，此处补记（定�
 | `LintSelectionCheck` | `lint` 传空数组 / `never[]` 在 `createA11y` 调用点报错：空表会退化成没有任何必填的表，部分调用静默通过。数组类型的变量（`A11yLintName[]`）不拦 |
 | `OptionsKeyCheck` | 拼错的选项键（如 `outpt`）在 `createA11y` 调用点报错，不静默退回默认值 |
 
+### 12.6 round 7：union 选择的 fail-closed 语义
+
+round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者的洞同源：分布式条件类型把 union 拆开逐个成员处理，几张表并起来，约束就松了。
+
+| 选择 | 语义 |
+|---|---|
+| lint 名是 union（`'biome' \| 'oxlint'` 变量 / 条件表达式）或名字与数组混合的形状（`'biome' \| readonly ['oxlint']`） | 走 `MergeProfiles`（`supported` 取交集），不拆成几张表的并集。`FlattenLint` 先把混合形状展平成名字并集，`ResolveProfileImpl` 用非分布的 `IsUnion` 判定是 union 就合并。单名字直接取表、数组形式行为不变 |
+| role 是 union（`'switch' \| 'img'` 变量、整个 `A11yRole` 的包装） | 在 `a11y()` 调用点报错：`RoleDefiniteCheck` 挂在 `props` 参数上（机制同 `OutputDefiniteCheck`），role 类型不是单个字面量就报错，让调用方收窄成单个 role。**不取交集**：一个 role 的必填可能不在另一个的 supported 里（switch 必填 `checked`、img 的 supported 不含 `checked`），交集会把合法组合变成不可满足 |
+
+为什么必须拦：`Rule<P, R> = P['roles'][R]` 和 `ResolveProfile` 的分布式定义对 union 都是把几张表并起来——`supported` 变并集，只有部分成员支持的属性静默通过；role 并集还让 `A11yNameRule[R]` 变成 `'required' | 'optional'`，`NameRequirement` 分布出一个 `Record<never, never>` 分支，名字必填被空对象满足。lint 侧违反 §2「替谁把关就按谁的表」，role 侧是同一漏洞的镜像。
+
+测试证据：`test/a11y/lint-union/`（两张重载表的 supported 不同，union / 混合形状下只被一张表支持的 `hidden` 在调用点报错）；`src/a11y/types.test.ts` 的 `ResolveProfile` 断言（名字并集 / 混合形状解析成同一张合并表）和 role union 断言（`'switch' | 'img'`、`A11yRole` 变量在调用点报错，单字面量不受影响）。
+
+附录 A 的 `ResolveProfile` 是分布式定义，对 union / 混合形状的选择已被本节取代（单名字 / 数组两分支与实现一致），代码块里已加注。
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。
@@ -667,6 +682,8 @@ type MergeProfiles<Ps extends A11yProfile> = {
   } };
 };
 type Intersect<Ps extends A11yProfile, R extends A11yRole> = Extract<AriaKey, UnionToIntersection<Ps extends unknown ? (k: Ps['roles'][R]['supported']) => void : never> extends infer F ? F extends (k: infer K) => void ? K : never : never>;
+// §12.6：名字 union / 混合形状已被实现取代（FlattenLint 展平 + IsUnion
+// 判定后走 MergeProfiles，supported 取交集）；这里的分布式定义只覆盖单名字和数组。
 export type ResolveProfile<L> = L extends A11yLintName ? A11yLints[L] : L extends readonly A11yLintName[] ? MergeProfiles<A11yLints[L[number]]> : never;
 
 // ---- 输入 ----

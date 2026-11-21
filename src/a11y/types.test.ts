@@ -105,6 +105,8 @@ declare const maybeFocus: true | undefined;
 declare const onBool: boolean;
 declare const maybeBool: boolean | undefined;
 declare const idList: string[];
+declare const rolePair: 'switch' | 'img';
+declare const roleUnion: A11yRole;
 
 describe.skip('a11y() input constraints', () => {
   test('missing required prop', () => {
@@ -160,6 +162,26 @@ describe.skip('a11y() input constraints', () => {
     check(
       a11yOxlint('combobox', { expanded: true, controls: idList, label: 'x' }),
     );
+  });
+});
+
+describe.skip('a11y() role literal constraints', () => {
+  test('two-role union variable is a type error', () => {
+    // @ts-expect-error role 是 union：Rule 分布式取表，supported 变并集，
+    // img 不支持的 checked 也静默通过
+    check(a11yBiome(rolePair, { checked: true, label: 'x' }));
+  });
+
+  test('broad A11yRole variable is a type error', () => {
+    // @ts-expect-error 整个 A11yRole 的变量：required / supported 都是各表
+    // 的并集，任何属性组合都收得下，名字必填也被 optional 成员的空对象
+    // 分支抵消
+    check(a11yBiome(roleUnion, { checked: true, expanded: true, label: 'x' }));
+  });
+
+  test('single literal roles keep working', () => {
+    check(a11yBiome('switch', { checked: true, label: 'x' }));
+    check(a11yBiome('img', { label: 'x', details: 'd' }));
   });
 });
 
