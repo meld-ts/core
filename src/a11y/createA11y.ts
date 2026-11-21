@@ -4,6 +4,7 @@ import type {
   A11yOptions,
   LintSelectionCheck,
   OptionsKeyCheck,
+  OutputDefiniteCheck,
   OverrideKeyCheck,
 } from './types';
 
@@ -46,11 +47,13 @@ interface A11yCallable {
  *
  * 已知限制：不能在未解析的泛型 Opt 下转发调用——
  * `function setup<const Opt extends A11yOptions>(o: Opt): A11yOf<Opt> { return createA11y(o); }`
- * 编译不过（OptionsKeyCheck / LintSelectionCheck 要靠具体的键集合才能判定）。
+ * 编译不过（OptionsKeyCheck / LintSelectionCheck / OutputDefiniteCheck
+ * 要靠具体的键集合才能判定）。
  * 这是有意的 fail-closed，不放宽检查。要复用请直接在这里实例化，或用
  * `A11yOf<typeof options>` 注解（isolatedDeclarations 的写法，见设计 §3）。
  *
- * @param options lint 用哪张（或哪几张）规则表；output 是值的输出形式
+ * @param options lint 用哪张（或哪几张）规则表；output 是值的输出形式，
+ * 须为确定的 'react' / 'html' 字面量（含 undefined 的变量会被拦下）
  * @returns 可调用的 a11y，附带 a11y.aria 入口
  *
  * @example
@@ -65,7 +68,8 @@ export function createA11y<const Opt extends A11yOptions>(
   options: Opt &
     OverrideKeyCheck &
     OptionsKeyCheck<Opt> &
-    LintSelectionCheck<Opt>,
+    LintSelectionCheck<Opt> &
+    OutputDefiniteCheck<Opt>,
 ): A11yOf<Opt>;
 export function createA11y(options: A11yOptions): unknown {
   const html: boolean = options.output === 'html';

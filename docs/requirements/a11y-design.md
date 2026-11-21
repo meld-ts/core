@@ -316,7 +316,7 @@ type A11yOf<Opt extends A11yOptions> = A11y<AsProfile<ResolveProfile<Opt['lint']
 declare function createA11y<const Opt extends A11yOptions>(options: Opt & OverrideKeyCheck): A11yOf<Opt>;
 ```
 
-「不需要写泛型」靠的是 `const Opt`：`lint` 推成字面量或只读元组，`output` 不写时 `OutputOf` 取 `'react'`。`OverrideKeyCheck` 就是上面「重载写错了要报得出来」的那道检查；`AsProfile` 只是让合并结果满足 `A11yProfile` 约束。
+「不需要写泛型」靠的是 `const Opt`：`lint` 推成字面量或只读元组，`output` 不写时 `OutputOf` 取 `'react'`。`OverrideKeyCheck` 就是上面「重载写错了要报得出来」的那道检查；`AsProfile` 只是让合并结果满足 `A11yProfile` 约束。`output` 只接受确定的 `'react' / 'html'` 字面量：类型含 `undefined` 的变量（`out ?? 'react'` 收窄后可用）和收着整个 `A11yOptions` 的非泛型包装都会在调用点被 `OutputDefiniteCheck` 拦下——类型层承诺不了 react 还是 html，宁可报错（§12.4）。
 
 ## 5. 目录规划
 
@@ -584,6 +584,15 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' --glob '*.{tsx,jsx}'
 
 附录 A r4 的原断言 `Eq<(typeof r4)['aria-expanded'], true | undefined>` 对 react 模式下的 `boolean | undefined` 输入过于乐观：tsc 5.9.3 实测推导是 `boolean | undefined`，字面量 `true` 不会凭空出现。实现不变（见 commit 1cd71a2 与 `docs/reviews/20261121-a11y-plan-a.md` 决定三），只把该行断言改为 `boolean | undefined`，已用 tsc 5.9.3 复测。
 
+### 12.4 审查（round 4）
+
+round 4 复审两条 Important 的裁定（其余条目为注释、死分支清理与文档计数，不涉及设计决定）：
+
+| 条目 | 结论 | 改在哪 |
+|---|---|---|
+| `OutputOf` 是非分布判定：`output` 的类型是 `'html' \| undefined`（`output: out` 变量、直接收整个 `A11yOptions` 的非泛型包装）时静默取 `'react'`，运行时却按值走，类型承诺和实际输出会漂 | fail-closed：调用点新增 `OutputDefiniteCheck`（同 `OptionsKeyCheck` / `LintSelectionCheck`，挂在 `createA11y` 参数上），`output` 键存在且类型含 `undefined` 就报错——output 要么不写（键缺失不拦，默认 react），要么写确定的 `'react' / 'html'` 字面量，收窄掉 `undefined` 的变量（`out ?? 'react'`）可用。附录 A 的 `OutputOf` 不动，继续服务确定字面量的场景 | §4 输入和输出 |
+| 附录 A 的 `A11yProfile` meta 写 `lint: string`、无 `aliasOf`，§4 和实现都是 `A11yLintName` | §4 胜：附录 A 自声明只是验证类型写法的缩小原型，不是字段类型的出处。附录 A 的 meta 两行改为 `A11yLintName`（含 `aliasOf?: A11yLintName`），「实现时以它为准」对这个字段不再误导 | 附录 A |
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。
@@ -608,7 +617,7 @@ type A11yNameRule = { switch: 'required'; img: 'required'; separator: 'optional'
 
 // ---- 规则表 ----
 type RoleRule = { readonly required: AriaKey; readonly supported: AriaKey; readonly requiredWhenFocusable: AriaKey };
-export type A11yProfile = { readonly meta: { readonly lint: string; readonly version: string; readonly source: 'builtin' | 'probe' | 'merged' }; readonly roles: { readonly [R in A11yRole]: RoleRule } };
+export type A11yProfile = { readonly meta: { readonly lint: A11yLintName; readonly version: string; readonly source: 'builtin' | 'probe' | 'merged'; readonly aliasOf?: A11yLintName }; readonly roles: { readonly [R in A11yRole]: RoleRule } };
 type Biome = { meta: { lint: 'biome'; version: '2.6.8'; source: 'builtin' }; roles: {
   switch: { required: 'checked'; supported: 'checked' | 'label' | 'labelledBy'; requiredWhenFocusable: never };
   img: { required: never; supported: 'label' | 'labelledBy' | 'details'; requiredWhenFocusable: never };

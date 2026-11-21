@@ -35,7 +35,7 @@
 ```bash
 bun run ts-check   # 类型断言（含 @ts-expect-error）全部生效
 bun run lint       # 0 warning
-bun run test       # 446 pass / 0 fail；src/a11y 覆盖率 100%
+bun run test       # 448 pass / 26 skip / 0 fail；src/a11y 覆盖率 100%（round 4 复审后实测计数）
 ls dist/a11y       # esm/cjs/d.ts/d.cts 四产物
 grep -A4 '"./a11y"' package.json
 ```

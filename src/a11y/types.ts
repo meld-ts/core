@@ -93,6 +93,24 @@ export type LintSelectionCheck<Opt extends A11yOptions> = [
   : unknown;
 
 /**
+ * output 非确定字面量检查：`output` 键存在而类型含 undefined 时（`out`
+ * 变量是 'html' | undefined、非泛型包装直接收整个 A11yOptions），
+ * OutputOf 的非分布判定会静默取 'react'，运行时却按值走——类型承诺
+ * react、运行时可能输出 html。fail-closed：output 要么不写（键缺失
+ * 不拦，默认 react），要么写确定的 'react' / 'html' 字面量（收窄掉
+ * undefined 的变量也算，如 `out ?? 'react'`）。同 OptionsKeyCheck /
+ * LintSelectionCheck 挂到 createA11y 参数上在调用点报错。
+ */
+export type OutputDefiniteCheck<Opt extends A11yOptions> =
+  'output' extends keyof Opt
+    ? undefined extends Opt['output']
+      ? {
+          readonly "output must be a definite literal ('react' or 'html'), not T | undefined": Opt['output'];
+        }
+      : unknown
+    : unknown;
+
+/**
  * 选项键检查：lint / output 之外的键（拼错的 outpt 之类）映射成 never，
  * 在 createA11y 调用点报错，不静默退回默认值。机制同 Exact 拦拼错属性。
  */
@@ -170,9 +188,7 @@ type ResolveProfileImpl<L, _D = L> = _D extends A11yLintName
   ? IsUnion<L> extends true
     ? MergeProfiles<L extends A11yLintName ? A11yLints[L] : never>
     : A11yLints[L extends A11yLintName ? L : never]
-  : L extends readonly A11yLintName[]
-    ? MergeProfiles<A11yLints[L[number]]>
-    : never;
+  : never;
 
 /**
  * 混合形状（`'biome' | readonly ['oxlint']`，条件表达式推出来的类型）先
@@ -225,16 +241,50 @@ type FocusRequirement<
   : unknown;
 
 /**
+ * 空元组拦截要查的键集合：required，加上 focusable 激活时（激活判定
+ * 与 FocusRequirement 同源：类型含 true 就算，true | undefined 变量也
+ * 打开）的 requiredWhenFocusable——两组必填同一条承诺，只拦一组会漏。
+ */
+type EmptyTupleScope<P extends A11yProfile, R extends A11yRole, I> =
+  | Rule<P, R>['required']
+  | (I extends { focusable: unknown }
+      ? true extends I['focusable']
+        ? Rule<P, R>['requiredWhenFocusable']
+        : never
+      : never);
+
+/**
+ * 键集合里实际触发空元组拦截的键名。键不在 I 里（没传）不触发：缺失键
+ * 由 A11yInput / FocusRequirement 报错，这里不叠加。
+ */
+type EmptyTupleKeys<Keys extends PropertyKey, I> = {
+  [K in Keys]: [K] extends [keyof I]
+    ? I[K] extends readonly []
+      ? K
+      : never
+    : never;
+}[Keys];
+
+/**
  * 必填键的空元组拦截：`controls: []` 满足 AriaValue，但 NoEmpty 会把
  * 输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。只拦得到
  * 字面量空元组；非元组（string[] 变量持有 []）类型层认不出，是 NoEmpty
- * 已记录的同一限制。成员可选：键缺失时（A11yInput 已报错）不叠加错误。
+ * 已记录的同一限制。
+ *
+ * 报错形状：触发键名编码进 message 属性的值（同 OverrideKeyCheck 的做法）。
+ * 不要改回「把触发键映射成 never」：tsc 会把 props 里每个键都报成
+ * not assignable to never（实测），看不出哪个键触发。
  */
-type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = {
-  [K in Rule<P, R>['required']]?: I[K & keyof I] extends readonly []
-    ? never
-    : unknown;
-};
+type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
+  EmptyTupleKeys<EmptyTupleScope<P, R, I>, I>,
+] extends [never]
+  ? unknown
+  : {
+      readonly 'required idlist keys must not be the empty tuple': EmptyTupleKeys<
+        EmptyTupleScope<P, R, I>,
+        I
+      >;
+    };
 
 // ---- 输出 ----
 

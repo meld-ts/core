@@ -28,7 +28,7 @@ declare module '../../../src/a11y/index.ts' {
         combobox: {
           required: 'expanded';
           supported: 'expanded' | 'controls' | 'label' | 'labelledBy';
-          requiredWhenFocusable: never;
+          requiredWhenFocusable: 'controls';
         };
       };
     };
@@ -83,4 +83,27 @@ export const attrsMixed: Record<string, unknown> = a11yMixed('switch', {
   label: 'x',
   // @ts-expect-error hidden is supported by only biome; a mixed selection must intersect
   hidden: true,
+});
+
+/**
+ * requiredWhenFocusable 的 idlist 键同样拦字面量空元组。用 biome 单表
+ * 的实例：combobox 的 controls 只在 focusable 激活时必填（不在
+ * required 里），空元组只有这一侧的拦截管得住——`controls: []` 会让
+ * NoEmpty 把输出键丢掉，和 required 集合同一条承诺。
+ */
+const a11yBiome = createA11y({ lint: 'biome' });
+
+export const focusAttrs: Record<string, unknown> = a11yBiome('combobox', {
+  expanded: true,
+  label: 'x',
+  focusable: true,
+  controls: ['a'],
+});
+
+// @ts-expect-error controls 传空元组：输出键会被 NoEmpty 丢掉，过不了表
+export const focusEmpty: Record<string, unknown> = a11yBiome('combobox', {
+  expanded: true,
+  label: 'x',
+  focusable: true,
+  controls: [],
 });

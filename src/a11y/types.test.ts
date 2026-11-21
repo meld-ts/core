@@ -15,6 +15,8 @@ import type {
 import type {
   A11yLintName,
   A11yOf,
+  A11yOptions,
+  A11yOutputMode,
   A11yProfile,
   ResolveProfile,
 } from './types';
@@ -328,5 +330,24 @@ describe.skip('createA11y lint selection', () => {
     // @ts-expect-error 拼错的 outpt 不是选项键，静默退回 react 是 bug
     check(createA11y({ lint: 'biome', outpt: 'html' }));
     check(createA11y({ lint: 'biome', output: 'html' }));
+  });
+});
+
+describe.skip('createA11y output mode', () => {
+  test('output must be a definite literal, not T | undefined', () => {
+    const out: A11yOutputMode | undefined =
+      Math.random() > 0.5 ? 'html' : undefined;
+    // @ts-expect-error output 类型含 undefined：类型层承诺不了 react 还是
+    // html，运行时却按值走，两边会漂
+    check(createA11y({ lint: 'biome', output: out }));
+    // 收窄掉 undefined 后可用
+    check(createA11y({ lint: 'biome', output: out ?? 'react' }));
+    // 键缺失走默认 react；确定字面量不受影响
+    check(createA11y({ lint: 'biome' }));
+    check(createA11y({ lint: 'biome', output: 'html' }));
+    const opts: A11yOptions = { lint: 'biome' };
+    // @ts-expect-error A11yOptions 的 output 同样含 undefined，非泛型
+    // 包装同样拦
+    check(createA11y(opts));
   });
 });
