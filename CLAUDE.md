@@ -32,7 +32,7 @@ docs/
 ```bash
 bun run fmt            # Biome 格式化（src/）
 bun run lint           # Biome lint，warning 视为错误
-bun run ts-check       # tsgo --noEmit，TS 6.x 原生类型检查
+bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率
 bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
 bun run build:browser  # bunup，产物到 browser/（esm + iife）

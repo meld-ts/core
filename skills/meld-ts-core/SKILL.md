@@ -393,3 +393,50 @@ rpc.resolve('user:42', profile); // p1 and p2 both settle
 **settle contract**: resolve/reject happens first (deliver result ASAP), then events fire as notifications. Event handlers must not assume the Promise is still pending.
 
 **Timeout behavior**: when any task times out, the entire key is rejected with `TimeoutError`, including tasks that haven't timed out yet. Override `protected onTimeout` to customize.
+
+---
+
+## `@meld-ts/core/a11y`
+
+Aria attribute constructor: lint rule tables as compile-time constraints, so JSX spreads stay lint-clean. **No default instance is exported** — each project creates its own in one config file:
+
+```ts
+// src/a11y.ts — the only place that configures it
+import { createA11y } from '@meld-ts/core/a11y';
+
+export const a11y = createA11y({ lint: 'biome' });
+```
+
+Two entries on the returned callable:
+
+| Entry | Use | Output |
+|-------|-----|--------|
+| `a11y(role, props)` | Non-native roles (`switch`, `img`, ...) | `{ role, ...aria-* }` + `tabIndex` when `focusable` |
+| `a11y.aria(props)` | Native elements' aria state | `{ ...aria-* }`, no `role` key |
+
+Input props are camelCase (`checked`, `labelledBy`, `valueNow`); output keys are `aria-*` / `tabIndex`. `labelledBy` / `controls` accept `string | readonly string[]` — arrays are space-joined at runtime.
+
+Type behavior — all enforced at compile time:
+
+- Required props per the lint table: `a11y('switch', { label: 'x' })` errors, `checked` missing
+- Unsupported / misspelled keys rejected (excess key check)
+- Name rules: roles that require an accessible name need `label` or `labelledBy`
+- Required props reject `boolean | undefined` variables; optional props accept them
+- `focusable: true` emits `tabIndex: 0` and opens extra required props (biome: focusable `separator` requires `valueNow`)
+- Output is exact: literal values, precise key sets, `undefined`-able keys become optional
+
+| Option | Type | Notes |
+|--------|------|-------|
+| `lint` | `'biome' \| 'oxlint'` or readonly array | Array merges tables: required = union, supported = intersection |
+| `output` | `'react' \| 'html'` | Default `'react'`. html stringifies booleans/numbers (`aria-checked="true"`, `tabindex="0"`); react keeps native types |
+
+`isolatedDeclarations` projects need the `A11yOf` type helper:
+
+```ts
+const options = { lint: 'biome' } as const; // no satisfies — it trips TS9010 on this line
+export const a11y: A11yOf<typeof options> = createA11y(options);
+```
+
+**Data scope (Plan A)**: builtin tables cover biome 2.6.8 + oxlint 1.94.0 for 4 roles (`switch` / `img` / `separator` / `combobox`), hand-shrunk from measured probe data. Plan B replaces them with probe-generated full tables.
+
+**Overrides**: declaration-merge `interface A11yLintOverrides` to rebind a lint name to a probe-generated profile (probe CLI lands in Plan C). Unknown names or mis-shaped profiles error at the `createA11y` call site with readable messages.
