@@ -317,6 +317,21 @@ type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
     };
 
 /**
+ * 名字必填的 role，labelledBy 传字面量空元组在调用点报错：空 idlist 按
+ * 「没传」处理（NoEmpty），对名字必填的 role 等于没给名字，§4 的
+ * 「label / labelledBy 至少一个」落空。键不在 I 里（用 label 给名）不
+ * 触发；非元组（string[] 变量持有 []）认不出，是 NoEmpty 已记录的同一
+ * 限制。
+ */
+type NameEmptyCheck<N, I> = N extends 'required'
+  ? I extends { labelledBy: infer V }
+    ? V extends readonly []
+      ? { readonly 'accessible name must not be an empty id list': V }
+      : unknown
+    : unknown
+  : unknown;
+
+/**
  * role 单字面量检查：`Rule<P, R>` 对 role 并集分布式取表，supported 变成
  * 各 role 的并集，只有部分 role 支持的属性会静默通过；`A11yNameRule[R]`
  * 变成 'required' | 'optional'，NameRequirement 分布出一个 Record<never,
@@ -404,6 +419,7 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
       Exact<I, Rule<P, R>['supported'] | 'focusable'> &
       FocusRequirement<P, R, I> &
       NoEmptyRequired<P, R, I> &
+      NameEmptyCheck<A11yNameRule[R], I> &
       RoleDefiniteCheck<R>,
   ): A11yAttrs<R, I, O>;
   aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(

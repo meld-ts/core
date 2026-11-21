@@ -177,6 +177,16 @@ describe.skip('a11y() input constraints', () => {
       a11yOxlint('combobox', { expanded: true, controls: idList, label: 'x' }),
     );
   });
+
+  test('name-required roles reject the literal empty tuple for labelledBy', () => {
+    // @ts-expect-error img 名字必填：labelledBy 空元组被 NoEmpty 归一成
+    // undefined，等于没给名字（§4 的 label / labelledBy 至少一个落空）
+    check(a11yBiome('img', { labelledBy: [] }));
+    check(a11yBiome('img', { label: 'x' }));
+    check(a11yBiome('img', { labelledBy: ['a'] }));
+    // string[] 变量仍允许：非元组认不出空数组（NoEmpty 已记录的限制）
+    check(a11yBiome('img', { labelledBy: idList }));
+  });
 });
 
 describe.skip('a11y() role literal constraints', () => {

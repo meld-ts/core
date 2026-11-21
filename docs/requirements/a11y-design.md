@@ -607,6 +607,13 @@ round 1–4 给实现加了几组检查，此前没入档，此处补记（定�
 | `LintSelectionCheck` | `lint` 传空数组 / `never[]` 在 `createA11y` 调用点报错：空选择归约成 never 表，带 aria 属性的 `a11y()` 调用虽会在各自调用点报错，但信息不可读（"not assignable to never"）；这个检查把错误前移到 `createA11y`，换成一条可读的消息。数组类型的变量（`A11yLintName[]`）不拦 |
 | `OptionsKeyCheck` | 拼错的选项键（如 `outpt`）在 `createA11y` 调用点报错，不静默退回默认值 |
 
+round 11 补记：`NameEmptyCheck`（挂 `a11y()` 的 `props` 参数上，同
+`NoEmptyRequired`）——名字必填的 role，`labelledBy` 传字面量空元组在调用点
+报错：空 idlist 按「没传」处理（`NoEmpty`），对名字必填的 role 等于没给名字，
+§4 的「label / labelledBy 至少一个」落空。非元组数组（`string[]` 变量持有
+`[]`）认不出，仍是 `NoEmpty` 已记录的限制；名字规则非 required 的 role（如
+separator）不受影响，`labelledBy: []` 按可选 idlist 的既定行为输出键消失。
+
 ### 12.6 round 7：union 选择的 fail-closed 语义
 
 round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者的洞同源：分布式条件类型把 union 拆开逐个成员处理，几张表并起来，约束就松了。

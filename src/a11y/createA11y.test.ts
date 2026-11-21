@@ -61,8 +61,10 @@ describe('createA11y runtime', () => {
       'aria-expanded': true,
       'aria-label': 'x',
     });
-    expect(react('img', { label: 'x', labelledBy: [] })).toEqual({
-      role: 'img',
+    // img 名字必填，空元组 labelledBy 被 NameEmptyCheck 拦在类型层；
+    // 这里用名字可选的 separator 验证同一条运行时跳过路径
+    expect(react('separator', { label: 'x', labelledBy: [] })).toEqual({
+      role: 'separator',
       'aria-label': 'x',
     });
   });
