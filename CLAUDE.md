@@ -22,6 +22,7 @@ src/
   events/           # EventsEmitter（Promise.all 并发）/ linkEvents / createDelegator
   async/            # StatefulRpc / pending / retry / timeout / sleep
   browser/          # Browser 全量入口（iife.ts 全局变量 MeldTS + index.ts ESM）
+  a11y/             # a11y 属性构造器：按 lint 规则表做类型约束（createA11y）
 docs/
   reviews/          # 代码审查记录，命名格式：YYYYMMDD-描述.md
 ```
@@ -107,6 +108,7 @@ interface MyClass extends MyTrait {}
 - `.` — 主入口（types + guards + base）
 - `./timer` `./singleton` `./path`
 - `./traits` `./events` `./async`
+- `./a11y`
 - `./package.json`
 
 `browser/` 目录不在 `exports` 中——它只应被网页 `<script>` 直接引用，不应被打包工具作为模块导入。

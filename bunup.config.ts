@@ -10,6 +10,7 @@ export default defineConfig({
     'src/traits/index.ts',
     'src/events/index.ts',
     'src/async/index.ts',
+    'src/a11y/index.ts',
   ],
   name: 'core',
   format: ['esm', 'cjs'],
