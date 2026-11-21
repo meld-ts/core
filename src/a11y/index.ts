@@ -27,3 +27,11 @@ export type {
   A11yOutputMode,
   OverrideKeyCheck,
 } from './types';
+export type {
+  A11y,
+  A11yAttrs,
+  A11yInput,
+  A11yOf,
+  MergeProfiles,
+  ResolveProfile,
+} from './types';

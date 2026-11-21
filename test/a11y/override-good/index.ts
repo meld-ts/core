@@ -1,4 +1,4 @@
-import { createA11y } from '../../../src/a11y/index.ts';
+import { createA11y, type A11yOf } from '../../../src/a11y/index.ts';
 
 declare module '../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
@@ -39,3 +39,6 @@ const options = { lint: 'biome' } as const;
 export const result: Record<string, unknown> = createA11y(options)('switch', {
   label: 'x',
 });
+
+/** isolatedDeclarations 下的消费写法（设计 §3） */
+export const a11y: A11yOf<typeof options> = createA11y(options);
