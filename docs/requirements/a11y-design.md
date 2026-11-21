@@ -139,10 +139,11 @@ ARIA 属性名本身没有内部连字符，所以输出键名就是 `` `aria-${
 | `controls: ['a', 'b']` | `'a b'` | `'a b'` |
 | `focusable: true` | `tabIndex: 0` | `tabindex: '0'` |
 | `hidden: undefined` | 键不出现 | 键不出现 |
+| `controls: []` | 键不出现 | 键不出现 |
 
 输出类型跟着 output 走：`html` 下 `true` 变成字面量 `'true'`，`2` 变成 `` `${number}` ``。
 
-可选属性的值类型含 `undefined` 时（比如传进来的是 `boolean | undefined` 变量），输出里这个键是可选的，和运行时「undefined 不输出」一致。
+可选属性的值类型含 `undefined` 时（比如传进来的是 `boolean | undefined` 变量），输出里这个键是可选的，和运行时「undefined 不输出」一致。空 idlist 数组同理按「没传」处理（join 出的 `''` 不是合法 id 列表）；必填的 idlist 键传字面量空元组是类型错误（§12.5）。
 
 必填属性不接受 `undefined`：变量可能是 `undefined` 时，类型直接报错，要先给默认值（`checked: isOn ?? false`）。AI 常把状态变量直接传进来，这条是有意的。
 
@@ -316,7 +317,7 @@ type A11yOf<Opt extends A11yOptions> = A11y<AsProfile<ResolveProfile<Opt['lint']
 declare function createA11y<const Opt extends A11yOptions>(options: Opt & OverrideKeyCheck): A11yOf<Opt>;
 ```
 
-「不需要写泛型」靠的是 `const Opt`：`lint` 推成字面量或只读元组，`output` 不写时 `OutputOf` 取 `'react'`。`OverrideKeyCheck` 就是上面「重载写错了要报得出来」的那道检查；`AsProfile` 只是让合并结果满足 `A11yProfile` 约束。`output` 只接受确定的 `'react' / 'html'` 字面量：类型含 `undefined` 的变量（`out ?? 'react'` 收窄后可用）和收着整个 `A11yOptions` 的非泛型包装都会在调用点被 `OutputDefiniteCheck` 拦下——类型层承诺不了 react 还是 html，宁可报错（§12.4）。
+「不需要写泛型」靠的是 `const Opt`：`lint` 推成字面量或只读元组，`output` 不写时 `OutputOf` 取 `'react'`。`OverrideKeyCheck` 就是上面「重载写错了要报得出来」的那道检查；`AsProfile` 只是让合并结果满足 `A11yProfile` 约束。`output` 要么不写（键缺失，默认 react），要么类型恰好是单个模式：确定字面量，或收窄成单模式的表达式（`out` 已收窄为 `'html' | undefined` 时，`out ?? 'html'` 就是 `'html'`）。同时含两个模式的类型（`A11yOutputMode` 变量、跨模式默认值 `out ?? 'react'`）会让输出类型同时要求 `tabIndex` 和 `tabindex` 两个键、运行时只发一个——这种漂移连同含 `undefined` 的变量、收着整个 `A11yOptions` 的非泛型包装，都在调用点被 `OutputDefiniteCheck` 拦下——类型层承诺不了 react 还是 html，宁可报错（§12.4）。
 
 ## 5. 目录规划
 
@@ -582,7 +583,10 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' --glob '*.{tsx,jsx}'
 
 ### 12.3 附录 A 修订：r4 断言
 
-附录 A r4 的原断言 `Eq<(typeof r4)['aria-expanded'], true | undefined>` 对 react 模式下的 `boolean | undefined` 输入过于乐观：tsc 5.9.3 实测推导是 `boolean | undefined`，字面量 `true` 不会凭空出现。实现不变（见 commit 1cd71a2 与 `docs/reviews/20261121-a11y-plan-a.md` 决定三），只把该行断言改为 `boolean | undefined`，已用 tsc 5.9.3 复测。
+round 4 曾把附录 A r4 的断言从 `Eq<(typeof r4)['aria-expanded'], true | undefined>` 改成 `boolean | undefined`，理由是「react 模式下 `boolean | undefined` 输入的字面量 `true` 不会凭空出现」——那是实现测试的结论，不是附录的。两边的语境不同：
+
+- 附录里 `onOpt` 是**带初始化器的 `const`**（`const onOpt: boolean | undefined = ... ? true : undefined`），控制流分析先把它收窄成 `true | undefined`，`a11y.aria({ expanded: onOpt, ... })` 推出的就是 `true | undefined`——原断言本来就是对的。round 5 把该行改回 `true | undefined`，并抽出附录两个文件按头部注明的 tsconfig 用仓库锁定的 tsc 5.9.3 复测 `tsc -p .`，退出码 0；round 4「已用 tsc 5.9.3 复测」的说法对附录不成立，当时测的是实现。
+- 实现测试（`types.test.ts`）里 `maybeBool` 是 **`declare const`**（无初始化器），不发生收窄，react 模式对 `boolean | undefined` 输入的推导就是 `boolean | undefined`，实现侧断言对它自己的语境正确，不动（见 `docs/reviews/20261121-a11y-plan-a.md` 决定三）。
 
 ### 12.4 审查（round 4）
 
@@ -590,14 +594,24 @@ round 4 复审两条 Important 的裁定（其余条目为注释、死分支清�
 
 | 条目 | 结论 | 改在哪 |
 |---|---|---|
-| `OutputOf` 是非分布判定：`output` 的类型是 `'html' \| undefined`（`output: out` 变量、直接收整个 `A11yOptions` 的非泛型包装）时静默取 `'react'`，运行时却按值走，类型承诺和实际输出会漂 | fail-closed：调用点新增 `OutputDefiniteCheck`（同 `OptionsKeyCheck` / `LintSelectionCheck`，挂在 `createA11y` 参数上），`output` 键存在且类型含 `undefined` 就报错——output 要么不写（键缺失不拦，默认 react），要么写确定的 `'react' / 'html'` 字面量，收窄掉 `undefined` 的变量（`out ?? 'react'`）可用。附录 A 的 `OutputOf` 不动，继续服务确定字面量的场景 | §4 输入和输出 |
+| `OutputOf` 是非分布判定：`output` 的类型是 `'html' \| undefined`（`output: out` 变量、直接收整个 `A11yOptions` 的非泛型包装）时静默取 `'react'`，运行时却按值走，类型承诺和实际输出会漂 | fail-closed：调用点新增 `OutputDefiniteCheck`（同 `OptionsKeyCheck` / `LintSelectionCheck`，挂在 `createA11y` 参数上），`output` 键存在时类型必须**恰好是一个模式**（`'react'` 或 `'html'`，非分布判定，union 不拆开）——要么不写（键缺失不拦，默认 react），要么确定字面量，要么收窄成单模式的表达式（`out` 已收窄为 `'html' \| undefined` 时 `out ?? 'html'` 就是 `'html'`）。同时含 `undefined` 的类型和同时含两个模式的 union（`A11yOutputMode` 变量、跨模式默认值 `out ?? 'react'`——round 4 记的「可用」是错的，它推成 `'html' \| 'react'`）都报错：双模式 union 的输出会同时要求 `tabIndex` 和 `tabindex`，运行时只发一个。附录 A 的 `OutputOf` 不动，继续服务确定字面量的场景 | §4 输入和输出 |
 | 附录 A 的 `A11yProfile` meta 写 `lint: string`、无 `aliasOf`，§4 和实现都是 `A11yLintName` | §4 胜：附录 A 自声明只是验证类型写法的缩小原型，不是字段类型的出处。附录 A 的 meta 两行改为 `A11yLintName`（含 `aliasOf?: A11yLintName`），「实现时以它为准」对这个字段不再误导 | 附录 A |
+
+### 12.5 round 5 补记：round 1–4 新增检查
+
+round 1–4 给实现加了几组检查，此前没入档，此处补记（定义都在 `src/a11y/types.ts`，挂在 `createA11y` 或 `a11y()` 的参数上）：
+
+| 检查 | 语义 |
+|---|---|
+| `NoEmpty` / `NoEmptyRequired` | 空 idlist（字面量空元组）按「没传」处理：join 出的 `''` 不是合法 id 列表，类型层把空元组归一成 `undefined`，输出键随之省略或变可选（§3 输出表的 `controls: []` 一行）；必填 idlist 键传空元组在 `a11y()` 调用点报错——否则输出键被丢掉，「输出过选中的表」的承诺落空。已知限制：非元组（`string[]` 变量持有 `[]`）认不出空数组 |
+| `LintSelectionCheck` | `lint` 传空数组 / `never[]` 在 `createA11y` 调用点报错：空表会退化成没有任何必填的表，部分调用静默通过。数组类型的变量（`A11yLintName[]`）不拦 |
+| `OptionsKeyCheck` | 拼错的选项键（如 `outpt`）在 `createA11y` 调用点报错，不静默退回默认值 |
 
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。
 
-验证方式：下面两个文件加一份 tsconfig（`strict`、`isolatedDeclarations`、`noUncheckedIndexedAccess`、`verbatimModuleSyntax`、`allowImportingTsExtensions`），用 TypeScript 7.0.2 和 5.9.3 跑 `tsc -p .`，都是 0 错误。`use.ts` 里每个 `@ts-expect-error` 都确实报了错（否则会报「未使用的 @ts-expect-error」）。另外两个错误场景（重载键名拼错、重载结构不对）各用一个临时项目验证过，都在 `createA11y` 处报出可读的错误。
+验证方式：下面两个文件加一份 tsconfig（`strict`、`isolatedDeclarations`、`noUncheckedIndexedAccess`、`verbatimModuleSyntax`、`allowImportingTsExtensions`），用 TypeScript 7.0.2 和 5.9.3 跑 `tsc -p .`，都是 0 错误（round 5 起对 5.9.3 每轮复测；7.0.2 是初版记录）。注意这份 tsconfig 清单不完整：`isolatedDeclarations` 还要配 `declaration: true`，`allowImportingTsExtensions` 还要配 `noEmit: true`（或 `emitDeclarationOnly`），缺了 tsc 会直接拒绝启动。`use.ts` 里每个 `@ts-expect-error` 都确实报了错（否则会报「未使用的 @ts-expect-error」）。另外两个错误场景（重载键名拼错、重载结构不对）各用一个临时项目验证过，都在 `createA11y` 处报出可读的错误。
 
 ### a11y.ts
 
@@ -747,7 +761,7 @@ both('separator', { focusable: true });
 const r4 = a11y.aria({ expanded: onOpt, controls: ['a', 'b'] });
 assert<Eq<(typeof r4)['aria-controls'], string>>();
 assert<Eq<keyof typeof r4, 'aria-expanded' | 'aria-controls'>>();
-assert<Eq<(typeof r4)['aria-expanded'], boolean | undefined>>();
+assert<Eq<(typeof r4)['aria-expanded'], true | undefined>>();
 const r5 = a11y('separator', { focusable: maybe, valueNow: 2 });
 assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>>();
 void r2;

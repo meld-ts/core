@@ -340,14 +340,25 @@ describe.skip('createA11y output mode', () => {
     // @ts-expect-error output 类型含 undefined：类型层承诺不了 react 还是
     // html，运行时却按值走，两边会漂
     check(createA11y({ lint: 'biome', output: out }));
-    // 收窄掉 undefined 后可用
+    // @ts-expect-error 跨模式默认值：out 已收窄成 'html' | undefined，
+    // out ?? 'react' 推成 'html' | 'react'，和双模式变量同型，输出会
+    // 同时要求 tabIndex 和 tabindex 两个键
     check(createA11y({ lint: 'biome', output: out ?? 'react' }));
+    // 同模式默认值收成单模式：out ?? 'html' 就是 'html'
+    check(createA11y({ lint: 'biome', output: out ?? 'html' }));
     // 键缺失走默认 react；确定字面量不受影响
     check(createA11y({ lint: 'biome' }));
     check(createA11y({ lint: 'biome', output: 'html' }));
     const opts: A11yOptions = { lint: 'biome' };
-    // @ts-expect-error A11yOptions 的 output 同样含 undefined，非泛型
-    // 包装同样拦
+    // @ts-expect-error A11yOptions 的 output 同时含两个模式和 undefined，
+    // 非泛型包装同样拦
     check(createA11y(opts));
+  });
+
+  test('output must be one mode, not a union of both', () => {
+    const mode: A11yOutputMode = Math.random() > 0.5 ? 'react' : 'html';
+    // @ts-expect-error 双模式 union：输出类型会同时要求 tabIndex 和
+    // tabindex，运行时只发一个
+    check(createA11y({ lint: 'biome', output: mode }));
   });
 });

@@ -93,21 +93,26 @@ export type LintSelectionCheck<Opt extends A11yOptions> = [
   : unknown;
 
 /**
- * output 非确定字面量检查：`output` 键存在而类型含 undefined 时（`out`
- * 变量是 'html' | undefined、非泛型包装直接收整个 A11yOptions），
- * OutputOf 的非分布判定会静默取 'react'，运行时却按值走——类型承诺
- * react、运行时可能输出 html。fail-closed：output 要么不写（键缺失
- * 不拦，默认 react），要么写确定的 'react' / 'html' 字面量（收窄掉
- * undefined 的变量也算，如 `out ?? 'react'`）。同 OptionsKeyCheck /
- * LintSelectionCheck 挂到 createA11y 参数上在调用点报错。
+ * output 单模式检查：`output` 键存在时，类型必须恰好是一个模式——
+ * `'react'` 或 `'html'`（非分布判定，union 不会被拆开逐个成员判）。
+ * 类型含 `undefined` 的变量、收着整个 `A11yOptions` 的非泛型包装、
+ * 以及同时含两个模式的 union（`A11yOutputMode` 变量、跨模式默认值
+ * `out ?? 'react'`）都拦：union 会让输出类型同时要求 `tabIndex` 和
+ * `tabindex` 两个键，运行时只发一个，类型承诺和实际输出漂移。
+ * 收窄成单模式后可用（out 已收窄为 `'html' | undefined` 时，
+ * `out ?? 'html'` 就是 `'html'`）；键缺失不拦，走默认 react。
+ * 同 OptionsKeyCheck / LintSelectionCheck 挂到 createA11y 参数上
+ * 在调用点报错。
  */
 export type OutputDefiniteCheck<Opt extends A11yOptions> =
   'output' extends keyof Opt
-    ? undefined extends Opt['output']
-      ? {
-          readonly "output must be a definite literal ('react' or 'html'), not T | undefined": Opt['output'];
-        }
-      : unknown
+    ? [Opt['output']] extends ['react']
+      ? unknown
+      : [Opt['output']] extends ['html']
+        ? unknown
+        : {
+            readonly "output must be exactly 'react' or 'html', not a union of both modes": Opt['output'];
+          }
     : unknown;
 
 /**
@@ -376,9 +381,11 @@ type OutputOf<Opt extends A11yOptions> = Opt['output'] extends A11yOutputMode
 type AsProfile<P> = P extends A11yProfile ? P : never;
 
 /**
- * 已知限制：直接构造 `A11yOf<{ lint: [] }>`（或 never[]）会绕过
- * LintSelectionCheck——它只挂在 createA11y 的参数上，正式入口被拦，
- * 直接构造 A11yOf 不经过这层检查，得到一张没有必填的退化表。
+ * 已知限制：挂在 createA11y 参数上的调用点检查（OverrideKeyCheck、
+ * LintSelectionCheck、OptionsKeyCheck、OutputDefiniteCheck）只拦
+ * createA11y 这个正式入口；直接构造 `A11yOf` 会整体绕过这层检查
+ * （如 `A11yOf<{ lint: [] }>` 仍得到一张没有必填的退化表）。
+ * 类型层的保证以走 createA11y 为前提。
  */
 export type A11yOf<Opt extends A11yOptions> = A11y<
   AsProfile<ResolveProfile<Opt['lint']>>,

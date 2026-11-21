@@ -53,7 +53,8 @@ interface A11yCallable {
  * `A11yOf<typeof options>` 注解（isolatedDeclarations 的写法，见设计 §3）。
  *
  * @param options lint 用哪张（或哪几张）规则表；output 是值的输出形式，
- * 须为确定的 'react' / 'html' 字面量（含 undefined 的变量会被拦下）
+ * 须为单个模式——确定的 'react' / 'html' 字面量（含 undefined 或同时含
+ * 两个模式的类型会被拦下）
  * @returns 可调用的 a11y，附带 a11y.aria 入口
  *
  * @example
