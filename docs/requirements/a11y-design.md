@@ -621,7 +621,7 @@ round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者
 | 选择 | 语义 |
 |---|---|
 | lint 名是 union（`'biome' \| 'oxlint'` 变量 / 条件表达式）或名字与数组混合的形状（`'biome' \| readonly ['oxlint']`） | 走 `MergeProfiles`（`supported` 取交集），不拆成几张表的并集。`FlattenLint` 先把混合形状展平成名字并集，`ResolveProfileImpl` 用非分布的 `IsUnion` 判定是 union 就合并。单名字直接取表；数组（含单元素数组）一律走 `MergeProfiles`（§4 的既定行为，round 8 修复：单元素数组此前被展平成单名字而直接取表，只有 `meta.source` 与 §4 不符，约束结果不受影响） |
-| role 是 union（`'switch' \| 'img'` 变量、整个 `A11yRole` 的包装） | 在 `a11y()` 调用点报错：`RoleDefiniteCheck` 挂在 `props` 参数上（机制同 `OutputDefiniteCheck`），role 类型是 union 就报错，让调用方收窄成单个 role。never 类型的 role 不触发（`IsUnion<never>` 是 `never` 不是 `true`）。**不取交集**：一个 role 的必填可能不在另一个的 supported 里（switch 必填 `checked`、img 的 supported 不含 `checked`），交集会把合法组合变成不可满足 |
+| role 是 union（`'switch' \| 'img'` 变量、整个 `A11yRole` 的包装） | 在 `a11y()` 调用点报错：`RoleDefiniteCheck` 挂在 `props` 参数上（机制同 `OutputDefiniteCheck`），role 类型是 union 就报错，让调用方收窄成单个 role。never 类型的 role 同样触发：`IsUnion<never>` 是 `never`，而 `never extends true` 取 true 分支，`RoleDefiniteCheck<never>` 就是错误对象（round 12 更正 round 7 的说法——记的「不触发」是错的）；实际露出的报错是 `NameRequirement<never>` 把 props 类型塌成 never 后那句难读的「not assignable to parameter of type 'never'」，行为 fail-closed，接受。**不取交集**：一个 role 的必填可能不在另一个的 supported 里（switch 必填 `checked`、img 的 supported 不含 `checked`），交集会把合法组合变成不可满足 |
 
 为什么必须拦：`Rule<P, R> = P['roles'][R]` 和 `ResolveProfile` 的分布式定义对 union 都是把几张表并起来——`supported` 变并集，只有部分成员支持的属性静默通过；role 并集还让 `A11yNameRule[R]` 变成 `'required' | 'optional'`，`NameRequirement` 分布出一个 `Record<never, never>` 分支，名字必填被空对象满足。lint 侧违反 §2「替谁把关就按谁的表」，role 侧是同一漏洞的镜像。
 
@@ -634,6 +634,18 @@ round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者
 ### 12.7 round 10：TypeScript 7 验证推迟（ND 裁定）
 
 §7 第 1 层要求类型测试在 core 声明的 TypeScript 版本（`^7`）下跑。仓库今天跑不了 ^7：`bun.lock` 锁的是 5.9.3，typedoc 0.28 的 peer 只到 6.0.x（§12.2 已记录）。控制器裁定（ND）：等 lockfile / peer 的版本错位修好后再补一次 TS 7.0.2 的验证；附录 A 已在 7.0.2 和 5.9.3 双测过（§12.2）。验证项记入 [a11y-roadmap.md](./a11y-roadmap.md) Plan C 的发版前检查。
+
+### 12.8 round 12：focusable 门改为键存在，union props 拒收
+
+round 12 修三个同源的漏网（定义都在 `src/a11y/types.ts`，tsc 5.9.3 实测）：
+
+| 漏网 | 修法 |
+|---|---|
+| 条件展开 `...(cond ? { focusable: true } : {})` 把 focusable 推成**可选键**（`focusable?: true`），`FocusRequirement` / `FocusAttr` 的形状匹配门（`I extends { focusable: unknown }`）判不中：valueNow 不被要求，输出类型没有 `tabIndex`，运行时却发 `tabIndex`——biome 的 requiredWhenFocusable 被违反，类型承诺和实际输出漂移 | 门改成键存在判定：`'focusable' extends keyof I` 先于 `true extends I['focusable']`（值含 true）。可选键也算可聚焦（§3「宁可多要求」），`FocusAttr` 照 `undefined extends I['focusable']` 决定 `tabIndex` 可选。`EmptyTupleScope` 的激活门同步改（与 FocusRequirement 同源） |
+| props 是 union（`cond ? { focusable: true } : { label: 'x' }` 整个当 props 传）时，对 I 分布的检查把「某成员的要求」和其余成员的 unknown 并起来，`{ valueNow } \| unknown` 吸收成 unknown，逐成员的强制全部失效（focusable 额外必填、img 名字必填都静默漏过）；键存在门对 union 取公共键，同样判不出 | 调用点新增 `PropsDefiniteCheck`（机制同 `RoleDefiniteCheck`，非分布 `IsUnion` 判定，挂在 `a11y()` 的 `props` 参数上），props 是 union 就报错，让调用方把分支写进对象（条件展开推可选键）或拆成两次调用 |
+| `NameEmptyCheck` 误报 `a11y('img', { label: 'x', labelledBy: [] })`：label 已给名，空 labelledBy 只是死键（NoEmpty 丢掉它），§4 的「label / labelledBy 至少一个」已满足 | label 在 I 里（`I extends { label: string }`）就跳过空元组检查 |
+
+顺带更正 §12.6 的 never role 说法（见该节），以及 `FocusRequirement` 旧注释里「外层条件对 I 分布即可逐成员强制」的说法：分布的产物是「某成员要求 \| 其余 unknown」，吸收后强制整个消失，正是第二个漏网的机制；union 现在在调用点被 `PropsDefiniteCheck` 拦下，键存在门（被检类型是字面量）也不再分布。
 
 ## 附录 A：类型原型（已实测）
 

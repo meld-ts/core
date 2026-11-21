@@ -249,22 +249,25 @@ type Exact<I, Allowed extends PropertyKey> = {
 
 /**
  * 可聚焦时的额外必填。
- * 条件必须是 `true extends I['focusable']`：变量类型含 true（如
- * true | undefined）也要打开额外必填。用 `I extends { focusable: true }`
- * 会判不中含 undefined 的变量。
+ * 两道门：`'focusable' extends keyof I`（键存在）先于 `true extends
+ * I['focusable']`（值含 true）。键存在不能用形状匹配（`I extends {
+ * focusable: unknown }`）：条件展开 `...(cond ? { focusable: true } : {})`
+ * 推出的是可选键 `focusable?: true`，形状匹配判不中，额外必填整个漏掉
+ * （§3 宁可多要求）。值判定用「含 true」而不是 `I extends { focusable:
+ * true }`：`true | undefined` 变量也要打开额外必填。
  *
- * 这里的 `I extends { focusable: unknown } ? true extends I['focusable'] …`
- * 两段式和 EmptyTupleScope / FocusAttr 里的重复是有意的，不要抽成共享
- * 谓词：三处的输出形状不同（必填键映射 / 键集合 / tabIndex 键），且外层
- * 条件对 I 分布——I 是 union 时每个成员各选各的分支；抽成布尔谓词会把
- * 按成员的判定压成 boolean，而 `boolean extends true` 是 false，全体
- * 成员只会走同一个分支。
+ * 这里的三段式和 EmptyTupleScope / FocusAttr 里的重复是有意的，不要抽成
+ * 共享谓词：三处的输出形状不同（必填键映射 / 键集合 / tabIndex 键）。
+ * 外层条件的被检类型是字面量 'focusable'，不对 I 分布——union 的 props
+ * 由 PropsDefiniteCheck 在调用点拦下；按成员分布反而会把「某成员的要求、
+ * 其余成员的 unknown」并起来吸收成 unknown，逐成员的强制全部落空
+ * （round 12 修复，见设计稿 §12.8）。
  */
 type FocusRequirement<
   P extends A11yProfile,
   R extends A11yRole,
   I,
-> = I extends { focusable: unknown }
+> = 'focusable' extends keyof I
   ? true extends I['focusable']
     ? { [K in Rule<P, R>['requiredWhenFocusable']]-?: AriaValue<K> }
     : unknown
@@ -272,12 +275,13 @@ type FocusRequirement<
 
 /**
  * 空元组拦截要查的键集合：required，加上 focusable 激活时（激活判定
- * 与 FocusRequirement 同源：类型含 true 就算，true | undefined 变量也
- * 打开）的 requiredWhenFocusable——两组必填同一条承诺，只拦一组会漏。
+ * 与 FocusRequirement 同源：键在 I 里、值含 true 就算，可选键和
+ * true | undefined 变量也打开）的 requiredWhenFocusable——两组必填
+ * 同一条承诺，只拦一组会漏。
  */
 type EmptyTupleScope<P extends A11yProfile, R extends A11yRole, I> =
   | Rule<P, R>['required']
-  | (I extends { focusable: unknown }
+  | ('focusable' extends keyof I
       ? true extends I['focusable']
         ? Rule<P, R>['requiredWhenFocusable']
         : never
@@ -319,16 +323,18 @@ type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
 /**
  * 名字必填的 role，labelledBy 传字面量空元组在调用点报错：空 idlist 按
  * 「没传」处理（NoEmpty），对名字必填的 role 等于没给名字，§4 的
- * 「label / labelledBy 至少一个」落空。键不在 I 里（用 label 给名）不
- * 触发；非元组（string[] 变量持有 []）认不出，是 NoEmpty 已记录的同一
- * 限制。
+ * 「label / labelledBy 至少一个」落空。label 在 I 里（label 已给名）不
+ * 触发：此时空 labelledBy 只是死键，NoEmpty 丢掉它不算失约；非元组
+ * （string[] 变量持有 []）认不出，是 NoEmpty 已记录的同一限制。
  */
 type NameEmptyCheck<N, I> = N extends 'required'
-  ? I extends { labelledBy: infer V }
-    ? V extends readonly []
-      ? { readonly 'accessible name must not be an empty id list': V }
+  ? I extends { label: string }
+    ? unknown
+    : I extends { labelledBy: infer V }
+      ? V extends readonly []
+        ? { readonly 'accessible name must not be an empty id list': V }
+        : unknown
       : unknown
-    : unknown
   : unknown;
 
 /**
@@ -343,6 +349,20 @@ type NameEmptyCheck<N, I> = N extends 'required'
 type RoleDefiniteCheck<R extends A11yRole> =
   IsUnion<R> extends true
     ? { readonly 'role must be a single literal, not a union': R }
+    : unknown;
+
+/**
+ * props 是 union 时在调用点报错（机制同 RoleDefiniteCheck）：条件表达式
+ * 直接当 props 传（`cond ? { focusable: true } : { label: 'x' }`）时，
+ * 对 I 分布的检查把「某成员的要求」和其余成员的 unknown 并起来——
+ * `{ valueNow } | unknown` 吸收成 unknown，逐成员的强制全部失效
+ * （focusable 的额外必填、名字必填都静默漏过）；键存在门对 union 取
+ * 公共键，同样判不出。让调用方把分支写进对象（条件展开推可选键）或
+ * 拆成两次调用。
+ */
+type PropsDefiniteCheck<I> =
+  IsUnion<I> extends true
+    ? { readonly 'props must not be a union type; branch the call': I }
     : unknown;
 
 // ---- 输出 ----
@@ -392,9 +412,7 @@ type TabKey<O extends A11yOutputMode> = O extends 'html'
 
 type TabVal<O extends A11yOutputMode> = O extends 'html' ? '0' : 0;
 
-type FocusAttr<I, O extends A11yOutputMode> = I extends {
-  focusable: unknown;
-}
+type FocusAttr<I, O extends A11yOutputMode> = 'focusable' extends keyof I
   ? true extends I['focusable']
     ? undefined extends I['focusable']
       ? { readonly [K in TabKey<O>]?: TabVal<O> }
@@ -420,7 +438,8 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
       FocusRequirement<P, R, I> &
       NoEmptyRequired<P, R, I> &
       NameEmptyCheck<A11yNameRule[R], I> &
-      RoleDefiniteCheck<R>,
+      RoleDefiniteCheck<R> &
+      PropsDefiniteCheck<I>,
   ): A11yAttrs<R, I, O>;
   aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(
     props: I & Exact<I, AriaKey>,

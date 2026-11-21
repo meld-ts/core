@@ -140,6 +140,33 @@ describe.skip('a11y() input constraints', () => {
     check(a11yBiome('separator', { focusable: maybeFocus, valueNow: 1 }));
   });
 
+  test('conditional-spread focusable counts as key presence', () => {
+    const cond = Math.random() > 0.5;
+    check(
+      // @ts-expect-error 条件展开把 focusable 推成可选键（focusable?: true）：
+      // 键在 I 里、值含 true 就按可聚焦要求 valueNow（§3 宁可多要求），
+      // 形状匹配（I extends { focusable: unknown }）判不中可选键
+      a11yBiome('separator', {
+        label: 'x',
+        ...(cond ? { focusable: true } : {}),
+      }),
+    );
+  });
+
+  test('union-typed props are rejected at the call site', () => {
+    const cond = Math.random() > 0.5;
+    // @ts-expect-error props 是 union：分布检查把「某成员的要求」和其余
+    // 成员的 unknown 并起来吸收成 unknown，valueNow 的额外必填静默失效
+    check(a11yBiome('separator', cond ? { focusable: true } : { label: 'x' }));
+    // @ts-expect-error 同一漏洞的镜像：分支 1 的 img 没给名字也静默通过
+    check(a11yBiome('img', cond ? { labelledBy: [] } : { label: 'b' }));
+    // 拆开调用：各分支的 props 单独合法
+    check(a11yBiome('separator', { focusable: true, valueNow: 1 }));
+    check(a11yBiome('separator', { label: 'x' }));
+    check(a11yBiome('img', { labelledBy: ['a'] }));
+    check(a11yBiome('img', { label: 'b' }));
+  });
+
   test('focusable: false is rejected', () => {
     // @ts-expect-error focusable 只收 true（§3 / 审查 02 M1）：
     // 不可聚焦就不写 focusable
@@ -184,6 +211,9 @@ describe.skip('a11y() input constraints', () => {
     check(a11yBiome('img', { labelledBy: [] }));
     check(a11yBiome('img', { label: 'x' }));
     check(a11yBiome('img', { labelledBy: ['a'] }));
+    // label 已给名时不拦：空 labelledBy 只是死键，NoEmpty 丢掉它，
+    // label / labelledBy 至少一个已经满足
+    check(a11yBiome('img', { label: 'x', labelledBy: [] }));
     // string[] 变量仍允许：非元组认不出空数组（NoEmpty 已记录的限制）
     check(a11yBiome('img', { labelledBy: idList }));
   });
@@ -253,6 +283,17 @@ describe.skip('a11y() output inference', () => {
     const r5 = a11yBiome('separator', {
       focusable: maybeFocus,
       valueNow: 2,
+    });
+    const a: Assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>> = true;
+    check(a);
+  });
+
+  test('conditional-spread focusable with valueNow keeps tabIndex optional', () => {
+    const cond = Math.random() > 0.5;
+    const r5 = a11yBiome('separator', {
+      label: 'x',
+      valueNow: 50,
+      ...(cond ? { focusable: true } : {}),
     });
     const a: Assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>> = true;
     check(a);
