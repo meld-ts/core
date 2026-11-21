@@ -622,6 +622,8 @@ round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者
 
 附录 A 的 `ResolveProfile` 是分布式定义，对 union / 混合形状的选择已被本节取代（单名字 / 数组两分支与实现一致），代码块里已加注。
 
+命名例外（round 9 记）：`MergeProfiles` / `ResolveProfile` 保留 §4/§5 的原名，不按前缀约定加 `A11y`/`Aria`——已核对兄弟模块（types/guards/base/timer/singleton/path/traits/events/async）的导出，无撞名，前缀约定的目的（browser `export *` 命名空间不撞名）已满足。
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。

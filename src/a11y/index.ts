@@ -25,10 +25,6 @@ export type {
   A11yLints,
   A11yOptions,
   A11yOutputMode,
-  LintSelectionCheck,
-  OptionsKeyCheck,
-  OutputDefiniteCheck,
-  OverrideKeyCheck,
 } from './types';
 export type {
   A11y,
