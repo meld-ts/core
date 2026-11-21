@@ -23,6 +23,11 @@ describe('A11yLintOverrides', () => {
     expect({ exitCode, output }).toEqual({ exitCode: 0, output: '' });
   });
 
+  test('lint name union intersects supported sets of merged tables', () => {
+    const { exitCode, output } = tsc('lint-union');
+    expect({ exitCode, output }).toEqual({ exitCode: 0, output: '' });
+  });
+
   test('unknown override key errors at createA11y with readable message', () => {
     const { exitCode, output } = tsc('override-unknown');
     expect(exitCode).not.toBe(0);

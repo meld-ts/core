@@ -3,6 +3,7 @@ import type {
   A11yOf,
   A11yOptions,
   LintSelectionCheck,
+  OptionsKeyCheck,
   OverrideKeyCheck,
 } from './types';
 
@@ -55,7 +56,10 @@ interface A11yCallable {
  * ```
  */
 export function createA11y<const Opt extends A11yOptions>(
-  options: Opt & OverrideKeyCheck & LintSelectionCheck<Opt>,
+  options: Opt &
+    OverrideKeyCheck &
+    OptionsKeyCheck<Opt> &
+    LintSelectionCheck<Opt>,
 ): A11yOf<Opt>;
 export function createA11y(options: A11yOptions): unknown {
   const html: boolean = options.output === 'html';
@@ -75,7 +79,9 @@ export function createA11y(options: A11yOptions): unknown {
     for (const key of Object.keys(props)) {
       if (key === 'focusable') continue;
       const value = props[key];
-      // 空数组按没传处理：[] join 出 ''，不是合法 id 列表
+      // 空数组按没传处理：[] join 出 ''，不是合法 id 列表。
+      // 限制：类型层只认字面量空元组（types.ts 的 NoEmpty），string[]
+      // 变量持有 [] 时类型仍带键、运行时跳过，两边会漂。
       if (
         value === undefined ||
         (IDLIST_SET.has(key) && Array.isArray(value) && value.length === 0)

@@ -228,6 +228,56 @@ describe.skip('multi-lint merge', () => {
       true;
     check(a, b, c);
   });
+
+  test('lint name union resolves through the merge, not a union of tables', () => {
+    type Merged = ResolveProfile<'biome' | 'oxlint'>;
+    const a: Assert<Eq<Merged['meta']['source'], 'merged'>> = true;
+    const b: Assert<Eq<Merged['meta']['lint'], 'biome' | 'oxlint'>> = true;
+    check(a, b);
+  });
+
+  /** 每个 role 归约成 never 的形状：不变量成立的判据 */
+  type AllNever = { [R in A11yRole]: never };
+
+  test('merged table keeps the three section 6 invariants', () => {
+    type Merged = ResolveProfile<readonly ['biome', 'oxlint']>;
+    // required ⊆ supported
+    const a: Assert<
+      Eq<
+        {
+          [R in A11yRole]: Exclude<
+            Merged['roles'][R]['required'],
+            Merged['roles'][R]['supported']
+          >;
+        },
+        AllNever
+      >
+    > = true;
+    // requiredWhenFocusable ⊆ supported
+    const b: Assert<
+      Eq<
+        {
+          [R in A11yRole]: Exclude<
+            Merged['roles'][R]['requiredWhenFocusable'],
+            Merged['roles'][R]['supported']
+          >;
+        },
+        AllNever
+      >
+    > = true;
+    // 名字必填的 role，label 和 labelledBy 都在 supported 里
+    const c: Assert<
+      Eq<
+        {
+          [R in A11yRole]: A11yNameRule[R] extends 'required'
+            ? Exclude<'label' | 'labelledBy', Merged['roles'][R]['supported']>
+            : never;
+        },
+        AllNever
+      >
+    > = true;
+    check(a, b, c);
+  });
 });
 
 describe.skip('createA11y lint selection', () => {
@@ -243,5 +293,18 @@ describe.skip('createA11y lint selection', () => {
     const readonlyArr: readonly A11yLintName[] = ['biome'];
     check(createA11y({ lint: mutable }));
     check(createA11y({ lint: readonlyArr }));
+  });
+
+  test('never-typed lint array is a type error', () => {
+    // @ts-expect-error never[] 同样退化成没有任何必填的空表
+    check(createA11y({ lint: [] as never[] }));
+    // @ts-expect-error readonly never[] 同样拒绝
+    check(createA11y({ lint: [] as readonly never[] }));
+  });
+
+  test('misspelled options key is a type error', () => {
+    // @ts-expect-error 拼错的 outpt 不是选项键，静默退回 react 是 bug
+    check(createA11y({ lint: 'biome', outpt: 'html' }));
+    check(createA11y({ lint: 'biome', output: 'html' }));
   });
 });

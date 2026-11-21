@@ -69,9 +69,8 @@ grep -A4 '"./a11y"' package.json
 
 **必须吸收的移交项**（来自 Plan A 评审）：
 
-- 空 idlist 数组（`controls: []`）运行时会输出空串，需决定跳过还是保留
-- html 模式下 boolean 变量的输出断言（`'true' | 'false'`）
-- 任意两张表合并后的三条不变量形式化断言
+- 空 idlist 数组的非元组缺口：`string[]` 变量持有 `[]` 时，类型层仍承诺输出键、运行时却跳过（0e7d9be 已定「跳过」语义并记录在 `types.ts` / `createA11y.ts` 注释；非元组的类型层对齐留待全量数据落地时评估）
+- 任意两张表合并后的三条不变量形式化断言（biome+oxlint 已进 `types.test.ts`，Plan B 补 eslint / bun 表后扩到全部表对）
 - `A11yBuiltinLints` 键集合断言随表数量同步更新
 
 ---

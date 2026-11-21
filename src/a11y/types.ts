@@ -81,15 +81,25 @@ export type OverrideKeyCheck = ([UnknownOverrideKeys] extends [never]
 /**
  * 空 lint 表检查：lint 传空数组字面量时，合并退化为一张没有任何必填的
  * 表，部分调用静默通过（设计 §4 的不变量禁止）。判据是选中的字面量类型
- * 可赋给 `readonly []`：只有空元组满足，`A11yLintName[]` /
- * `readonly A11yLintName[]` 变量不可赋给零长元组，不受影响。
- * 和 OverrideKeyCheck 同一机制，挂到 createA11y 参数上在调用点报错。
+ * 可赋给 `readonly []`（空元组）或 `readonly never[]`（never 数组同样
+ * 退化成空表）：`A11yLintName[]` / `readonly A11yLintName[]` 变量两个
+ * 都不可赋，不受影响。和 OverrideKeyCheck 同一机制，挂到 createA11y
+ * 参数上在调用点报错。
  */
 export type LintSelectionCheck<Opt extends A11yOptions> = [
   Opt['lint'],
-] extends [readonly []]
+] extends [readonly [] | readonly never[]]
   ? { readonly 'lint array must not be empty': Opt['lint'] }
   : unknown;
+
+/**
+ * 选项键检查：lint / output 之外的键（拼错的 outpt 之类）映射成 never，
+ * 在 createA11y 调用点报错，不静默退回默认值。机制同 Exact 拦拼错属性。
+ */
+export type OptionsKeyCheck<Opt extends A11yOptions> = Exact<
+  Opt,
+  'lint' | 'output'
+>;
 
 /** 实际生效的表：有重载、且结构对，用重载；否则用内置 */
 export type A11yLints = { [K in A11yLintName]: CheckOverride<K> };
@@ -136,11 +146,35 @@ export type MergeProfiles<Ps extends A11yProfile> = {
   };
 };
 
-export type ResolveProfile<L> = L extends A11yLintName
-  ? A11yLints[L]
+/**
+ * 非分布的 union 判定：lint 是变量 / 条件表达式（类型为几个名字的 union）
+ * 时为 true。分布写法会对 union 的每个成员各判一次，永远得到 false。
+ */
+type IsUnion<T, U = T> = T extends unknown
+  ? [U] extends [T]
+    ? false
+    : true
+  : never;
+
+/**
+ * lint 名是 union 时必须走 MergeProfiles（supported 取交集）：
+ * 分布式条件类型会把 union 拆成几张表的并集，supported 变成并集，
+ * 只有部分 lint 支持的属性会静默通过，违反「按项目的 lint 分表」。
+ *
+ * 分布检查走牺牲参数 _D：条件类型分布时会按成员替换 _D，但 L 不被替换，
+ * 名字分支里 IsUnion<L> 看到的仍是完整 union。顶层保持分布式条件类型的
+ * 原因：A11yOf 在泛型 Opt 下要靠它算出各分支的约束（非分布的
+ * `[L] extends [...]` 会让约束退化为 unknown，A11yOf 编译不过）。
+ */
+type ResolveProfileImpl<L, _D = L> = _D extends A11yLintName
+  ? IsUnion<L> extends true
+    ? MergeProfiles<L extends A11yLintName ? A11yLints[L] : never>
+    : A11yLints[L extends A11yLintName ? L : never]
   : L extends readonly A11yLintName[]
     ? MergeProfiles<A11yLints[L[number]]>
     : never;
+
+export type ResolveProfile<L> = ResolveProfileImpl<L>;
 
 // ---- 输入 ----
 
@@ -200,6 +234,10 @@ type OutValue<V, O extends A11yOutputMode> = V extends readonly string[]
  * 空 idlist 数组按「没传」处理：join 出的 '' 不是合法 id 列表，运行时
  * 跳过空数组。类型层把空元组归一成 undefined，输出键和 undefined 一样
  * 消失或变可选，两边不漂。
+ *
+ * 已知限制：非元组类型认不出空数组——`string[]` 变量持有 `[]` 时，类型层
+ * 仍承诺输出键，运行时却跳过它；必填的 idlist 键同理。只有字面量空元组
+ * 能在两层间对齐（见 createA11y.ts 的运行时跳过）。
  */
 type NoEmpty<V> = V extends readonly [] ? undefined : V;
 
@@ -266,6 +304,11 @@ type OutputOf<Opt extends A11yOptions> = Opt['output'] extends A11yOutputMode
 
 type AsProfile<P> = P extends A11yProfile ? P : never;
 
+/**
+ * 已知限制：直接构造 `A11yOf<{ lint: [] }>`（或 never[]）会绕过
+ * LintSelectionCheck——它只挂在 createA11y 的参数上，正式入口被拦，
+ * 直接构造 A11yOf 不经过这层检查，得到一张没有必填的退化表。
+ */
 export type A11yOf<Opt extends A11yOptions> = A11y<
   AsProfile<ResolveProfile<Opt['lint']>>,
   OutputOf<Opt>
