@@ -75,7 +75,7 @@ export const attrs: Record<string, unknown> = a11y('switch', {
  * 展平成名字并集后取交集，不能拆成两张表的并集。
  */
 const mixed: 'biome' | readonly ['oxlint'] =
-  Math.random() > 0.5 ? 'biome' : ['oxlint'] as const;
+  Math.random() > 0.5 ? 'biome' : (['oxlint'] as const);
 const a11yMixed = createA11y({ lint: mixed });
 
 export const attrsMixed: Record<string, unknown> = a11yMixed('switch', {

@@ -47,11 +47,20 @@ export type A11yOptions = {
 // biome-ignore lint/suspicious/noEmptyInterface: 留给使用方用 declaration merging 重载
 export interface A11yLintOverrides {}
 
-/** 有重载且结构对，用重载；否则用内置表 */
+/**
+ * 有重载且结构对（单张表），用重载；否则用内置表。
+ * 形状判定不分布（`[O] extends [A11yProfile]`）：union 值分布判定会
+ * 保留 union 表，Rule 对 union 取表时 supported 变并集，只有单侧
+ * 支持的属性静默通过（lint 名 union 漏洞的同型，§12.6）。union 值
+ * 由 BadShapeKeys 在 createA11y 调用点报错，这里退回内置表——直接
+ * 构造 A11yOf 绕过那道检查也不放宽。
+ */
 type CheckOverride<K extends A11yLintName> =
   A11yLintOverrides extends Record<K, infer O>
-    ? O extends A11yProfile
-      ? O
+    ? [O] extends [A11yProfile]
+      ? IsUnion<O> extends true
+        ? A11yBuiltinLints[K]
+        : O
       : A11yBuiltinLints[K]
     : A11yBuiltinLints[K];
 
@@ -471,8 +480,9 @@ type AsProfile<P> = P extends A11yProfile ? P : never;
  * union 分布，输出类型同时要求 tabIndex 和 tabindex 两个键（值都推成
  * `0 | '0'`），运行时只发一个。lint 维度没有静默漏网：`A11yOf<{
  * lint: [] }>` 归约成 never 表，带 aria 属性的调用在各自调用点报错
- * （见 LintSelectionCheck），只是错误不可读。类型层的保证以走
- * createA11y 为前提。
+ * （见 LintSelectionCheck），只是错误不可读；union 值的重载在
+ * CheckOverride 内部退回内置表，supported 不会变并集。类型层的
+ * 保证以走 createA11y 为前提。
  */
 export type A11yOf<Opt extends A11yOptions> = A11y<
   AsProfile<ResolveProfile<Opt['lint']>>,

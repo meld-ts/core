@@ -1,6 +1,6 @@
 ---
 name: meld-ts-core
-description: "Using @meld-ts/core in a project — complete export reference, import paths, and key design notes for guards, events, async tools (StatefulRpc / pending / retry), traits/mixin system, and path utils."
+description: "Using @meld-ts/core in a project — complete export reference, import paths, and key design notes for guards, events, async tools (StatefulRpc / pending / retry), traits/mixin system, aria attribute constructor (createA11y), and path utils."
 disable-model-invocation: false
 user-invocable: false
 ---

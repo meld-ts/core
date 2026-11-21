@@ -53,4 +53,9 @@ describe('A11yLintOverrides', () => {
       'Invalid A11yLintOverrides shape, rerun meld a11y probe',
     );
   });
+
+  test('union override falls back to builtin via direct A11yOf', () => {
+    const { exitCode, output } = tsc('override-union-direct');
+    expect({ exitCode, output }).toEqual({ exitCode: 0, output: '' });
+  });
 });

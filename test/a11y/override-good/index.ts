@@ -1,4 +1,4 @@
-import { createA11y, type A11yOf } from '../../../src/a11y/index.ts';
+import { type A11yOf, createA11y } from '../../../src/a11y/index.ts';
 
 declare module '../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
