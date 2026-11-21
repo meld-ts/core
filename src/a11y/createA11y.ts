@@ -31,8 +31,7 @@ interface A11yCallable {
 export function createA11y<const Opt extends A11yOptions>(
   options: Opt & OverrideKeyCheck,
 ): A11yOf<Opt>;
-// biome-ignore lint/suspicious/noExplicitAny: 重载返回未解析的条件类型 A11yOf<Opt>，实现签名只有 any 能与之兼容
-export function createA11y(options: A11yOptions): any {
+export function createA11y(options: A11yOptions): unknown {
   const html: boolean = options.output === 'html';
 
   const convert = (key: string, value: unknown): unknown => {
