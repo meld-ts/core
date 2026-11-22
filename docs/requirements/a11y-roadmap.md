@@ -8,7 +8,7 @@
 | 计划 | 内容 | 状态 | 交付物 |
 |---|---|---|---|
 | **A** 类型核心与运行时 | 类型机器 + `createA11y` 运行时 + 手写缩小版数据 | ✅ 已完成（2026-11-21） | `src/a11y/` 全部、子路径 `@meld-ts/core/a11y` |
-| **B** 探针与全量数据 | 探针 + `a11y:sync`，从真实 lint 生成全量规则表 | ⬜ 未开始 | `probe/`、`aria.generated.ts` 全量、`lints/` 四张表 |
+| **B** 探针与全量数据 | 探针 + `a11y:sync`，从真实 lint 生成全量规则表 | ✅ 已完成（2026-11-22） | `probe/`、`aria.generated.ts` 全量、`lints/` 四张表 |
 | **C** CLI 与用户侧闭环 | `meld a11y probe`、用户模式重载、一致性/反向/产物测试 | ⬜ 未开始 | `src/bin/meld.ts`、一致性测试、AGENTS 规则 |
 
 依赖关系：B 依赖 A 的类型契约（`A11yProfile` 字面量形状）；C 依赖 A + B。
@@ -40,7 +40,7 @@ ls dist/a11y       # esm/cjs/d.ts/d.cts 四产物
 grep -A4 '"./a11y"' package.json
 ```
 
-**说明**：本计划的数据是**手写缩小版**（biome 2.6.8 / oxlint 1.94.0，仅 switch / img / separator / combobox 四个 role），不是全量数据。文件头已注明会被 Plan B 整文件覆盖。
+**说明**：本计划的数据是**手写缩小版**（biome 2.6.8 / oxlint 1.94.0，仅 switch / img / separator / combobox 四个 role），不是全量数据。文件头已注明会被 Plan B 整文件覆盖。**（2026-11-22：Plan B 已用探针生成的全量表整文件替换。）**
 
 **终审**：无 Critical；3 条 Important（typedoc 入口、`skills/meld-ts-core/SKILL.md`、`docs/reviews/` 记录）已修复并复审通过。
 
@@ -48,9 +48,11 @@ grep -A4 '"./a11y"' package.json
 
 ---
 
-## Plan B：探针与全量数据（未开始）
+## Plan B：探针与全量数据（已完成）
 
 **目标**：用探针从真实 lint 生成全量规则表，替换 Plan A 的手写缩小版。核心理由见设计 §2：规则表只能从 lint 本身实测，不能凭规范手写。
+
+**执行记录**：分支 `feat/a11y`，2026-11-22，SDD 流程（8 个任务，每任务独立实现 + 审查）。首次真实同步（Task 7，`5fdc608`）生成四张表：**eslint 6.10.2**（表版本取 jsx-a11y 插件的版本）、**bun 1.4.4**、**oxlint 1.94.0**、**biome 2.6.8**；127 个非抽象 role × 51 个 AriaKey，连续两次 sync 逐字节一致（确定性成立）。**bun 1.4.4 起 `bun lint` 内嵌 oxlint**：JSON 是 oxlint 形状（`diagnostics[].code = jsx-a11y(...)`），需 `--jsx-a11y-plugin` 打开插件（`--rule` 才生效）、`--no-script` 防止转去执行项目 lint 脚本；bun 表独立探测生成，不 aliasOf eslint。其余事实见设计稿 §12.11。
 
 **交付物**：
 
@@ -58,20 +60,22 @@ grep -A4 '"./a11y"' package.json
 - `src/a11y/probe/samples.generated.ts`：每个属性的合法样例值
 - `src/a11y/probe/`：detect（发现项目里的 lint 与版本）、fixtures、exec（可注入子进程）、runners（四个 lint）、serialize
 - `scripts/a11y-sync.ts`：维护者模式，建 lab、装最新 lint、跑探针、覆盖写 `src/a11y/lints/<lint>.ts`
-- `src/a11y/lints/` 四张表：eslint、bun（第一版 `aliasOf: 'eslint'`）、oxlint、biome
+- `src/a11y/lints/` 四张表：eslint、bun、oxlint、biome（均独立探测生成）
 
-**完成判据**：
+**完成判据**（全部实测通过）：
 
 - 探针自检通过（已知必填 role 缺属性时 lint 确实报错）
 - 三条不变量成立（`required ⊆ supported`、`requiredWhenFocusable ⊆ supported`、required-name role 的 `label`/`labelledby` 在 supported 里）
 - 生成文件只含类型，`@meld-ts/core/a11y` 与 browser 包无 node 依赖
 - 类型测试从 4 role 扩到代表集（switch / combobox / option / treeitem / separator / img / heading / slider / generic）
 
-**必须吸收的移交项**（来自 Plan A 评审）：
+**移交项处置**（来自 Plan A 评审）：
 
-- 空 idlist 数组的非元组缺口：`string[]` 变量持有 `[]` 时，类型层仍承诺输出键、运行时却跳过（0e7d9be 已定「跳过」语义并记录在 `types.ts` / `createA11y.ts` 注释；非元组的类型层对齐留待全量数据落地时评估）
-- 任意两张表合并后的三条不变量形式化断言（biome+oxlint 已进 `types.test.ts`，Plan B 补 eslint / bun 表后扩到全部表对）
-- `A11yBuiltinLints` 键集合断言随表数量同步更新
+- 空 idlist 数组的非元组缺口：运行时 `IDLIST_KEYS` 已随全量数据补齐 5 键（`0e7d9be` 既定「跳过」语义不变）；非元组（`string[]` 变量持有 `[]`）的类型层对齐未动，**转入 Plan C** 评估
+- 任意两张表合并后的三条不变量断言：已扩到四表两两全部 6 对（`types.test.ts`，须逐对用具体类型别名断言）
+- `A11yBuiltinLints` 键集合断言：已随四表更新为四键
+
+**漂移检查**：lint 出新版、规则变了时，重跑 `bun run a11y:sync` 后 `git diff src/a11y/lints/` 会露出变化（设计 §7）。
 
 ---
 
@@ -94,6 +98,8 @@ grep -A4 '"./a11y"' package.json
 - `bun run test:a11y-lint` 在 lab 里可重复运行
 - 发版前检查包含构建产物重载测试
 - 发版前检查包含一次 TS 7 验证：lockfile / peer 的 TypeScript 版本错位修复后，在声明的 `^7` 下复跑 `ts-check`（设计 §12.7）
+- 决定 `bun run lint` 是否扩到 `./src` 之外：`test/`（a11y 编译 fixture）与 `scripts/`（a11y-sync）当前不在 lint 覆盖里（来自 Plan B 的移交）
+- 评估空 idlist 非元组缺口的类型层对齐（来自 Plan A / Plan B 的移交，运行时语义已定）
 
 ---
 
@@ -105,6 +111,9 @@ git log --oneline main..feat/a11y
 
 # 门禁
 bun run fmt && bun run lint && bun run ts-check && bun run test
+
+# a11y 数据漂移检查：重跑 sync（约 2–4 分钟），有 diff 说明 lint 出了新版/规则变了
+bun run a11y:sync && git diff --stat src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts
 
 # a11y 产物
 ls src/a11y src/a11y/lints dist/a11y

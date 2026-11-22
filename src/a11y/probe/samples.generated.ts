@@ -1,7 +1,8 @@
 /**
  * 每个 AriaKey 的合法样例值。
  *
- * 生成文件，勿手改。探针与一致性测试共用；不进入 a11y 入口。
+ * 生成文件，勿手改。探针与维护者脚本共用；Plan C 一致性测试将复用；
+ * 不进入 a11y 入口。
  */
 export const SAMPLES = {
   activedescendant: 'x',

@@ -23,6 +23,7 @@ src/
   async/            # StatefulRpc / pending / retry / timeout / sleep
   browser/          # Browser 全量入口（iife.ts 全局变量 MeldTS + index.ts ESM）
   a11y/             # a11y 属性构造器：按 lint 规则表做类型约束（createA11y）
+    probe/          # 维护者专用探针（a11y:sync 消费），不进 a11y 入口与 browser 产物
 docs/
   reviews/          # 代码审查记录，命名格式：YYYYMMDD-描述.md
 ```
@@ -34,6 +35,7 @@ bun run fmt            # Biome 格式化（src/）
 bun run lint           # Biome lint，warning 视为错误
 bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率
+bun run a11y:sync      # 维护者：重建 lab，从最新 lint 探测重新生成 a11y 内置表（慢，约 2–4 分钟）
 bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
 bun run build:browser  # bunup，产物到 browser/（esm + iife）
 bun run build:dist     # bunup，产物到 dist/（node esm + cjs）

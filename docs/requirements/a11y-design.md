@@ -35,7 +35,7 @@ AI 用 devtools 测页面时，靠的是 a11y 树里的 role 和名字；但它�
 
 另外几点实测结论：
 
-- **bun lint 的 jsx-a11y 是 eslint 版的移植**，消息文本和结果都一致。但 `bun lint` 目前只在 canary（1.4.5）里有，1.4.4 正式版没有这个命令。
+- **bun lint 的 jsx-a11y 是 eslint 版的移植**，消息文本和结果都一致。但 `bun lint` 目前只在 canary（1.4.5）里有，1.4.4 正式版没有这个命令。（§12.11：此条已被真实同步取代——bun 1.4.4 起 `bun lint` 内嵌的是 oxlint，不是 eslint 移植；上表 bun 列的 treeitem 行与实测不符。）
 - **oxlint 一次报全部缺失属性**：1.94.0 对 combobox 一条消息里同时报 `aria-controls` 和 `aria-expanded`。之前记录的「一次只报一个」没有复现，已删除。探针仍然循环补属性直到不再报错（§6），这样不依赖任何一家的报告方式。
 - **biome 的规则看上下文**：separator 只有可聚焦（带 tabIndex）时才要求 `aria-valuenow`。纯按 role 建表会漏掉这类条件。
 - **lint 看不到 spread**：`<div {...p} />` 里没有字面 role，lint 什么都不报。
@@ -180,7 +180,7 @@ type A11yProfile = {
     readonly lint: A11yLintName;
     readonly version: string;
     readonly source: 'builtin' | 'probe' | 'merged';   // core 自带 / 用户项目里探针生成的 / 多 lint 合并的
-    readonly aliasOf?: A11yLintName;                   // 这张表直接沿用另一个 lint 的表（见 §6 bun）
+    readonly aliasOf?: A11yLintName;                   // 这张表直接沿用另一个 lint 的表（保留字段；当前四张内置表均独立探测，见 §12.11）
   };
   readonly roles: {
     readonly [R in A11yRole]: {
@@ -348,14 +348,14 @@ src/a11y/
       oxlint.ts
       biome.ts
     serialize.ts           规则表数据 → TS 类型字面量（两种模式共用）
-    emit-override.ts       用户模式：写重载文件（第一行固定 export {};）
+    emit-override.ts       用户模式：写重载文件（第一行固定 export {};）。Plan C 交付
     *.test.ts              解析器、fixture、序列化、模板的单测
 src/bin/
-  meld.ts                  bin 入口，子命令路由。a11y probe 走用户模式
+  meld.ts                  bin 入口，子命令路由。a11y probe 走用户模式。Plan C 交付
 
 scripts/
   a11y-sync.ts             维护者模式：建 lab、装 lint、调 probe、写 src/a11y/lints/ 和 aria.generated.ts
-  a11y-lint-test.ts        §7 第 2、3 层：在 lab 里跑一致性测试和反向测试
+  a11y-lint-test.ts        §7 第 2、3 层：在 lab 里跑一致性测试和反向测试。Plan C 交付
 
 bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
@@ -408,11 +408,12 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 | lint | 启用的规则 | 命令 | 解析 |
 |---|---|---|---|
 | eslint | `jsx-a11y/role-has-required-aria-props`、`jsx-a11y/role-supports-aria-props` | `eslint -c config/eslint/eslint.config.js -f json fixtures/` | `messages[].ruleId` |
-| oxlint | `plugins: ["jsx-a11y"]`，规则同上 | `oxlint -c config/oxlint/.oxlintrc.json -f json fixtures/` | `code` 形如 `jsx-a11y(role-has-required-aria-props)` |
+| oxlint | `plugins: ["jsx-a11y"]`，规则同上 | `oxlint -c config/oxlint/.oxlintrc.json -f json <显式文件>` | `code` 形如 `jsx-a11y(role-has-required-aria-props)` |
 | biome | `lint/a11y/useAriaPropsForRole`、`lint/a11y/useAriaPropsSupportedByRole`，其余规则关掉 | `biome lint --config-path=config/biome --reporter=json fixtures/` | `category` |
-| bun | 第一版不探测（§11 第 4 条） | — | — |
+| bun | 同 oxlint 两条规则；`--jsx-a11y-plugin` 打开插件，规则走 CLI `--rule`，不写配置文件 | `bun lint --no-script --jsx-a11y-plugin -f json --rule jsx_a11y/…: error <显式文件>` | JSON 是 oxlint 形状，`code` 形如 `jsx-a11y(role-has-required-aria-props)` |
 
 - **只按规则 id 白名单取数**，不能按「有没有报错」判断。同一份 fixture 会触发很多无关规则：oxlint 开了 jsx-a11y 插件后，`control-has-associated-label`、`prefer-tag-over-role` 默认也会报。
+- **oxlint 和 bun 必须传显式文件参数**：两者的目录遍历会应用沿途 `.gitignore`，lab 建在仓库 `.cache/` 下、被根 `.gitignore` 整体忽略，传目录必然扫不到文件；显式文件不受 ignore 影响（lab 实测）。eslint 和 biome 传 fixtures 目录即可。
 - 各 lint 的配置写法跟着版本走：biome 2.6.8 里 `recommended: false` 已标为 deprecated，runner 按检测到的版本选写法。
 - 消息文本只在需要取属性名时解析（比如「缺哪些属性」），解析器针对每个 lint 单独写，用录好的真实输出做单测。
 
@@ -432,9 +433,11 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 不成立的典型原因是探针部分解析失败，或者减禁止属性减过头。后果是这个 role 的所有合法写法都会同时报「缺必填」和「never」，所以必须在生成时挡住。上面的自检只能证明 lint 跑起来了，证明不了这三条。
 
-**bun 的表（第一版）**：`bun lint` 还只在 canary 里，第一版不探测，`lints/bun.ts` 直接沿用 eslint 的表，`meta` 写成 `{ lint: 'bun', version: <eslint-plugin-jsx-a11y 的版本>, source: 'builtin', aliasOf: 'eslint' }`。依据是上个会话测到「bun lint 是 eslint 版的移植，结果一致」，审查时没有复测。等 bun 正式版带上 `bun lint`，再加 runner 单独探测。
+**bun 的表**：bun 1.4.4 起 `bun lint` 内嵌 oxlint——JSON 是 oxlint 形状（`diagnostics[].code = jsx-a11y(...)`），消息文本与 oxlint 同源，不是 eslint 的移植。CLI 要 `--jsx-a11y-plugin` 打开插件（没有它 `--rule` 静默无效）、`--no-script` 防止 bun 转去执行项目自己的 lint 脚本。runner 直接探测，表不 aliasOf eslint；解析与 lab oxlint 的 `parseOxlint` 平铺两份，两边内嵌/安装的 oxlint 各自漂移，互不连带。§12.11 记录了首次真实同步的结果。
 
 ### 用户模式
+
+Plan C 交付（`src/bin/meld.ts` 的 CLI 尚未实现）；下面的行为是它的目标。
 
 ```
 meld a11y probe [--lint biome,oxlint] [--out ./a11y-lints.generated.d.ts] [--keep]
@@ -459,10 +462,10 @@ meld a11y probe [--lint biome,oxlint] [--out ./a11y-lints.generated.d.ts] [--kee
 `bun run a11y:sync [--lint biome]` 做这几步：
 
 1. 清空 `.cache/a11y-lab/`，在里面 `bun init -y`。
-2. `bun add -d` 装最新的 eslint、eslint-plugin-jsx-a11y、@biomejs/biome、oxlint、aria-query。bun 第一版不探测，不用装。
+2. `bun add -d` 装最新的 eslint、eslint-plugin-jsx-a11y、@biomejs/biome、oxlint、aria-query。bun 不装在 lab 里：表用执行 sync 的那个 bun 探测，版本就是它的版本。
 3. 从 lab 里的 aria-query 生成 `src/a11y/aria.generated.ts` 和 `src/a11y/probe/samples.generated.ts`。
 4. 以 lab 为 cwd 调 `probe()`，每个 lint 覆盖写 `src/a11y/lints/<lint>.ts`，头部写版本。
-5. 对生成的文件跑 `biome format`。
+5. 在仓库根对生成的文件跑 `biome format`：格式化由仓库自己的 biome（lockfile 锁定）做，不是 lab 里的最新版，`git diff` 才不随 lab 漂。
 
 `--lint` 只更新指定的 lint，其他文件不动。
 
@@ -529,7 +532,7 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' --glob '*.{tsx,jsx}'
 | 1 | 命令名：`meld a11y probe`，还是单独叫 `meld-a11y`？ | `meld a11y probe`：`meld` 加子命令，以后别的功能也能挂上来 |
 | 2 | 输入用 camelCase（`checked`），还是直接写 `aria-checked`？ | camelCase：短，而且 `labelledBy` 这种拼写容易错的地方有补全 |
 | 3 | 要不要导出一个默认的 `a11y`（如四家合并 + `react`），让不想配置的人直接 `import { a11y }`？ | 先不导出，项目里写一行 `createA11y` 不费事，也逼着项目明确自己用哪个 lint |
-| 4 | bun lint 目前只在 canary 里有：内置表现在就用 canary 生成 `bun.ts`，还是等正式版？ | 先让 `bun` 指向 eslint 那张表（两者结果一致），bun 正式版有 `bun lint` 后再单独探测 |
+| 4 | bun lint 目前只在 canary 里有：内置表现在就用 canary 生成 `bun.ts`，还是等正式版？ | 已被取代（§12.11）：bun 1.4.4 起 `bun lint` 内嵌 oxlint，runner 直接探测，`lints/bun.ts` 是独立生成的表，不沿用 eslint |
 
 ## 12. 修订记录
 
@@ -678,6 +681,38 @@ ARIA 规范与 lint 演进的注册机制，且无法做到项目级重载。§1
 
 附录 A 原型与 §12.1–12.9 修订记录里的旧拼写保留原样：它们是当时的
 实测记录，改写等于伪造证据；本条之后以小写形式为准。
+
+### 12.11 Plan B：首次真实同步记录（2026-11-22）
+
+四张内置表已由探针生成（`5fdc608`，整文件替换 Plan A 的手写缩小版），
+`bun run a11y:sync` 可重复生成。事实如下：
+
+- **版本**：eslint 6.10.2（表版本取 eslint-plugin-jsx-a11y 插件的版本，不是
+  eslint 自身）、bun 1.4.4、oxlint 1.94.0、biome 2.6.8。bun 用执行 sync 的
+  那个 bun 探测，版本就是它的版本。
+- **bun 内嵌 oxlint**：bun 1.4.4 起 `bun lint` 的 jsx-a11y 来自内嵌的
+  oxlint——JSON 是 oxlint 形状（`diagnostics[].code = jsx-a11y(...)`），消息
+  文本同源，不是 eslint 的移植（§2 首测表 bun 列因此作废：其 treeitem 行
+  记 `selected`，实测 bun 表是 `never`，与 oxlint 一致）。CLI 需要
+  `--jsx-a11y-plugin` 打开插件（缺它 `--rule` 静默无效），`--no-script`
+  防止 bun 转去执行项目自己的 lint 脚本。bun 表独立探测生成，不 aliasOf
+  eslint；本次同步里 bun 与 oxlint 两表的 role 数据恰好逐项相同，但两者
+  独立漂移，不做 alias。
+- **显式文件参数**：oxlint 和 bun 的目录遍历会应用沿途 `.gitignore`，lab
+  建在仓库 `.cache/` 下、被根 `.gitignore` 整体忽略，传目录必然扫不到文件
+  （lab 实测）；这两个 runner 传显式文件。eslint 和 biome 传目录即可。
+- **数据规模**：127 个非抽象 role × 51 个 AriaKey；idlist 键 5 个
+  （controls / describedby / flowto / labelledby / owns），运行时
+  `IDLIST_KEYS` 同步补齐。
+- **`switch` 名字规则是 `optional`**：aria-query 里 switch 的 `nameFrom` 含
+  `contents`，按 §4 的分类规则（`accessibleNameRequired` 且不含 `contents`
+  才 required）归 `optional`。Plan A 手写缩小版曾写 `required`；以本实现
+  的规则为准，不回改。
+- **生成文件格式化由仓库根的 biome 做**（lockfile 锁定，当前 2.5.0），不是
+  lab 里的 biome（2.6.8）：根 biome 升级只会改排版，不会改数据，`git diff`
+  不随 lab 漂。
+- **bun 的 lint 未 stable**：内嵌 oxlint 升级若改消息文本或 JSON 形状，
+  runner 会失败（fail-closed），重跑 sync 修复。
 
 ## 附录 A：类型原型（已实测）
 

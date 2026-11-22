@@ -66,7 +66,7 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 | `@meld-ts/core/traits` | Mixin 系统（implTraits / configurable / debuggable） |
 | `@meld-ts/core/events` | 事件发射器（Promise.all 并发 / 委托者 / 链式注册） |
 | `@meld-ts/core/async` | 异步工具（StatefulRpc / pending / retry / timeout / sleep） |
-| `@meld-ts/core/a11y` | 按 lint 规则表约束 aria 属性的构造器（createA11y，含类型与运行时） |
+| `@meld-ts/core/a11y` | 按 lint 规则表约束 aria 属性的构造器（createA11y，含类型与运行时）。内置 eslint / bun / oxlint / biome 四张表，数据由 `bun run a11y:sync` 从真实 lint 探测生成 |
 
 ## 浏览器使用
 

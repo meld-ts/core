@@ -22,7 +22,7 @@ export type A11yProfile = {
     readonly lint: A11yLintName;
     readonly version: string;
     readonly source: 'builtin' | 'probe' | 'merged';
-    /** 这张表直接沿用另一个 lint 的表（bun 表 aliasOf eslint） */
+    /** 这张表直接沿用另一个 lint 的表（保留字段；当前四张内置表均独立探测生成） */
     readonly aliasOf?: A11yLintName;
   };
   readonly roles: { readonly [R in A11yRole]: A11yRoleRule };
