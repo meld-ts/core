@@ -56,6 +56,13 @@ const src: AriaQuerySource = {
       nameFrom: ['prohibited'],
     },
     {
+      name: 'graphics-symbol',
+      abstract: false,
+      requiredProps: {},
+      accessibleNameRequired: true,
+      nameFrom: ['author'],
+    },
+    {
       name: 'roletype',
       abstract: true,
       requiredProps: {},
@@ -80,6 +87,8 @@ describe('generateAriaTypes', () => {
     expect(out).toContain("switch: 'required'");
     expect(out).toContain("separator: 'optional'");
     expect(out).toContain("generic: 'prohibited'");
+    // 带连字符的 role 名不是合法标识符，作对象键必须加引号
+    expect(out).toContain("readonly 'graphics-symbol': 'required';");
   });
 
   test('token values drop the undefined token and booleanize pairs', () => {
@@ -128,6 +137,7 @@ describe('nameRules', () => {
   test('maps non-abstract roles in sorted key order', () => {
     expect(nameRules(src)).toEqual({
       generic: 'prohibited',
+      'graphics-symbol': 'required',
       img: 'required',
       separator: 'optional',
       switch: 'required',

@@ -58,6 +58,9 @@ export const runOxlint = (
   for (const f of fixtures) {
     writeFile(`${workDir}/fixtures/${f.name}.jsx`, f.code);
   }
+  // 显式传文件而不是 fixtures 目录：oxlint 遍历目录会应用沿途的
+  // .gitignore（lab 在仓库 .cache 下，被根 .gitignore 整体忽略），
+  // 显式文件参数不受 ignore 影响。
   const r = exec(
     [
       ...bin,
@@ -65,7 +68,7 @@ export const runOxlint = (
       `${workDir}/config/oxlint/.oxlintrc.json`,
       '-f',
       'json',
-      `${workDir}/fixtures`,
+      ...fixtures.map((f) => `${workDir}/fixtures/${f.name}.jsx`),
     ],
     { cwd },
   );

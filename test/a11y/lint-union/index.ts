@@ -1,62 +1,43 @@
-import { createA11y } from '../../../src/a11y/index.ts';
+import {
+  type BiomeA11yProfile,
+  type OxlintA11yProfile,
+  createA11y,
+} from '../../../src/a11y/index.ts';
 
 /**
  * lint 名是 union（变量 / 条件表达式）时的交集语义：
- * biome 和 oxlint 两张重载表的 supported 不同（只有 biome 支持 hidden），
- * 合并后 switch 只允许交集，hidden 必须报错。
+ * biome 和 oxlint 两张重载表的 switch supported 不同（只有 biome 支持
+ * hidden），合并后 switch 只允许交集，hidden 必须报错。
+ * 全量内置表逐字面量重写不现实，两表均基于内置表类型改个别 role。
  */
+type BiomeProbe = Omit<BiomeA11yProfile, 'meta' | 'roles'> & {
+  meta: { lint: 'biome'; version: '9.9.9'; source: 'probe' };
+  roles: Omit<BiomeA11yProfile['roles'], 'combobox'> & {
+    combobox: Omit<
+      BiomeA11yProfile['roles']['combobox'],
+      'requiredWhenFocusable'
+    > & {
+      requiredWhenFocusable: 'controls';
+    };
+  };
+};
+
+type OxlintProbe = Omit<OxlintA11yProfile, 'meta' | 'roles'> & {
+  meta: { lint: 'oxlint'; version: '9.9.9'; source: 'probe' };
+  roles: Omit<OxlintA11yProfile['roles'], 'switch'> & {
+    switch: Omit<OxlintA11yProfile['roles']['switch'], 'supported'> & {
+      supported: Exclude<
+        OxlintA11yProfile['roles']['switch']['supported'],
+        'hidden'
+      >;
+    };
+  };
+};
+
 declare module '../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
-    biome: {
-      meta: { lint: 'biome'; version: '9.9.9'; source: 'probe' };
-      roles: {
-        switch: {
-          required: 'checked';
-          supported: 'checked' | 'label' | 'labelledby' | 'hidden';
-          requiredWhenFocusable: never;
-        };
-        img: {
-          required: never;
-          supported: 'label' | 'labelledby' | 'details';
-          requiredWhenFocusable: never;
-        };
-        separator: {
-          required: never;
-          supported: 'valuenow' | 'label' | 'labelledby';
-          requiredWhenFocusable: never;
-        };
-        combobox: {
-          required: 'expanded';
-          supported: 'expanded' | 'controls' | 'label' | 'labelledby';
-          requiredWhenFocusable: 'controls';
-        };
-      };
-    };
-    oxlint: {
-      meta: { lint: 'oxlint'; version: '9.9.9'; source: 'probe' };
-      roles: {
-        switch: {
-          required: 'checked';
-          supported: 'checked' | 'label' | 'labelledby';
-          requiredWhenFocusable: never;
-        };
-        img: {
-          required: never;
-          supported: 'label' | 'labelledby' | 'details';
-          requiredWhenFocusable: never;
-        };
-        separator: {
-          required: never;
-          supported: 'valuenow' | 'label' | 'labelledby';
-          requiredWhenFocusable: never;
-        };
-        combobox: {
-          required: 'expanded' | 'controls';
-          supported: 'expanded' | 'controls' | 'label' | 'labelledby';
-          requiredWhenFocusable: never;
-        };
-      };
-    };
+    biome: BiomeProbe;
+    oxlint: OxlintProbe;
   }
 }
 

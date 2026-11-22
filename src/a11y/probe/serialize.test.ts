@@ -62,4 +62,21 @@ describe('serializeProfile', () => {
     );
     expect(out.indexOf('button:')).toBeLessThan(out.indexOf('switch:'));
   });
+
+  test('quotes hyphenated role names as object keys', () => {
+    const out = serializeProfile({
+      lint: 'biome',
+      version: '2.6.8',
+      roles: {
+        'graphics-symbol': {
+          required: [],
+          supported: ['aria-label'],
+          requiredWhenFocusable: [],
+        },
+      },
+    });
+    expect(out).toContain(
+      "'graphics-symbol': { required: never; supported: 'label'; requiredWhenFocusable: never };",
+    );
+  });
 });

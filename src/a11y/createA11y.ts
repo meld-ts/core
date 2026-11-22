@@ -12,7 +12,13 @@ import type {
  * idlist 属性的运行时最小表：只有这些键的数组值用空格拼接。
  * 其余逻辑全部由类型层保证。
  */
-const IDLIST_KEYS = ['controls', 'labelledby'] as const;
+const IDLIST_KEYS = [
+  'controls',
+  'describedby',
+  'flowto',
+  'labelledby',
+  'owns',
+] as const;
 const IDLIST_SET: ReadonlySet<string> = new Set(IDLIST_KEYS);
 
 type Eq<A, B> =

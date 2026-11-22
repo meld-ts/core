@@ -10,6 +10,8 @@ import { createA11y } from './createA11y';
 import type {
   A11yBuiltinLints,
   BiomeA11yProfile,
+  BunA11yProfile,
+  EslintA11yProfile,
   OxlintA11yProfile,
 } from './lints';
 import type {
@@ -57,8 +59,10 @@ describe('aria.generated', () => {
 });
 
 describe('builtin lint profiles', () => {
-  test('registry exposes biome and oxlint keys', () => {
-    const a: Assert<Eq<keyof A11yBuiltinLints, 'biome' | 'oxlint'>> = true;
+  test('registry exposes the four lint keys', () => {
+    const a: Assert<
+      Eq<keyof A11yBuiltinLints, 'eslint' | 'bun' | 'oxlint' | 'biome'>
+    > = true;
     check(a);
   });
 
@@ -66,33 +70,69 @@ describe('builtin lint profiles', () => {
     const a: Assert<BiomeA11yProfile extends A11yProfile ? true : false> = true;
     const b: Assert<OxlintA11yProfile extends A11yProfile ? true : false> =
       true;
-    const c: Assert<
+    const c: Assert<EslintA11yProfile extends A11yProfile ? true : false> =
+      true;
+    const d: Assert<BunA11yProfile extends A11yProfile ? true : false> = true;
+    // 生成表的固定事实：断言探针结果里最稳定的代表 role，
+    // 数据漂移时这三行会先红，提示重跑 a11y:sync。
+    const e: Assert<
       Eq<BiomeA11yProfile['roles']['switch']['required'], 'checked'>
     > = true;
-    const d: Assert<
+    const f: Assert<
       Eq<
-        OxlintA11yProfile['roles']['combobox']['required'],
-        'expanded' | 'controls'
+        BiomeA11yProfile['roles']['separator']['requiredWhenFocusable'],
+        'valuenow'
       >
     > = true;
-    check(a, b, c, d);
+    const g: Assert<
+      Eq<
+        EslintA11yProfile['roles']['combobox']['required'],
+        'controls' | 'expanded'
+      >
+    > = true;
+    check(a, b, c, d, e, f, g);
   });
 
-  test('shrunk role set is the four documented roles', () => {
-    const a: Assert<Eq<A11yRole, 'switch' | 'img' | 'separator' | 'combobox'>> =
-      true;
+  test('full role and key sets cover the representative members', () => {
+    // 127 role / 51 key 的全集逐字面量断言不可维护；改断言代表成员
+    // 覆盖各形态：必填表、hyphen 命名、prohibited 名字规则。
+    const a: Assert<
+      Eq<
+        Exclude<
+          | 'switch'
+          | 'combobox'
+          | 'option'
+          | 'treeitem'
+          | 'separator'
+          | 'img'
+          | 'heading'
+          | 'slider'
+          | 'generic'
+          | 'graphics-symbol'
+          | 'doc-abstract',
+          A11yRole
+        >,
+        never
+      >
+    > = true;
     const b: Assert<
       Eq<
-        AriaKey,
-        | 'checked'
-        | 'expanded'
-        | 'controls'
-        | 'label'
-        | 'labelledby'
-        | 'valuenow'
-        | 'selected'
-        | 'details'
-        | 'hidden'
+        Exclude<
+          | 'checked'
+          | 'expanded'
+          | 'controls'
+          | 'label'
+          | 'labelledby'
+          | 'valuenow'
+          | 'selected'
+          | 'details'
+          | 'hidden'
+          | 'activedescendant'
+          | 'level'
+          | 'braillelabel',
+          AriaKey
+        >,
+        never
       >
     > = true;
     check(a, b);
@@ -422,44 +462,58 @@ describe.skip('multi-lint merge', () => {
   /** 每个 role 归约成 never 的形状：不变量成立的判据 */
   type AllNever = { [R in A11yRole]: never };
 
-  test('merged table keeps the three section 6 invariants', () => {
-    type Merged = ResolveProfile<readonly ['biome', 'oxlint']>;
-    // required ⊆ supported
-    const a: Assert<
-      Eq<
-        {
-          [R in A11yRole]: Exclude<
-            Merged['roles'][R]['required'],
-            Merged['roles'][R]['supported']
-          >;
-        },
-        AllNever
-      >
-    > = true;
-    // requiredWhenFocusable ⊆ supported
-    const b: Assert<
-      Eq<
-        {
-          [R in A11yRole]: Exclude<
-            Merged['roles'][R]['requiredWhenFocusable'],
-            Merged['roles'][R]['supported']
-          >;
-        },
-        AllNever
-      >
-    > = true;
-    // 名字必填的 role，label 和 labelledby 都在 supported 里
-    const c: Assert<
-      Eq<
-        {
-          [R in A11yRole]: A11yNameRule[R] extends 'required'
-            ? Exclude<'label' | 'labelledby', Merged['roles'][R]['supported']>
-            : never;
-        },
-        AllNever
-      >
-    > = true;
-    check(a, b, c);
+  /**
+   * 三条 §6 不变量的判据形状（对合并表 M 逐 role 归约，全部 never 才成立）。
+   * 注意必须在 M 为具体类型别名时使用：Eq 与映射类型套在泛型 P 上时
+   * ResolveProfile 会延迟求值、结果失真（TS 条件类型的已知坑）。
+   */
+  type RequiredSubset<M extends A11yProfile> = {
+    [R in A11yRole]: Exclude<
+      M['roles'][R]['required'],
+      M['roles'][R]['supported']
+    >;
+  };
+  type FocusableSubset<M extends A11yProfile> = {
+    [R in A11yRole]: Exclude<
+      M['roles'][R]['requiredWhenFocusable'],
+      M['roles'][R]['supported']
+    >;
+  };
+  type NamedSubset<M extends A11yProfile> = {
+    [R in A11yRole]: A11yNameRule[R] extends 'required'
+      ? Exclude<'label' | 'labelledby', M['roles'][R]['supported']>
+      : never;
+  };
+
+  test('all six pairwise merges keep the three section 6 invariants', () => {
+    // 逐对具体别名：required / requiredWhenFocusable ⊆ supported，
+    // 名字必填 role 的 label / labelledby 在 supported。supported 取交集后
+    // 仍成立，说明任何一张表必填的属性都在其余表的 supported 里。
+    type EB = ResolveProfile<readonly ['eslint', 'bun']>;
+    type EO = ResolveProfile<readonly ['eslint', 'oxlint']>;
+    type EM = ResolveProfile<readonly ['eslint', 'biome']>;
+    type BO = ResolveProfile<readonly ['bun', 'oxlint']>;
+    type BM = ResolveProfile<readonly ['bun', 'biome']>;
+    type OM = ResolveProfile<readonly ['oxlint', 'biome']>;
+    const a: Assert<Eq<RequiredSubset<EB>, AllNever>> = true;
+    const b: Assert<Eq<FocusableSubset<EB>, AllNever>> = true;
+    const c: Assert<Eq<NamedSubset<EB>, AllNever>> = true;
+    const d: Assert<Eq<RequiredSubset<EO>, AllNever>> = true;
+    const e: Assert<Eq<FocusableSubset<EO>, AllNever>> = true;
+    const f: Assert<Eq<NamedSubset<EO>, AllNever>> = true;
+    const g: Assert<Eq<RequiredSubset<EM>, AllNever>> = true;
+    const h: Assert<Eq<FocusableSubset<EM>, AllNever>> = true;
+    const i: Assert<Eq<NamedSubset<EM>, AllNever>> = true;
+    const j: Assert<Eq<RequiredSubset<BO>, AllNever>> = true;
+    const k: Assert<Eq<FocusableSubset<BO>, AllNever>> = true;
+    const l: Assert<Eq<NamedSubset<BO>, AllNever>> = true;
+    const m: Assert<Eq<RequiredSubset<BM>, AllNever>> = true;
+    const n: Assert<Eq<FocusableSubset<BM>, AllNever>> = true;
+    const o: Assert<Eq<NamedSubset<BM>, AllNever>> = true;
+    const p: Assert<Eq<RequiredSubset<OM>, AllNever>> = true;
+    const q: Assert<Eq<FocusableSubset<OM>, AllNever>> = true;
+    const r: Assert<Eq<NamedSubset<OM>, AllNever>> = true;
+    check(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r);
   });
 });
 

@@ -115,7 +115,7 @@ describe('runOxlint', () => {
         '/p/.meld-a11y-probe/config/oxlint/.oxlintrc.json',
         '-f',
         'json',
-        '/p/.meld-a11y-probe/fixtures',
+        '/p/.meld-a11y-probe/fixtures/required.jsx',
       ],
     ]);
     expect(report.unsupported).toEqual([

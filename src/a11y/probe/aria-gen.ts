@@ -26,6 +26,10 @@ export interface AriaQuerySource {
 
 const keyOf = (ariaName: string): string => ariaName.replace(/^aria-/, '');
 
+// doc-* / graphics-* 这类带连字符的 role 名不是合法标识符，作对象键必须加引号
+const objectKeyOf = (name: string): string =>
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : `'${name}'`;
+
 const byKey = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 const sortedProps = (src: AriaQuerySource): readonly AriaPropertySource[] =>
@@ -140,7 +144,7 @@ export const generateAriaTypes = (src: AriaQuerySource): string => {
     .join('\n');
   const roleUnion = roles.map((r) => `  | '${r.name}'`).join('\n');
   const nameRows = roles
-    .map((r) => `  readonly ${r.name}: '${nameRuleOf(r)}';`)
+    .map((r) => `  readonly ${objectKeyOf(r.name)}: '${nameRuleOf(r)}';`)
     .join('\n');
   const idListKeys = props
     .filter((p) => p.type === 'idlist')

@@ -16,6 +16,10 @@ const SORT = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 const keyOf = (ariaName: string): string => ariaName.replace(/^aria-/, '');
 
+// doc-* / graphics-* 这类带连字符的 role 名不是合法标识符，作对象键必须加引号
+const objectKeyOf = (name: string): string =>
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : `'${name}'`;
+
 const union = (names: readonly string[]): string =>
   names.length ? names.map((n) => `'${keyOf(n)}'`).join(' | ') : 'never';
 
@@ -31,7 +35,7 @@ export const serializeProfile = (profile: ProfileData): string => {
     .sort(([a], [b]) => SORT(a, b))
     .map(
       ([role, r]) =>
-        `    ${role}: { required: ${union(sorted(r.required))}; supported: ${union(sorted(r.supported))}; requiredWhenFocusable: ${union(sorted(r.requiredWhenFocusable))} };`,
+        `    ${objectKeyOf(role)}: { required: ${union(sorted(r.required))}; supported: ${union(sorted(r.supported))}; requiredWhenFocusable: ${union(sorted(r.requiredWhenFocusable))} };`,
     )
     .join('\n');
   return `/**

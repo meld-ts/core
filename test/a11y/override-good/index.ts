@@ -1,32 +1,25 @@
-import { type A11yOf, createA11y } from '../../../src/a11y/index.ts';
+import {
+  type A11yOf,
+  type BiomeA11yProfile,
+  createA11y,
+} from '../../../src/a11y/index.ts';
+
+/**
+ * 全量内置表（127 role）逐字面量重写不现实；重载表基于内置表类型
+ * 改个别 role，保持 A11yProfile 的结构完整（这是重载生效的前提）。
+ */
+type OverrideBiome = Omit<BiomeA11yProfile, 'meta' | 'roles'> & {
+  meta: { lint: 'biome'; version: '9.9.9'; source: 'probe' };
+  roles: Omit<BiomeA11yProfile['roles'], 'switch'> & {
+    switch: Omit<BiomeA11yProfile['roles']['switch'], 'required'> & {
+      required: never;
+    };
+  };
+};
 
 declare module '../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
-    biome: {
-      meta: { lint: 'biome'; version: '9.9.9'; source: 'probe' };
-      roles: {
-        switch: {
-          required: never;
-          supported: 'checked' | 'label' | 'labelledby';
-          requiredWhenFocusable: never;
-        };
-        img: {
-          required: never;
-          supported: 'label' | 'labelledby' | 'details';
-          requiredWhenFocusable: never;
-        };
-        separator: {
-          required: never;
-          supported: 'valuenow' | 'label' | 'labelledby';
-          requiredWhenFocusable: never;
-        };
-        combobox: {
-          required: 'expanded';
-          supported: 'expanded' | 'controls' | 'label' | 'labelledby';
-          requiredWhenFocusable: never;
-        };
-      };
-    };
+    biome: OverrideBiome;
   }
 }
 
