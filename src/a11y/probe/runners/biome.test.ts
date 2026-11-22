@@ -6,10 +6,9 @@ import { parseBiome, runBiome } from './biome';
 
 /**
  * 输出形状与消息录自 biome 2.5.0 / 2.6.8 的真实运行（--reporter=json）：
- * required 消息只含 role（缺失属性清单在 footer，JSON 不输出，advices 恒为空）；
+ * required 消息只含 role（缺失属性清单在 footer，JSON 不输出，advices 恒为空），
+ * required 的发现走「逐个去掉一个 supported 属性再跑」，不读消息清单；
  * unsupported 消息不含 role，靠诊断的文件与行号回查 fixture 那一行的 role。
- * Task 7 必须用 lab 的最新 biome 复核，若新版把 footer 清单输出到 advices，
- * 应升级解析器读取它。
  */
 const RAW = JSON.stringify({
   summary: { errors: 2, warnings: 0, infos: 0 },

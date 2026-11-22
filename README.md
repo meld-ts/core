@@ -66,7 +66,7 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 | `@meld-ts/core/traits` | Mixin 系统（implTraits / configurable / debuggable） |
 | `@meld-ts/core/events` | 事件发射器（Promise.all 并发 / 委托者 / 链式注册） |
 | `@meld-ts/core/async` | 异步工具（StatefulRpc / pending / retry / timeout / sleep） |
-| `@meld-ts/core/a11y` | 按 lint 规则表约束 aria 属性的构造器（createA11y，含类型与运行时）。内置 eslint / bun / oxlint / biome 四张表，数据由 `bun run a11y:sync` 从真实 lint 探测生成 |
+| `@meld-ts/core/a11y` | 按 lint 规则表约束 aria 属性的构造器（createA11y，含类型与运行时）。内置 eslint / bun / oxlint / biome 四张表，数据由 `bun run a11y:sync` 从真实 lint 探测生成；用户项目可用随包发布的 `meld a11y probe` 按自己装的 lint 版本生成重载表 |
 
 ## 浏览器使用
 
@@ -113,9 +113,12 @@ declare global {
 
 ```bash
 bun run fmt           # Biome 格式化（src/）
-bun run lint          # Biome lint，warning 视为错误
-bun run ts-check      # tsgo --noEmit，TS 6.x 原生类型检查
+bun run lint          # Biome lint，warning 视为错误（src + test）
+bun run ts-check      # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test          # 运行所有测试 + 覆盖率
+bun run a11y:sync     # 维护者：重建 lab，从最新 lint 重新探测生成 a11y 内置表（慢）
+bun run test:a11y-lint  # a11y 一致性 + 反向测试（lab，慢，发版前）
+bun run test:a11y-build # a11y 构建产物重载测试（发版前）
 bun run build:exports # 基于预期的构建内容，生成 package.json exports 部分内容
 bun run build:browser # 构建 browser （ESM + iife）
 bun run build:dist    # 构建 node （ESM + cjs）

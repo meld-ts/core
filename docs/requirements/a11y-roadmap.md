@@ -9,9 +9,11 @@
 |---|---|---|---|
 | **A** 类型核心与运行时 | 类型机器 + `createA11y` 运行时 + 手写缩小版数据 | ✅ 已完成（2026-11-21） | `src/a11y/` 全部、子路径 `@meld-ts/core/a11y` |
 | **B** 探针与全量数据 | 探针 + `a11y:sync`，从真实 lint 生成全量规则表 | ✅ 已完成（2026-11-22） | `probe/`、`aria.generated.ts` 全量、`lints/` 四张表 |
-| **C** CLI 与用户侧闭环 | `meld a11y probe`、用户模式重载、一致性/反向/产物测试 | ⬜ 未开始 | `src/bin/meld.ts`、一致性测试、AGENTS 规则 |
+| **C** CLI 与用户侧闭环 | `meld a11y probe`、用户模式重载、一致性/反向/产物测试 | ✅ 已完成（2026-11-22） | `src/bin/meld.ts`、一致性测试、AGENTS 规则 |
 
 依赖关系：B 依赖 A 的类型契约（`A11yProfile` 字面量形状）；C 依赖 A + B。
+
+三个计划（A / B / C）均已完成（2026-11-22）；日常门禁见「进度核查方法」，a11y 专项与发版前检查见下文「发版前检查（a11y）」。
 
 ---
 
@@ -79,27 +81,47 @@ grep -A4 '"./a11y"' package.json
 
 ---
 
-## Plan C：CLI 与用户侧闭环（未开始）
+## Plan C：CLI 与用户侧闭环（已完成）
 
 **目标**：让使用方项目能按自己装的 lint 版本生成重载文件，并把 lint 一致性固化为可重复运行的测试。
 
-**交付物**：
+**执行记录**：分支 `feat/a11y`，2026-11-22，SDD 流程（7 个任务，每任务独立实现 + 审查）。收官事实（bin 打包、用户模式输出、四层测试运行方式、AGENTS/CI、bun 两种 lint 模式）见设计稿 §12.12。
 
-- `src/bin/meld.ts` + `bunup.bin.ts`：`meld a11y probe [--lint ...] [--out ...] [--keep]`
-- 用户模式：读项目 package.json 发现的 lint，生成 `a11y-lints.generated.d.ts`（首行固定 `export {};`）
-- 第 2 层一致性测试：`a11y()` 输出展开成字面属性，交给对应 lint 跑，要求零报错
-- 第 3 层反向测试：故意去必填属性，确认 lint 报错
-- 第 4 层构建产物重载测试：`build:dist` 后通过包名引用，验证重载生效/失效
-- AGENTS 规则（禁止手写 `role=` / `aria-*`）+ CI grep 检查
+**交付物**（全部落地）：
 
-**完成判据**：
+- `src/bin/meld.ts` + `bunup.bin.ts`：`meld a11y probe [--lint=...] [--out=...] [--keep]`，打包到 `dist/bin/meld.js`（shebang 由 banner 注入）
+- 用户模式：读项目 package.json 发现的 lint，生成 `a11y-lints.generated.d.ts`（首行固定 `export {};`，写出后检查它在不在 tsconfig 的 include 里，不在只警告）
+- 第 2 层一致性测试：`a11y()` 输出展开成字面属性，交给对应 lint 跑，要求零报错（`bun run test:a11y-lint`）
+- 第 3 层反向测试：故意去必填属性，确认 lint 报错（同一脚本）
+- 第 4 层构建产物重载测试：`build:dist` 后通过包名引用，验证重载生效/失效（`bun run test:a11y-build`）
+- AGENTS 规则（禁止手写 `role=` / `aria-*`）+ CI grep 检查（按 rg 退出码分流）
+
+**完成判据**（全部实测通过）：
 
 - 四种模式（用户/维护者 × 生成/测试）按设计 §6 工作
 - `bun run test:a11y-lint` 在 lab 里可重复运行
-- 发版前检查包含构建产物重载测试
-- 发版前检查包含一次 TS 7 验证：lockfile / peer 的 TypeScript 版本错位修复后，在声明的 `^7` 下复跑 `ts-check`（设计 §12.7）
-- 决定 `bun run lint` 是否扩到 `./src` 之外：`test/`（a11y 编译 fixture）与 `scripts/`（a11y-sync）当前不在 lint 覆盖里（来自 Plan B 的移交）
-- 评估空 idlist 非元组缺口的类型层对齐（来自 Plan A / Plan B 的移交，运行时语义已定）
+- 发版前检查包含构建产物重载测试（见下文「发版前检查（a11y）」）
+- 决定 `bun run lint` 是否扩到 `./src` 之外：**已扩到 `./test`**——`lint` 脚本改为 `biome lint --error-on-warnings ./src ./test`，`test/a11y` 的编译 fixture 进 CI 的 lint；`scripts/` 维持不扩
+
+**遗留**：
+
+- TS 7 验证：等 lockfile / peer 的 TypeScript 版本错位修复（devDependencies 锁 5.9.3，peer 声明 `^7`）后，在 `^7` 下复跑一次 `ts-check`（设计 §12.7）
+- 空 idlist 非元组（`string[]` 变量持有 `[]`）的类型层对齐：未动，维持已知限制（设计 §12.5）；运行时语义已定（`IDLIST_KEYS` 把空数组丢键）
+
+---
+
+## 发版前检查（a11y）
+
+CI（`pr-check.yml`）覆盖 lint / ts-check / build / AGENTS grep / test。a11y 的三层专项慢，不进 CI，发版前跑：
+
+```bash
+bun run test:a11y-lint    # §7 第 2/3 层：一致性 + 反向（lab，慢）
+bun run test:a11y-build    # §7 第 4 层：构建产物重载
+bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts
+                           # 漂移检查：lint 出新版/规则变了会露出 diff
+```
+
+TS 7 验证（设计 §12.7）等版本错位修复后并入这里。
 
 ---
 

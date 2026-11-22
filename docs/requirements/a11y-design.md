@@ -437,7 +437,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 ### 用户模式
 
-Plan C 交付（`src/bin/meld.ts` 的 CLI 尚未实现）；下面的行为是它的目标。
+已实现（Plan C，`src/bin/meld.ts`）。下面是它的行为。
 
 ```
 meld a11y probe [--lint biome,oxlint] [--out ./a11y-lints.generated.d.ts] [--keep]
@@ -497,24 +497,27 @@ core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注
 - 原生元素补状态用 a11y.aria({...})，不手写 aria-*，也不要对原生元素用 a11y(role, ...)。
 - 自定义 role 一律用 a11y(role, {...})，不手写 role= 和 aria-*。
 - 需要可聚焦就传 focusable: true，不另外手写 tabIndex。唯一例外：只能用脚本聚焦的元素手写 tabIndex={-1}。
-- 项目统一从 src/a11y.ts 导入 a11y，这个文件里用 createA11y 绑定本项目的 lint 和 output。
+- 项目统一从 src/a11y.ts 导入 a11y，createA11y 只在这个文件里调，绑定本项目的 lint 和 output。
 ```
 
-lint 看不到 spread，这几条规则就是主要防线。「不手写」可以用 grep 在 CI 里检查，排除 `src/a11y.ts`：
+lint 看不到 spread，这几条规则就是主要防线。「不手写」由 CI 的 grep 检查把关（`.github/workflows/pr-check.yml`，在 Test 前跑），排除库自身的 `src/a11y/**` 和接入文件 `src/a11y.ts`：
 
 ```
-rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' --glob '*.{tsx,jsx}'
+rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
+  --glob '*.{tsx,jsx}' \
+  --glob '!src/a11y/**' \
+  --glob '!src/a11y.ts'
 ```
 
-它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；也会误报普通代码里的 `role = ...` 赋值，按需加排除。抓不全的变形（比如先拼对象再 spread）靠 AGENTS 规则兜。
+它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法。脚本按 rg 的退出码分流：0（有命中）失败、1（无命中）通过；rg 自身出错（正则坏、缺 PCRE2、命令不在）不放行——只有仓库里确实没有 tsx/jsx 文件时，「没有可搜的文件」才算通过。`.cache/a11y-lab` 的一致性 fixture 故意写字面属性，但它在 gitignore 里，不进这个检查。抓不全的变形（比如先拼对象再 spread）靠 AGENTS 规则兜。
 
 ## 9. 和 core 的配合
 
 - 子路径 `@meld-ts/core/a11y`，同步改 `bunup.config.ts`、`src/browser/index.ts`、`build:exports`、CLAUDE.md、README、SKILL.md。
 - `src/browser/index.ts` 会把所有子路径合并进一个命名空间，所以导出名（含类型）不能和现有的撞：统一用 `A11y` 前缀，如 `A11yRole`、`A11yProfile`，不用 `Role`。`AriaKey`、`AriaValue`、`AriaInput` 这类 `Aria` 前缀的也要查一遍不撞名。
-- 新增 bin，**单独一份 `bunup.bin.ts`**：入口 `src/bin/meld.ts`，只出 esm，带 shebang。不要加进 `bunup.config.ts`：那里导出的是单个对象，`bunup.exports.ts` 用 `{ ...config, exports: true }` 展开它；改成数组会让 `build:exports` 坏掉。`package.json` 加 `"bin": { "meld": "./dist/bin/meld.js" }`，`build` 脚本里串上 `build:bin`。确认 `build:exports` 生成的 `exports` 里没有把 bin 当成子路径。
+- bin 已实现（Plan C），**单独一份 `bunup.bin.ts`**：入口 `src/bin/meld.ts`，只出 esm，shebang 由 bunup 的 banner 注入 `#!/usr/bin/env bun`（源文件自己不写，写两遍会打包出两行 `#!`）。不进 `bunup.config.ts`：那里导出的是单个对象，`bunup.exports.ts` 用 `{ ...config, exports: true }` 展开它；改成数组会让 `build:exports` 坏掉。`package.json` 的 `"bin": { "meld": "./dist/bin/meld.js" }` 不在 `exports` 里；`build` 脚本串上 `build:bin` 且放在最后——`build:dist` / `build:exports` 会清空 `dist/`（连带 `dist/bin`），完整构建后 bin 一定在。
 - bin 和 probe 只用 node 内置模块，运行时仍然零依赖。
-- 新增脚本：`build:bin`、`a11y:sync`、`test:a11y-lint`。
+- 新增脚本：`build:bin`、`a11y:sync`、`test:a11y-lint`、`test:a11y-build`。
 - `tsconfig.json` 的 `exclude` 加上 `.cache`：`.gitignore` 只挡 git，不挡 tsc，lab 里 `bun init` 生成的 `.ts` 会被拉进类型检查。`scripts/` 下的两个脚本要进 `ts-check`（tsconfig 没写 `include`，默认就会包含，不要排除）。
 - 不依赖 React：输出是普通对象，`output` 只决定值的形式。
 
@@ -713,6 +716,44 @@ ARIA 规范与 lint 演进的注册机制，且无法做到项目级重载。§1
   不随 lab 漂。
 - **bun 的 lint 未 stable**：内嵌 oxlint 升级若改消息文本或 JSON 形状，
   runner 会失败（fail-closed），重跑 sync 修复。
+
+### 12.12 Plan C 收官记录（2026-11-22）
+
+Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设计 §6 用户模式、
+§7 第 2/3/4 层、§8 AGENTS/CI、§9 bin 全部落地。事实如下：
+
+- **bin 打包与命令**：`bunup.bin.ts` 单独打包（esm、`target: node`、`dts: false`），
+  banner 注入 `#!/usr/bin/env bun`——源文件 `src/bin/meld.ts` 不写 shebang，写两遍会
+  打包出两行 `#!`。`package.json` 的 `bin` 指向 `./dist/bin/meld.js`，不在 `exports`
+  里。命令：`meld a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts]
+  [--keep]`，参数严格解析，未知参数直接失败（§6 的取舍：宁可失败，不静默忽略）。
+- **用户模式输出文件**：默认写到项目根 `a11y-lints.generated.d.ts`，首行固定
+  `export {};`（没有它 `declare module` 会整个盖掉子路径，§4）。写出后用
+  `checkTsconfigIncludes` 检查它在不在 tsconfig 的 include/files 里，不在只警告不
+  失败——探测已成功，收尾检查不作废整轮；tsconfig 缺失或不可解析同样降级为警告。
+  已知局限：不跟随 extends（上游收窄过 include 时拦不住「实际不生效」）；`./` 前缀
+  的模式匹配不上（误报未包含）；`?` 按字面量不通配；exclude 先于显式 files 条目判定
+  （tsc 里显式列进 files 的文件不受 exclude 影响，这里更保守，宁可误告警）。
+- **第 2/3/4 层测试的运行方式**：第 2/3 层（一致性 + 反向）跑 `bun run
+  test:a11y-lint`，lab 按 `lints/*.ts` 头部记的版本精确重建，`--keep` 保留现场；第
+  4 层（构建产物重载）跑 `bun run test:a11y-build`，在系统临时目录建最小项目、
+  node_modules 用符号链接指向仓库根（不走 bun add，无网络副作用），tsc 按包名解析
+  dist 产物，断言重载在场编译过、去掉首行 `export {};` 编译失败。两个脚本都慢，不进
+  CI，进发版前检查（roadmap）。
+- **AGENTS / CI**：规则原文进仓库根 `AGENTS.md`（§8）；PR 检查在 Test 前跑一次
+  grep（`pr-check.yml`），按 rg 退出码分流，空仓库（没有 tsx/jsx）通过、rg 自身出错
+  失败（§8）。`bun run lint` 同步扩为 `biome lint --error-on-warnings ./src ./test`，
+  `test/a11y` 的编译 fixture 进 CI 的 lint；`scripts/` 维持不扩。
+- **bun 1.4.4 的两种 lint 模式**：项目带 oxlint 标记（依赖或 `.oxlintrc.json`）时
+  `bun lint` 走内嵌 oxlint 的插件体系，要 `--jsx-a11y-plugin` 先开插件；无标记时走
+  bun 自己的默认规则集，jsx_a11y 插件默认开，传该标志直接报错。JSON 信封也不同
+  （前者 `diagnostics[]`，后者 eslint 兼容数组）。detect 用一个不存在的路径探「这个
+  cwd 是否接受 `--jsx-a11y-plugin`」来定模式，不复刻 bun 的标记判定——探活跟着 bun
+  的实际行为走；两种信封 `parseBun` 都解。
+- **Plan B 遗留清理**：`probe/runners/biome.ts` 头注释里旧的「循环补属性」算法
+  描述、`biome.test.ts` 头部的「Task 7 必须复核」过期提示已删。required 的实际发现
+  方式是「逐个去掉一个 supported 属性再跑」（§6 第 2 步），不读消息清单；biome 的
+  消息样例录自真实 2.5.0 / 2.6.8。
 
 ## 附录 A：类型原型（已实测）
 

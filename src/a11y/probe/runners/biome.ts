@@ -9,8 +9,8 @@ const SUP =
 /**
  * biome 的 JSON 报告（2.5.0 / 2.6.8 实测）有两个缺口，解析方式由此决定：
  * - required 消息只含 role，缺失属性清单在 footer 里，JSON 不输出
- *   （advices 恒为空数组），所以 missing.props 恒为空，
- *   缺哪些属性由上层循环补属性直到不再报错来发现；
+ *   （advices 恒为空数组），所以 missing.props 恒为空；required 靠上层
+ *   「逐个去掉一个 supported 属性再跑」发现（probe/index.ts），不读消息清单；
  * - unsupported 消息不含 role，靠诊断的文件与行号回查 fixture 那一行的 role。
  */
 export const parseBiome = (

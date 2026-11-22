@@ -121,7 +121,7 @@
   "scripts": {
     "prepare": "lefthook install",
     "fmt": "biome format --write ./src",
-    "lint": "biome lint --error-on-warnings ./src",
+    "lint": "biome lint --error-on-warnings ./src ./test",
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ --coverage",
     "a11y:sync": "bun scripts/a11y-sync.ts",
