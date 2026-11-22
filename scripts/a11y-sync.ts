@@ -41,25 +41,40 @@ const lab = join(root, '.cache/a11y-lab');
 const LINTS = ['eslint', 'oxlint', 'biome', 'bun'] as const;
 type LintName = (typeof LINTS)[number];
 
+// readonly 元组的 includes 只收元组成员类型，判不了任意 string；
+// 先收宽成 string[]，收窄交给下面的类型谓词。
+const LINT_NAMES: readonly string[] = LINTS;
+
 const isLintName = (name: string): name is LintName =>
-  (LINTS as readonly string[]).includes(name);
+  LINT_NAMES.includes(name);
+
+const USAGE =
+  'usage: bun run a11y:sync [--lint=eslint,oxlint,biome,bun] [--keep]';
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
 const lintArg = args.find((a) => a.startsWith('--lint='));
+for (const arg of args) {
+  if (arg === '--keep' || arg.startsWith('--lint=')) continue;
+  // 严格解析：拼错或空格形式的参数宁可失败，也不能悄悄回落到默认全量。
+  throw new Error(`unknown argument: ${arg}\n${USAGE}`);
+}
 
-const wanted = (
-  lintArg === undefined
-    ? [...LINTS]
-    : lintArg.slice('--lint='.length).split(',')
-).map((name) => {
-  if (!isLintName(name)) {
-    throw new Error(
-      `unknown lint '${name}'; expected one of: ${LINTS.join(', ')}`,
-    );
-  }
-  return name;
-});
+const wanted = [
+  ...new Set(
+    (lintArg === undefined
+      ? [...LINTS]
+      : lintArg.slice('--lint='.length).split(',')
+    ).map((name) => {
+      if (!isLintName(name)) {
+        throw new Error(
+          `unknown lint '${name}'; expected one of: ${LINTS.join(', ')}`,
+        );
+      }
+      return name;
+    }),
+  ),
+];
 
 const run = (cmd: readonly string[], cwd: string): void => {
   const r = nodeExec(cmd, { cwd });
@@ -69,24 +84,6 @@ const run = (cmd: readonly string[], cwd: string): void => {
     );
   }
 };
-
-console.log(`[a11y-sync] preparing lab at ${lab}`);
-rmSync(lab, { recursive: true, force: true });
-mkdirSync(lab, { recursive: true });
-run([process.execPath, 'init', '-y'], lab);
-run(
-  [
-    process.execPath,
-    'add',
-    '-d',
-    'eslint',
-    'eslint-plugin-jsx-a11y',
-    '@biomejs/biome',
-    'oxlint',
-    'aria-query',
-  ],
-  lab,
-);
 
 // aria-query 是无类型的 CJS 包，按文件 URL 装载后只剩 any；
 // 这里声明脚本依赖的最小形状（lab 实测：aria/roles 均为 Map）。
@@ -101,54 +98,6 @@ interface AriaQueryMaps {
   >;
 }
 
-console.log('[a11y-sync] loading aria-query from the lab');
-const maps = (await import(
-  pathToFileURL(join(lab, 'node_modules/aria-query/lib/index.js')).href
-)) as AriaQueryMaps;
-const source: AriaQuerySource = {
-  aria: [...maps.aria.entries()].map(([name, def]) => ({ name, ...def })),
-  roles: [...maps.roles.entries()].map(([name, def]) => ({ name, ...def })),
-};
-
-const nameRule = nameRules(source);
-const roles = Object.keys(nameRule);
-const keys = ariaKeys(source);
-const samples = samplesOf(source);
-
-console.log(`[a11y-sync] ${roles.length} roles, ${keys.length} aria keys`);
-
-console.log('[a11y-sync] detecting installed lints');
-const detected = detectLints({
-  cwd: lab,
-  exec: nodeExec,
-  readJson: (path) => JSON.parse(readFileSync(path, 'utf8')),
-  exists: existsSync,
-  wanted: wanted.filter((name) => name !== 'bun'),
-});
-
-const lints: DetectedLint[] = [];
-for (const name of wanted) {
-  if (name === 'bun') {
-    // bun 装在 lab 外（就是当前运行时），版本与 bin 都指向它自己。
-    lints.push({
-      name,
-      version: versionOf(
-        'bun',
-        nodeExec([process.execPath, '--version'], { cwd: root }),
-      ),
-      bin: [process.execPath],
-    });
-    continue;
-  }
-  const lint = detected.find((d) => d.name === name);
-  // 装了却探测不到（安装失败/探测失败）不能静默跳过：
-  // 漏写一张表会让漂移检查形同虚设。
-  if (lint === undefined) {
-    throw new Error(`${name} was requested but not detected in the lab`);
-  }
-  lints.push(lint);
-}
-
 // ProbeFs 的 node:fs 适配：write 要自建父目录，rm 递归且不因不存在报错。
 const fs: ProbeFs = {
   write: (path, content) => {
@@ -158,60 +107,140 @@ const fs: ProbeFs = {
   rm: (path) => rmSync(path, { recursive: true, force: true }),
 };
 
-const profiles: Record<string, ProfileData> = {};
-for (const lint of lints) {
-  console.log(`[a11y-sync] probing ${lint.name}@${lint.version} ...`);
-  Object.assign(
-    profiles,
-    probe({
-      cwd: lab,
-      lints: [lint],
-      roles,
-      keys,
-      samples,
-      nameRule,
-      runners: {
-        eslint: runEslint,
-        oxlint: runOxlint,
-        biome: runBiome,
-        bun: runBun,
-      },
-      exec: nodeExec,
-      fs,
-      keep,
-    }),
-  );
-}
-
-console.log('[a11y-sync] writing generated files');
-const formatted: string[] = [
-  'src/a11y/aria.generated.ts',
-  'src/a11y/probe/samples.generated.ts',
-];
-writeFileSync(
-  join(root, 'src/a11y/aria.generated.ts'),
-  generateAriaTypes(source),
-);
-writeFileSync(
-  join(root, 'src/a11y/probe/samples.generated.ts'),
-  generateSamples(source),
-);
-for (const lint of lints) {
-  const profile = profiles[lint.name];
-  // probe 一定为每个探测的 lint 产出 profile；缺失说明探针自身有 bug。
-  if (profile === undefined) {
-    throw new Error(`probe returned no profile for ${lint.name}`);
-  }
-  const rel = `src/a11y/lints/${lint.name}.ts`;
-  writeFileSync(join(root, rel), serializeProfile(profile));
-  formatted.push(rel);
-}
-
-console.log('[a11y-sync] formatting generated files');
-run([process.execPath, 'x', 'biome', 'format', '--write', ...formatted], root);
-
-if (!keep) {
-  console.log('[a11y-sync] removing lab');
+// 失败也不能留下几百 MB 的 lab：统一在 finally 清理，--keep 保留排查现场。
+try {
+  console.log(`[a11y-sync] preparing lab at ${lab}`);
   rmSync(lab, { recursive: true, force: true });
+  mkdirSync(lab, { recursive: true });
+  run([process.execPath, 'init', '-y'], lab);
+  run(
+    [
+      process.execPath,
+      'add',
+      '-d',
+      'eslint',
+      'eslint-plugin-jsx-a11y',
+      '@biomejs/biome',
+      'oxlint',
+      'aria-query',
+    ],
+    lab,
+  );
+
+  console.log('[a11y-sync] loading aria-query from the lab');
+  const maps = (await import(
+    pathToFileURL(join(lab, 'node_modules/aria-query/lib/index.js')).href
+  )) as AriaQueryMaps;
+  const source: AriaQuerySource = {
+    aria: [...maps.aria.entries()].map(([name, def]) => ({ name, ...def })),
+    roles: [...maps.roles.entries()].map(([name, def]) => ({ name, ...def })),
+  };
+
+  const nameRule = nameRules(source);
+  const roles = Object.keys(nameRule);
+  const keys = ariaKeys(source);
+  const samples = samplesOf(source);
+
+  console.log(`[a11y-sync] ${roles.length} roles, ${keys.length} aria keys`);
+
+  console.log('[a11y-sync] detecting installed lints');
+  const detected = detectLints({
+    cwd: lab,
+    exec: nodeExec,
+    readJson: (path) => JSON.parse(readFileSync(path, 'utf8')),
+    exists: existsSync,
+    wanted: wanted.filter((name) => name !== 'bun'),
+  });
+
+  const lints: DetectedLint[] = [];
+  for (const name of wanted) {
+    if (name === 'bun') {
+      // bun 装在 lab 外（就是当前运行时），版本与 bin 都指向它自己。
+      lints.push({
+        name,
+        version: versionOf(
+          'bun',
+          nodeExec([process.execPath, '--version'], { cwd: root }),
+        ),
+        bin: [process.execPath],
+      });
+      continue;
+    }
+    const lint = detected.find((d) => d.name === name);
+    // 装了却探测不到（安装失败/探测失败）不能静默跳过：
+    // 漏写一张表会让漂移检查形同虚设。
+    if (lint === undefined) {
+      throw new Error(`${name} was requested but not detected in the lab`);
+    }
+    lints.push(lint);
+  }
+
+  const profiles: Record<string, ProfileData> = {};
+  for (const lint of lints) {
+    console.log(`[a11y-sync] probing ${lint.name}@${lint.version} ...`);
+    Object.assign(
+      profiles,
+      probe({
+        cwd: lab,
+        lints: [lint],
+        roles,
+        keys,
+        samples,
+        nameRule,
+        runners: {
+          eslint: runEslint,
+          oxlint: runOxlint,
+          biome: runBiome,
+          bun: runBun,
+        },
+        exec: nodeExec,
+        fs,
+        keep,
+      }),
+    );
+  }
+
+  // 先把全部内容序列化完再落盘：任何一步失败都不会留下半写状态。
+  const generated: Array<{ rel: string; content: string }> = [
+    { rel: 'src/a11y/aria.generated.ts', content: generateAriaTypes(source) },
+    {
+      rel: 'src/a11y/probe/samples.generated.ts',
+      content: generateSamples(source),
+    },
+  ];
+  for (const lint of lints) {
+    const profile = profiles[lint.name];
+    // probe 一定为每个探测的 lint 产出 profile；缺失说明探针自身有 bug。
+    if (profile === undefined) {
+      throw new Error(`probe returned no profile for ${lint.name}`);
+    }
+    generated.push({
+      rel: `src/a11y/lints/${lint.name}.ts`,
+      content: serializeProfile(profile),
+    });
+  }
+
+  console.log('[a11y-sync] writing generated files');
+  for (const { rel, content } of generated) {
+    writeFileSync(join(root, rel), content);
+  }
+
+  console.log('[a11y-sync] formatting generated files');
+  run(
+    [
+      process.execPath,
+      'x',
+      'biome',
+      'format',
+      '--write',
+      ...generated.map((g) => g.rel),
+    ],
+    root,
+  );
+} finally {
+  if (!keep) {
+    console.log('[a11y-sync] removing lab');
+    rmSync(lab, { recursive: true, force: true });
+  }
 }
 console.log('[a11y-sync] done');
