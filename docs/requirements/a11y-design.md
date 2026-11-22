@@ -433,7 +433,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 不成立的典型原因是探针部分解析失败，或者减禁止属性减过头。后果是这个 role 的所有合法写法都会同时报「缺必填」和「never」，所以必须在生成时挡住。上面的自检只能证明 lint 跑起来了，证明不了这三条。
 
-**bun 的表**：bun 1.4.4 起 `bun lint` 内嵌 oxlint——JSON 是 oxlint 形状（`diagnostics[].code = jsx-a11y(...)`），消息文本与 oxlint 同源，不是 eslint 的移植。CLI 要 `--jsx-a11y-plugin` 打开插件（没有它 `--rule` 静默无效）、`--no-script` 防止 bun 转去执行项目自己的 lint 脚本。runner 直接探测，表不 aliasOf eslint；解析与 lab oxlint 的 `parseOxlint` 平铺两份，两边内嵌/安装的 oxlint 各自漂移，互不连带。§12.11 记录了首次真实同步的结果。
+**bun 的表**：bun 1.4.4 起 `bun lint` 内嵌 oxlint——JSON 是 oxlint 形状（`diagnostics[].code = jsx-a11y(...)`），消息文本与 oxlint 同源，不是 eslint 的移植。CLI 要 `--jsx-a11y-plugin` 打开插件（没有它 `--rule` 静默无效）、`--no-script` 防止 bun 转去执行项目自己的 lint 脚本。runner 直接探测，表不 aliasOf eslint；解析与 lab oxlint 的 `parseOxlint` 平铺两份，两边内嵌/安装的 oxlint 各自漂移，互不连带。§12.11 记录了首次真实同步的结果。还有一个配置边界：插件模式下 bun 会读项目的 `.oxlintrc.json`——但它只当模式标记用，「不读项目配置」指的是规则设置、不含这个标记；规则走 CLI `--rule`，该文件里设为 off 的规则照样被打开成 error（bun 1.4.4 实测）。
 
 ### 用户模式
 
@@ -516,7 +516,7 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
 - 子路径 `@meld-ts/core/a11y`，同步改 `bunup.config.ts`、`src/browser/index.ts`、`build:exports`、CLAUDE.md、README、SKILL.md。
 - `src/browser/index.ts` 会把所有子路径合并进一个命名空间，所以导出名（含类型）不能和现有的撞：统一用 `A11y` 前缀，如 `A11yRole`、`A11yProfile`，不用 `Role`。`AriaKey`、`AriaValue`、`AriaInput` 这类 `Aria` 前缀的也要查一遍不撞名。
 - bin 已实现（Plan C），**单独一份 `bunup.bin.ts`**：入口 `src/bin/meld.ts`，只出 esm，shebang 由 bunup 的 banner 注入 `#!/usr/bin/env bun`（源文件自己不写，写两遍会打包出两行 `#!`）。不进 `bunup.config.ts`：那里导出的是单个对象，`bunup.exports.ts` 用 `{ ...config, exports: true }` 展开它；改成数组会让 `build:exports` 坏掉。`package.json` 的 `"bin": { "meld": "./dist/bin/meld.js" }` 不在 `exports` 里；`build` 脚本串上 `build:bin` 且放在最后——`build:dist` / `build:exports` 会清空 `dist/`（连带 `dist/bin`），完整构建后 bin 一定在。
-- bin 和 probe 只用 node 内置模块，运行时仍然零依赖。
+- bin 和 probe 只用 node 内置模块和 Bun 内建（如 `Bun.spawnSync`），无第三方运行时依赖，但要求 Bun——bin 的 shebang 是 `env bun`，Node 跑不起来。
 - 新增脚本：`build:bin`、`a11y:sync`、`test:a11y-lint`、`test:a11y-build`。
 - `tsconfig.json` 的 `exclude` 加上 `.cache`：`.gitignore` 只挡 git，不挡 tsc，lab 里 `bun init` 生成的 `.ts` 会被拉进类型检查。`scripts/` 下的两个脚本要进 `ts-check`（tsconfig 没写 `include`，默认就会包含，不要排除）。
 - 不依赖 React：输出是普通对象，`output` 只决定值的形式。

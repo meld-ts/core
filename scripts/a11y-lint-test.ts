@@ -1,21 +1,28 @@
 /**
- * §7 第 2/3 层一致性测试与反向测试。
+ * §7 第 2/3 层一致性测试与反向测试，外加 bun 默认规则集门禁。
  *
  * 按四张表 meta 记录的版本在 lab 里精确重建 lint，对每个 role 用三种
  * 属性集（只必填 / 全 supported / tabIndex + 全 supported）展开成字面
  * JSX 属性，要求对应 lint 的白名单规则零报错；合并表对每个成员 lint
  * 都零报错。再对每个 role 删一个必填属性，要求对应 lint 报错——防止
  * 探针解析失败生成了空表而第 2 层照样全绿。任一失败退出 1。
+ *
+ * lab 恒装 oxlint（bun 表的录制条件），复现不了没有 oxlint 标记的裸
+ * 项目：门禁在裸目录里以默认规则集模式重探一遍 bun，要求与提交的表
+ * （插件模式下录制）逐项一致。
  */
 
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { probe } from '../src/a11y/probe';
 import type { ProbeRunner } from '../src/a11y/probe';
 import {
   buildConsistencyFixtures,
@@ -33,7 +40,11 @@ import { runBun } from '../src/a11y/probe/runners/bun';
 import { runEslint } from '../src/a11y/probe/runners/eslint';
 import type { LintReport } from '../src/a11y/probe/runners/eslint';
 import { runOxlint } from '../src/a11y/probe/runners/oxlint';
-import { SAMPLES } from '../src/a11y/probe/samples.generated';
+import {
+  ARIA_KEYS,
+  NAME_RULES,
+  SAMPLES,
+} from '../src/a11y/probe/samples.generated';
 import type { ProfileData } from '../src/a11y/probe/serialize';
 import { createLab, labDirOf } from './lab';
 
@@ -163,6 +174,126 @@ try {
       exec: nodeExec,
     });
   };
+
+  // ---- bun 默认规则集门禁（第 2 层前置）----
+  // lab 恒装 oxlint，bun 在 lab 里只会走 --jsx-a11y-plugin 的插件模式；多数
+  // 用户项目没有 oxlint 标记，bun 走自己的默认规则集。提交的表在插件模式下
+  // 录制，这里在裸目录里以默认模式重探一遍——两种模式必须产出同一张表，
+  // 否则裸项目里 a11y() 约束的是一张错的表。
+
+  /**
+   * 两张 bun 表的结构比较（默认模式实测 vs 提交的插件模式表）：
+   * 返回第一处分歧；完全一致返回 null。属性清单比对称差——两侧都按序
+   * 生成，成员一致即视为一致。
+   */
+  const bunTableDiff = (
+    defaults: ProfileData,
+    recorded: ProfileData,
+  ): string | null => {
+    if (defaults.lint !== recorded.lint) {
+      return `lint '${defaults.lint}' != '${recorded.lint}'`;
+    }
+    if (defaults.version !== recorded.version) {
+      return `version '${defaults.version}' != '${recorded.version}'`;
+    }
+    const roles = new Set([
+      ...Object.keys(defaults.roles),
+      ...Object.keys(recorded.roles),
+    ]);
+    for (const role of roles) {
+      const d = defaults.roles[role];
+      const r = recorded.roles[role];
+      // 一侧没有这个 role 就是一处分歧，不能跳过让表悄悄缺一张
+      if (d === undefined || r === undefined) {
+        const side = d === undefined ? 'defaults-mode' : 'recorded';
+        return `role ${role}: missing on the ${side} side`;
+      }
+      for (const key of [
+        'required',
+        'supported',
+        'requiredWhenFocusable',
+      ] as const) {
+        const onlyD = d[key].filter((v) => !r[key].includes(v));
+        const onlyR = r[key].filter((v) => !d[key].includes(v));
+        if (onlyD.length > 0 || onlyR.length > 0) {
+          return (
+            `${role}.${key}: defaults-only [${onlyD.join(', ')}], ` +
+            `recorded-only [${onlyR.join(', ')}]`
+          );
+        }
+      }
+    }
+    return null;
+  };
+
+  const checkBunDefaultsMode = (): void => {
+    const dir = mkdtempSync(join(tmpdir(), 'meld-a11y-defaults-'));
+    try {
+      // 最小 package.json，无 node_modules、无 .oxlintrc.json——bun 在这里
+      // 必须落到默认规则集模式。
+      writeFileSync(
+        join(dir, 'package.json'),
+        '{"name":"a11y-bun-defaults","private":true}\n',
+      );
+      const detectedDefaults = detectLints({
+        cwd: dir,
+        exec: nodeExec,
+        readJson: (path) => JSON.parse(readFileSync(path, 'utf8')),
+        exists: existsSync,
+        wanted: ['bun'],
+      });
+      const bunDefaults = detectedDefaults.find((d) => d.name === 'bun');
+      if (bunDefaults === undefined) {
+        throw new Error('bun was not detected in the bare dir');
+      }
+      // 默认模式的 bin 不带 --jsx-a11y-plugin：带上了说明裸目录仍被判成
+      // 插件模式，模式判定漂移，后面探出的表不可信。
+      if (bunDefaults.bin.includes('--jsx-a11y-plugin')) {
+        throw new Error(
+          'bun was detected in oxlint mode in the bare dir ' +
+            '(no node_modules, no .oxlintrc.json); expected defaults mode',
+        );
+      }
+      const { bun } = probe({
+        cwd: dir,
+        lints: [bunDefaults],
+        roles: Object.keys(NAME_RULES),
+        keys: ARIA_KEYS,
+        samples,
+        nameRule: NAME_RULES,
+        runners: RUNNERS,
+        exec: nodeExec,
+        fs: {
+          write: writeFile,
+          rm: (path) => rmSync(path, { recursive: true, force: true }),
+        },
+        keep,
+      });
+      // probe 对每个探测的 lint 都产出 profile；缺失说明探针自身有 bug
+      if (bun === undefined) {
+        throw new Error('probe returned no bun profile in defaults mode');
+      }
+      const diff = bunTableDiff(bun, PROFILES.bun);
+      if (diff !== null) {
+        throw new Error(
+          `bun defaults-mode drift (${diff}); the committed table was ` +
+            'recorded in oxlint mode — rerun a11y:sync in a bare project ' +
+            'or investigate',
+        );
+      }
+    } finally {
+      if (keep) {
+        log(`keeping the bare dir at ${dir}`);
+      } else {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  };
+
+  phase('bun defaults mode', () => {
+    checkBunDefaultsMode();
+    return `${Object.keys(NAME_RULES).length} roles equal the committed table`;
+  });
 
   // ---- 第 2 层：一致性（零报错）----
 

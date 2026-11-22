@@ -123,6 +123,8 @@ bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11
 
 TS 7 验证（设计 §12.7）等版本错位修复后并入这里。
 
+另查 `dist/bin/meld.js` 装好后可执行：npm / bun 安装会按 package.json 的 `bin` 字段设置可执行位；手动构建、不经安装的产物要自己 `chmod +x`。
+
 ---
 
 ## 进度核查方法
