@@ -112,7 +112,7 @@ declare global {
 ## 开发
 
 ```bash
-bun run fmt           # Biome 格式化（src/）
+bun run fmt           # Biome 格式化（src + test）
 bun run lint          # Biome lint，warning 视为错误（src + test）
 bun run ts-check      # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test          # 运行所有测试 + 覆盖率

@@ -440,7 +440,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 已实现（Plan C，`src/bin/meld.ts`）。下面是它的行为。
 
 ```
-meld a11y probe [--lint biome,oxlint] [--out ./a11y-lints.generated.d.ts] [--keep]
+meld a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts] [--keep]
 ```
 
 - `--lint`：不传就读项目的 package.json，装了哪些 lint 就探哪些。用户只用 biome，就只生成 biome 一份。

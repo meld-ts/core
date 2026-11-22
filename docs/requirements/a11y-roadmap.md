@@ -117,7 +117,7 @@ CI（`pr-check.yml`）覆盖 lint / ts-check / build / AGENTS grep / test。a11y
 ```bash
 bun run test:a11y-lint    # §7 第 2/3 层：一致性 + 反向（lab，慢）
 bun run test:a11y-build    # §7 第 4 层：构建产物重载
-bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts
+bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts src/a11y/probe/profiles.generated.ts
                            # 漂移检查：lint 出新版/规则变了会露出 diff
 ```
 
@@ -135,7 +135,7 @@ git log --oneline main..feat/a11y
 bun run fmt && bun run lint && bun run ts-check && bun run test
 
 # a11y 数据漂移检查：重跑 sync（约 2–4 分钟），有 diff 说明 lint 出了新版/规则变了
-bun run a11y:sync && git diff --stat src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts
+bun run a11y:sync && git diff --stat src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts src/a11y/probe/profiles.generated.ts
 
 # a11y 产物
 ls src/a11y src/a11y/lints dist/a11y

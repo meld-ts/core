@@ -120,7 +120,7 @@
   "license": "MIT",
   "scripts": {
     "prepare": "lefthook install",
-    "fmt": "biome format --write ./src",
+    "fmt": "biome format --write ./src ./test",
     "lint": "biome lint --error-on-warnings ./src ./test",
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ --coverage",
