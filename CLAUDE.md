@@ -24,6 +24,7 @@ src/
   browser/          # Browser 全量入口（iife.ts 全局变量 MeldTS + index.ts ESM）
   a11y/             # a11y 属性构造器：按 lint 规则表做类型约束（createA11y）
     probe/          # 维护者专用探针（a11y:sync 消费），不进 a11y 入口与 browser 产物
+  bin/              # meld CLI（a11y probe 路由与参数解析，独立打包到 dist/bin）
 docs/
   reviews/          # 代码审查记录，命名格式：YYYYMMDD-描述.md
 ```
@@ -39,7 +40,8 @@ bun run a11y:sync      # 维护者：重建 lab，从最新 lint 探测重新生
 bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
 bun run build:browser  # bunup，产物到 browser/（esm + iife）
 bun run build:dist     # bunup，产物到 dist/（node esm + cjs）
-bun run build          # build:browser && build:dist
+bun run build:bin      # bunup，meld CLI 到 dist/bin/meld.js（带 bun shebang）
+bun run build          # build:browser && build:dist && build:bin
 bun run doc            # 生成 TypeDoc API 文档
 bun run doc:watch      # TypeDoc 文档监听模式
 ```
@@ -104,7 +106,10 @@ interface MyClass extends MyTrait {}
 |------|----------|------|--------|
 | `build:dist` | `dist/` | esm + cjs | node |
 | `build:browser` | `browser/` | esm + iife | browser |
-| `build` | `dist/` + `browser/` | 同上 | 同上 |
+| `build:bin` | `dist/bin/` | esm | node |
+| `build` | `dist/` + `browser/` + `dist/bin/` | 同上 | 同上 |
+
+`build:dist` / `build:exports` 会清空 `dist/`（连带 `dist/bin`）；`build` 链把 `build:bin` 放在最后，完整构建后 bin 一定在。
 
 `package.json` 的 `exports` 字段声明了以下子路径：
 - `.` — 主入口（types + guards + base）
@@ -114,3 +119,5 @@ interface MyClass extends MyTrait {}
 - `./package.json`
 
 `browser/` 目录不在 `exports` 中——它只应被网页 `<script>` 直接引用，不应被打包工具作为模块导入。
+
+`bin`（`dist/bin/meld.js`，独立 `bunup.bin.ts` 打包）同样不在 `exports` 中——它只应作为命令行工具运行（`meld a11y probe`）。

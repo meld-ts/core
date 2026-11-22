@@ -119,7 +119,8 @@ bun run test          # 运行所有测试 + 覆盖率
 bun run build:exports # 基于预期的构建内容，生成 package.json exports 部分内容
 bun run build:browser # 构建 browser （ESM + iife）
 bun run build:dist    # 构建 node （ESM + cjs）
-bun run build         # dist + browser
+bun run build:bin    # 构建 meld CLI（dist/bin/meld.js）
+bun run build         # dist + browser + bin
 bun run doc           # 生成 TypeDoc API 文档
 ```
 
@@ -129,6 +130,7 @@ bun run doc           # 生成 TypeDoc API 文档
 
 - `bunup.config.ts` 用于构建 node 的部分，输出目录在 dist，输出 esm + cjs。也是项目的主构建。
 - `bunup.exports.ts` 基于主构建 `bunup.config.ts` 的内容，来生成 package.json 的 `exports`, `main`, `module`, `types`, `files` 部分。
+- `bunup.bin.ts` 用于构建 meld CLI（`meld a11y probe`），输出 `dist/bin/meld.js`，带 bun shebang；bin 不在 `exports` 里，只应作为命令行工具运行。
 - `bunup.browser.ts` 用于构建 browser 内容，将所有 modules 合并，输出目录在 browser，输出 esm + iife 格式。
   - `browser/index.js` esm 引入文件，注意这个不能放在 exports ，他只应被网页 `<script type="module">` 的方式去引用
   - `browser/index.d.ts` 作为所有源代码统一导出的 d.ts ，只应该被用于注入全局变量类型标注，而不应该直接在源代码中引用。
