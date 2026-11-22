@@ -1,4 +1,4 @@
-import type { ExecFn } from './exec';
+import type { ExecFn, ExecResult } from './exec';
 
 export interface DetectedLint {
   readonly name: 'eslint' | 'oxlint' | 'biome' | 'bun';
@@ -14,7 +14,25 @@ export interface DetectOptions {
   readonly wanted?: ReadonlyArray<DetectedLint['name']>;
 }
 
-const firstLine = (s: string): string => s.trim().split('\n')[0] ?? '';
+const SEMVER = /\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?/;
+
+/**
+ * 从 `--version` 输出取第一个 semver 形状的 token（biome 打印
+ * `Version: 2.5.0`，oxlint 打印裸版本号）。版本是生成表的身份，
+ * 取不出真实版本宁可失败，也不把噪声写进表里。
+ */
+export const versionOf = (name: string, r: ExecResult): string => {
+  if (r.code !== 0) {
+    throw new Error(
+      `${name} --version exited with code ${r.code}: ${r.stderr || r.stdout}`,
+    );
+  }
+  const version = r.stdout.match(SEMVER)?.[0];
+  if (version === undefined) {
+    throw new Error(`${name} --version output has no semver: ${r.stdout}`);
+  }
+  return version;
+};
 
 export const detectLints = ({
   cwd,
@@ -39,7 +57,7 @@ export const detectLints = ({
     const r = exec([...bin('biome'), '--version'], { cwd });
     out.push({
       name: 'biome',
-      version: firstLine(r.stdout),
+      version: versionOf('biome', r),
       bin: bin('biome'),
     });
   }
@@ -47,7 +65,7 @@ export const detectLints = ({
     const r = exec([...bin('oxlint'), '--version'], { cwd });
     out.push({
       name: 'oxlint',
-      version: firstLine(r.stdout),
+      version: versionOf('oxlint', r),
       bin: bin('oxlint'),
     });
   }

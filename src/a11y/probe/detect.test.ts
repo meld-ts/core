@@ -91,4 +91,54 @@ describe('detectLints', () => {
     });
     expect(detected.map((d) => d.name)).toEqual(['biome']);
   });
+
+  test('extracts the semver from Version-prefixed output', () => {
+    const detected = detectLints({
+      cwd: '/p',
+      exec: (cmd: readonly string[]) => {
+        if (cmd[0]?.endsWith('biome'))
+          return { code: 0, stdout: 'Version: 2.5.0\n', stderr: '' };
+        throw new Error(`unexpected exec: ${cmd[0]}`);
+      },
+      readJson: fakeJson({
+        'package.json': {
+          devDependencies: { '@biomejs/biome': '2.5.0' },
+        },
+      }),
+      exists: () => true,
+    });
+    expect(detected.map((d) => [d.name, d.version])).toEqual([
+      ['biome', '2.5.0'],
+    ]);
+  });
+
+  test('fails when --version exits non-zero', () => {
+    expect(() =>
+      detectLints({
+        cwd: '/p',
+        exec: () => ({ code: 1, stdout: '', stderr: 'boom' }),
+        readJson: fakeJson({
+          'package.json': {
+            devDependencies: { '@biomejs/biome': '2.5.0' },
+          },
+        }),
+        exists: () => true,
+      }),
+    ).toThrow('biome --version exited with code 1: boom');
+  });
+
+  test('fails when no semver appears in --version output', () => {
+    expect(() =>
+      detectLints({
+        cwd: '/p',
+        exec: () => ({ code: 0, stdout: 'built from source\n', stderr: '' }),
+        readJson: fakeJson({
+          'package.json': {
+            devDependencies: { '@biomejs/biome': '2.5.0' },
+          },
+        }),
+        exists: () => true,
+      }),
+    ).toThrow('biome --version output has no semver: built from source');
+  });
 });

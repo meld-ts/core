@@ -28,6 +28,12 @@ const keyOf = (ariaName: string): string => ariaName.replace(/^aria-/, '');
 
 const byKey = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
+const sortedProps = (src: AriaQuerySource): readonly AriaPropertySource[] =>
+  [...src.aria].sort((a, b) => byKey(a.name, b.name));
+
+const sortedRoles = (src: AriaQuerySource): readonly RoleSource[] =>
+  [...src.roles].sort((a, b) => byKey(a.name, b.name));
+
 // 输出必须确定：token 成员排序后输出；字面量 true/false 成员合并为 boolean。
 const unionOf = (values: ReadonlyArray<string | boolean>): string => {
   const parts = values
@@ -99,11 +105,34 @@ const nameRuleOf = (
   return 'optional';
 };
 
+/** 全部 AriaKey（输出形态、排序）；probe 的 keys 与生成文件共用一个事实源。 */
+export const ariaKeys = (src: AriaQuerySource): string[] =>
+  sortedProps(src).map((p) => keyOf(p.name));
+
+/** 非抽象 role 的名字规则；键按 role 名排序插入，Object.keys 即排序后的 role 表。 */
+export const nameRules = (
+  src: AriaQuerySource,
+): Record<string, 'required' | 'optional' | 'prohibited'> => {
+  const out: Record<string, 'required' | 'optional' | 'prohibited'> = {};
+  for (const role of sortedRoles(src)) {
+    if (role.abstract) continue;
+    out[role.name] = nameRuleOf(role);
+  }
+  return out;
+};
+
+/** 每个 key 的样例值：TS 表达式文本，求值结果满足 AriaValue<K>。 */
+export const samplesOf = (src: AriaQuerySource): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const prop of sortedProps(src)) {
+    out[keyOf(prop.name)] = sampleOf(prop);
+  }
+  return out;
+};
+
 export const generateAriaTypes = (src: AriaQuerySource): string => {
-  const props = [...src.aria].sort((a, b) => byKey(a.name, b.name));
-  const roles = src.roles
-    .filter((r) => !r.abstract)
-    .sort((a, b) => byKey(a.name, b.name));
+  const props = sortedProps(src);
+  const roles = sortedRoles(src).filter((r) => !r.abstract);
 
   const keyUnion = props.map((p) => `  | '${keyOf(p.name)}'`).join('\n');
   const valueRows = props
@@ -155,9 +184,9 @@ ${nameRows}
 };
 
 export const generateSamples = (src: AriaQuerySource): string => {
-  const props = [...src.aria].sort((a, b) => byKey(a.name, b.name));
-  const rows = props
-    .map((p) => `  '${keyOf(p.name)}': ${sampleOf(p)},`)
+  const rows = Object.entries(samplesOf(src))
+    .sort(([a], [b]) => byKey(a, b))
+    .map(([key, value]) => `  '${key}': ${value},`)
     .join('\n');
   return `/**
  * 每个 AriaKey 的合法样例值。

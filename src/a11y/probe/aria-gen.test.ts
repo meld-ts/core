@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
-import { generateAriaTypes, generateSamples } from './aria-gen';
+import {
+  ariaKeys,
+  generateAriaTypes,
+  generateSamples,
+  nameRules,
+  samplesOf,
+} from './aria-gen';
 import type { AriaQuerySource } from './aria-gen';
 
 const src: AriaQuerySource = {
@@ -92,6 +98,55 @@ describe('generateSamples', () => {
     expect(out).toContain("'level': 1");
     expect(out).toContain("'live': 'assertive'");
     expect(out).toContain("'valuenow': 1");
+  });
+
+  test('emits samplesOf values verbatim (one source of truth)', () => {
+    const out = generateSamples(src);
+    for (const [key, value] of Object.entries(samplesOf(src))) {
+      expect(out).toContain(`'${key}': ${value},`);
+    }
+  });
+});
+
+// 脚本（Task 6）直接消费的三个投影：keys / nameRule / samples 的唯一事实源。
+describe('ariaKeys', () => {
+  test('returns output-form keys sorted', () => {
+    expect(ariaKeys(src)).toEqual([
+      'checked',
+      'controls',
+      'details',
+      'expanded',
+      'level',
+      'live',
+      'orientation',
+      'valuenow',
+    ]);
+  });
+});
+
+describe('nameRules', () => {
+  test('maps non-abstract roles in sorted key order', () => {
+    expect(nameRules(src)).toEqual({
+      generic: 'prohibited',
+      img: 'required',
+      separator: 'optional',
+      switch: 'required',
+    });
+  });
+});
+
+describe('samplesOf', () => {
+  test('returns expression strings whose values satisfy each AriaValue', () => {
+    expect(samplesOf(src)).toEqual({
+      checked: "'mixed'",
+      controls: "'x'",
+      details: "'x'",
+      expanded: 'true',
+      level: '1',
+      live: "'assertive'",
+      orientation: "'horizontal'",
+      valuenow: '1',
+    });
   });
 });
 

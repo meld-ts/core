@@ -123,6 +123,7 @@
     "lint": "biome lint --error-on-warnings ./src",
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ --coverage",
+    "a11y:sync": "bun scripts/a11y-sync.ts",
     "build:exports": "bunup --config bunup.exports.ts",
     "build:browser": "bunup --config bunup.browser.ts",
     "build:dist": "bunup",
