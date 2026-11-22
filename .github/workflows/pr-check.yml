@@ -29,10 +29,22 @@ jobs:
 
       - name: Check no handwritten a11y attributes
         run: |
-          ! rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
+          set +e
+          rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
             --glob '*.{tsx,jsx}' \
             --glob '!src/a11y/**' \
             --glob '!src/a11y.ts'
+          code=$?
+          set -e
+          case $code in
+            0) echo "handwritten a11y attributes found"; exit 1 ;;
+            1) exit 0 ;;
+            2) if git ls-files '*.tsx' '*.jsx' | grep -q .; then
+                 echo "rg failed with exit 2"; exit 1
+               fi
+               echo "no tsx/jsx files"; exit 0 ;;
+            *) echo "rg failed with exit $code"; exit 1 ;;
+          esac
 
       - name: Test
         run: bun run test

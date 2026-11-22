@@ -8,7 +8,7 @@ JSX 里的 a11y 属性（`role`、`aria-*`、`tabIndex`）不允许手写，只�
 2. 原生元素补状态用 `a11y.aria({...})`，不手写 `aria-*`，也不要对原生元素用 `a11y(role, ...)`。
 3. 自定义 role 一律用 `a11y(role, {...})`，不手写 `role=` 和 `aria-*`。
 4. 需要可聚焦就传 `focusable: true`，不另外手写 `tabIndex`。唯一例外：只能用脚本聚焦的元素手写 `tabIndex={-1}`。
-5. 项目统一从 `src/a11y.ts` 导入 `a11y`，这个文件里用 `createA11y` 绑定本项目的 lint 和 output。
+5. 项目统一从 `src/a11y.ts` 导入 `a11y`，`createA11y` 只在这个文件里调，绑定本项目的 lint 和 output。
 
 两个入口各管一半：
 
@@ -31,6 +31,8 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
   --glob '!src/a11y/**' \
   --glob '!src/a11y.ts'
 ```
+
+rg 自身出错（正则坏、缺 PCRE2、命令不在）不放行——只有仓库里确实没有 tsx/jsx 时，「没有可搜的文件」才算通过。
 
 它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；也会误报普通代码里的 `role = ...` 赋值，按需加排除。抓不全的变形（比如先拼对象再 spread）靠上面的规则兜。
 
