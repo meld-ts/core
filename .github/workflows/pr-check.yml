@@ -27,5 +27,12 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Check no handwritten a11y attributes
+        run: |
+          ! rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
+            --glob '*.{tsx,jsx}' \
+            --glob '!src/a11y/**' \
+            --glob '!src/a11y.ts'
+
       - name: Test
         run: bun run test
