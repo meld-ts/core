@@ -1,25 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
-  buildFocusableFixtures,
-  buildRequiredFixtures,
+  buildRemovalFixtures,
   buildSelfCheckFixture,
   buildSupportedFixtures,
 } from './fixtures';
-
-describe('buildRequiredFixtures', () => {
-  test('writes one bare element per role into a single file', () => {
-    const fixtures = buildRequiredFixtures(['switch', 'checkbox']);
-    expect(fixtures.length).toBe(1);
-    expect(fixtures[0]?.name).toBe('required');
-    expect(fixtures[0]?.code).toBe(
-      [
-        'export const F0 = () => <div role="switch" />;',
-        'export const F1 = () => <div role="checkbox" />;',
-      ].join('\n'),
-    );
-  });
-});
 
 describe('buildSupportedFixtures', () => {
   const samples = { checked: 'true', label: "'x'", valuenow: '1' };
@@ -83,33 +68,88 @@ describe('buildSupportedFixtures', () => {
   });
 });
 
-describe('buildFocusableFixtures', () => {
-  test('writes each role with and without tabIndex into two files', () => {
-    const fixtures = buildFocusableFixtures(['separator', 'switch']);
-    expect(fixtures.map((f) => f.name)).toEqual([
-      'focusable-plain',
-      'focusable-tab',
+describe('buildRemovalFixtures', () => {
+  const samples = { checked: 'true', expanded: 'true', label: "'x'" };
+  const supported = {
+    checkbox: ['checked', 'expanded'],
+    switch: ['checked', 'label'],
+  };
+
+  test('baseline keeps every supported prop', () => {
+    expect(buildRemovalFixtures(['checkbox'], supported, samples)).toEqual([
+      {
+        name: 'removal-baseline-0',
+        code: 'export const F0 = () => <div role="checkbox" aria-checked={true} aria-expanded={true} />;',
+      },
     ]);
-    expect(fixtures[0]?.code).toBe(
-      [
-        'export const F0 = () => <div role="separator" />;',
-        'export const F1 = () => <div role="switch" />;',
-      ].join('\n'),
+  });
+
+  test('removes only the given key per role', () => {
+    expect(
+      buildRemovalFixtures(['checkbox', 'switch'], supported, samples, {
+        remove: 'checked',
+      }),
+    ).toEqual([
+      {
+        name: 'removal-checked-0',
+        code: [
+          'export const F0 = () => <div role="checkbox" aria-expanded={true} />;',
+          `export const F1 = () => <div role="switch" aria-label={'x'} />;`,
+        ].join('\n'),
+      },
+    ]);
+  });
+
+  test('focusable variant prepends tabIndex and a focusable- prefix', () => {
+    expect(
+      buildRemovalFixtures(['switch'], supported, samples, {
+        remove: 'checked',
+        focusable: true,
+      }),
+    ).toEqual([
+      {
+        name: 'focusable-removal-checked-0',
+        code: `export const F0 = () => <div role="switch" tabIndex={0} aria-label={'x'} />;`,
+      },
+    ]);
+  });
+
+  test('treats a role missing from the supported map as bare', () => {
+    expect(buildRemovalFixtures(['generic'], supported, samples)).toEqual([
+      {
+        name: 'removal-baseline-0',
+        code: 'export const F0 = () => <div role="generic" />;',
+      },
+    ]);
+  });
+
+  test('batches elements like supported fixtures', () => {
+    const fixtures = buildRemovalFixtures(
+      ['checkbox', 'switch'],
+      supported,
+      samples,
+      {},
+      1,
     );
-    expect(fixtures[1]?.code).toBe(
-      [
-        'export const F0 = () => <div role="separator" tabIndex={0} />;',
-        'export const F1 = () => <div role="switch" tabIndex={0} />;',
-      ].join('\n'),
-    );
+    expect(fixtures.map((f) => f.name)).toEqual([
+      'removal-baseline-0',
+      'removal-baseline-1',
+    ]);
   });
 });
 
 describe('buildSelfCheckFixture', () => {
-  test('names the expected missing prop on a bare element fixture', () => {
-    expect(buildSelfCheckFixture('switch', 'aria-checked')).toEqual({
+  test('writes all supported props except the missing one', () => {
+    expect(
+      buildSelfCheckFixture(
+        'switch',
+        ['checked', 'label', 'labelledby'],
+        'checked',
+        { checked: 'true', label: "'x'", labelledby: "'x'" },
+      ),
+    ).toEqual({
       name: 'self-check-switch-aria-checked',
-      code: 'export const F0 = () => <div role="switch" />;',
+      code: `export const F0 = () => <div role="switch" aria-label={'x'} aria-labelledby={'x'} />;`,
     });
   });
 });
