@@ -28,6 +28,12 @@ const RAW = JSON.stringify({
       severity: 'error',
     },
     {
+      code: 'jsx-a11y(role-supports-aria-props)',
+      message:
+        'The attribute `aria-valuenow` is not supported by the role `graphics-object`.',
+      severity: 'error',
+    },
+    {
       code: 'jsx-a11y(control-has-associated-label)',
       message: 'unrelated rule must be ignored',
       severity: 'warning',
@@ -42,7 +48,10 @@ describe('parseOxlint', () => {
         { role: 'switch', props: ['aria-checked'] },
         { role: 'combobox', props: ['aria-controls', 'aria-expanded'] },
       ],
-      unsupported: [{ role: 'switch', prop: 'aria-valuenow' }],
+      unsupported: [
+        { role: 'switch', prop: 'aria-valuenow' },
+        { role: 'graphics-object', prop: 'aria-valuenow' },
+      ],
     });
   });
 
@@ -111,6 +120,7 @@ describe('runOxlint', () => {
     ]);
     expect(report.unsupported).toEqual([
       { role: 'switch', prop: 'aria-valuenow' },
+      { role: 'graphics-object', prop: 'aria-valuenow' },
     ]);
   });
 });

@@ -23,6 +23,11 @@ const RAW = JSON.stringify([
           'The attribute aria-valuenow is not supported by the role switch.',
       },
       {
+        ruleId: 'jsx-a11y/role-supports-aria-props',
+        message:
+          'The attribute aria-valuenow is not supported by the role doc-abstract.',
+      },
+      {
         ruleId: 'jsx-a11y/no-static-element-interactions',
         message: 'unrelated rule must be ignored',
       },
@@ -36,7 +41,10 @@ describe('parseEslint', () => {
       missing: [
         { role: 'combobox', props: ['aria-expanded', 'aria-controls'] },
       ],
-      unsupported: [{ role: 'switch', prop: 'aria-valuenow' }],
+      unsupported: [
+        { role: 'switch', prop: 'aria-valuenow' },
+        { role: 'doc-abstract', prop: 'aria-valuenow' },
+      ],
     });
   });
 

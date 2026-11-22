@@ -15,7 +15,10 @@ export interface LintReport {
 }
 
 const REQ = /role "([^"]+)" must have the following attributes defined: (.+)$/;
-const SUP = /The attribute (aria-[a-z]+) is not supported by the role ([a-z]+)/;
+// role 捕获允许连字符：aria-query 有约 90 个 doc-* 与 3 个 graphics-* role；
+// 未锚定，天然停在句点上。
+const SUP =
+  /The attribute (aria-[a-z]+) is not supported by the role ([a-z-]+)/;
 
 export const parseEslint = (raw: string): LintReport => {
   const missing: Array<{ role: string; props: string[] }> = [];
