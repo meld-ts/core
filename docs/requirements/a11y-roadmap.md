@@ -63,7 +63,7 @@ grep -A4 '"./a11y"' package.json
 **完成判据**：
 
 - 探针自检通过（已知必填 role 缺属性时 lint 确实报错）
-- 三条不变量成立（`required ⊆ supported`、`requiredWhenFocusable ⊆ supported`、required-name role 的 `label`/`labelledBy` 在 supported 里）
+- 三条不变量成立（`required ⊆ supported`、`requiredWhenFocusable ⊆ supported`、required-name role 的 `label`/`labelledby` 在 supported 里）
 - 生成文件只含类型，`@meld-ts/core/a11y` 与 browser 包无 node 依赖
 - 类型测试从 4 role 扩到代表集（switch / combobox / option / treeitem / separator / img / heading / slider / generic）
 

@@ -6,22 +6,22 @@ type ProfileA = {
   roles: {
     switch: {
       required: 'checked';
-      supported: 'checked' | 'label' | 'labelledBy';
+      supported: 'checked' | 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
     img: {
       required: never;
-      supported: 'label' | 'labelledBy' | 'details';
+      supported: 'label' | 'labelledby' | 'details';
       requiredWhenFocusable: never;
     };
     separator: {
       required: never;
-      supported: 'valueNow' | 'label' | 'labelledBy';
-      requiredWhenFocusable: 'valueNow';
+      supported: 'valuenow' | 'label' | 'labelledby';
+      requiredWhenFocusable: 'valuenow';
     };
     combobox: {
       required: 'expanded';
-      supported: 'expanded' | 'controls' | 'label' | 'labelledBy';
+      supported: 'expanded' | 'controls' | 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
   };
@@ -33,22 +33,22 @@ type ProfileB = {
   roles: {
     switch: {
       required: 'checked';
-      supported: 'checked' | 'label' | 'labelledBy' | 'hidden';
+      supported: 'checked' | 'label' | 'labelledby' | 'hidden';
       requiredWhenFocusable: never;
     };
     img: {
       required: never;
-      supported: 'label' | 'labelledBy';
+      supported: 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
     separator: {
       required: never;
-      supported: 'valueNow' | 'label' | 'labelledBy';
+      supported: 'valuenow' | 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
     combobox: {
       required: 'expanded' | 'controls';
-      supported: 'expanded' | 'controls' | 'label' | 'labelledBy';
+      supported: 'expanded' | 'controls' | 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
   };

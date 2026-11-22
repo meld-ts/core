@@ -414,15 +414,15 @@ Two entries on the returned callable:
 | `a11y(role, props)` | Non-native roles (`switch`, `img`, ...) | `{ role, ...aria-* }` + `tabIndex` when `focusable` |
 | `a11y.aria(props)` | Native elements' aria state | `{ ...aria-* }`, no `role` key |
 
-Input props are camelCase (`checked`, `labelledBy`, `valueNow`); output keys are `aria-*` / `tabIndex`. `labelledBy` / `controls` accept `string | readonly string[]` — arrays are space-joined at runtime.
+Input props are the final output form minus the `aria-` prefix, all lowercase (`checked`, `labelledby`, `valuenow`); output keys are `aria-*` / `tabIndex`. `labelledby` / `controls` accept `string | readonly string[]` — arrays are space-joined at runtime.
 
 Type behavior — all enforced at compile time:
 
 - Required props per the lint table: `a11y('switch', { label: 'x' })` errors, `checked` missing
 - Unsupported / misspelled keys rejected (excess key check)
-- Name rules: roles that require an accessible name need `label` or `labelledBy`
+- Name rules: roles that require an accessible name need `label` or `labelledby`
 - Required props reject `boolean | undefined` variables; optional props accept them
-- `focusable: true` emits `tabIndex: 0` and opens extra required props (biome: focusable `separator` requires `valueNow`)
+- `focusable: true` emits `tabIndex: 0` and opens extra required props (biome: focusable `separator` requires `valuenow`)
 - Output is exact: literal values, precise key sets, `undefined`-able keys become optional
 
 | Option | Type | Notes |

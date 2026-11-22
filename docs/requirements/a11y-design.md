@@ -71,10 +71,10 @@ a11y('img', { lable: '头像' });
 // ✗ 类型错误：没有 lable 这个属性
 
 a11y('img', {});
-// ✗ 类型错误：img 必须有名字，label / labelledBy 至少一个
+// ✗ 类型错误：img 必须有名字，label / labelledby 至少一个
 
-a11y('separator', { focusable: true, valueNow: 50 });
-// biome 下：可聚焦的 separator 必须有 valueNow
+a11y('separator', { focusable: true, valuenow: 50 });
+// biome 下：可聚焦的 separator 必须有 valuenow
 // 类型：{ readonly role: 'separator'; readonly tabIndex: 0; readonly 'aria-valuenow': 50 }
 
 a11y.aria({ expanded: open, controls: menuId });
@@ -112,14 +112,14 @@ createA11y({ lint: ['biome', 'oxlint'], output: 'html' });    // 多个 lint 合
 
 ### 输入写法
 
-不带 `aria-` 前缀的 camelCase：`checked`、`labelledBy`、`valueNow`。
+输入 key 是输出形态去掉 `aria-` 前缀的小写形式：`checked`、`valuenow`、`labelledby`。不引入 keyMap——它会让包多出一套需要随 ARIA 规范与 lint 演进的注册机制，且无法做到项目级重载。
 
 ARIA 属性名本身没有内部连字符，所以输出键名就是 `` `aria-${Lowercase<K>}` ``，类型层面不需要查表。
 
 引用 id 的属性分两种，按 aria-query 里的类型（`idlist` / `id`）生成，不手写：
 
-- idlist：`labelledBy`、`describedBy`、`controls`、`owns`、`flowTo`。接受 `string | readonly string[]`，输出时用空格拼接。
-- id：`details`、`errorMessage`、`activeDescendant`。只接受单个 `string`，拼成 `'a b'` 就是非法值。
+- idlist：`labelledby`、`describedby`、`controls`、`owns`、`flowto`。接受 `string | readonly string[]`，输出时用空格拼接。
+- id：`details`、`errormessage`、`activedescendant`。只接受单个 `string`，拼成 `'a b'` 就是非法值。
 
 `focusable: true` 不是 ARIA 属性：它输出 `tabIndex`（见下表），同时打开这个 role 在可聚焦时的额外必填项（§4）。不要另外手写 `tabIndex`，否则两边会漂。
 
@@ -199,17 +199,17 @@ type A11yProfile = {
 ### aria-query 生成的数据
 
 ```ts
-/** camelCase 的 ARIA 属性名，如 'checked' | 'labelledBy' | 'valueNow' ……（输入用的名字） */
+/** 输出形态去掉 aria- 前缀的小写 ARIA 属性名，如 'checked' | 'labelledby' | 'valuenow' ……（输入用的名字） */
 type AriaKey = /* 生成 */;
 
 /** 每个属性的取值类型，如 AriaValue<'checked'> = boolean | 'mixed' */
 type AriaValue<K extends AriaKey> = /* 生成 */;
 
 /** 引用多个 id 的属性：值是 string | readonly string[]，输出时空格拼接（aria-query 类型为 idlist） */
-type AriaIdListKey = 'labelledBy' | 'describedBy' | 'controls' | 'owns' | 'flowTo';
+type AriaIdListKey = 'labelledby' | 'describedby' | 'controls' | 'owns' | 'flowto';
 
 /** 引用单个 id 的属性：值只能是 string（aria-query 类型为 id） */
-type AriaIdKey = 'details' | 'errorMessage' | 'activeDescendant';
+type AriaIdKey = 'details' | 'errormessage' | 'activedescendant';
 
 /** 每个 role 的名字规则 */
 type A11yNameRule = { readonly [R in A11yRole]: 'required' | 'optional' | 'prohibited' };
@@ -218,7 +218,7 @@ type A11yNameRule = { readonly [R in A11yRole]: 'required' | 'optional' | 'prohi
 名字规则从 aria-query 推出：
 
 - `required`：`accessibleNameRequired` 为 true，且 `nameFrom` 不含 `contents`（名字只能由作者给，比如 img）。
-- `prohibited`：`nameFrom` 含 `prohibited`（比如 generic）。label / labelledBy 不能用：生成 lint 表时，这类 role 的 supported 里一并减掉 `label` 和 `labelledBy`。
+- `prohibited`：`nameFrom` 含 `prohibited`（比如 generic）。label / labelledby 不能用：生成 lint 表时，这类 role 的 supported 里一并减掉 `label` 和 `labelledby`。
 - 其余是 `optional`。`nameFrom` 含 `contents` 的 role，名字可能来自子元素，类型看不到子元素，所以不强制。
 
 注意 aria-query 里 `nameFrom` 是数组（127 个 role 里：88 个 `['author']`、24 个 `['author','contents']`、14 个 `['prohibited']`、1 个 `['none']`），按上面的规则归成三类，不要直接搬成单值。
@@ -293,7 +293,7 @@ declare module '@meld-ts/core/a11y' {
 
 **输入**（`A11yInput` + 调用签名）：
 
-- 必填属性 `-?`，值不接受 `undefined`；允许属性可选，值接受 `undefined`；`focusable?: true | undefined`；名字规则为 `required` 的 role，`label` / `labelledBy` 至少一个。
+- 必填属性 `-?`，值不接受 `undefined`；允许属性可选，值接受 `undefined`；`focusable?: true | undefined`；名字规则为 `required` 的 role，`label` / `labelledby` 至少一个。
 - 调用签名把三样交在 `props` 上：`I & Exact<I, 允许的键 | 'focusable'> & FocusRequirement<P, R, I>`。
 - **为什么要 `Exact`**：`I` 是推导出来的泛型，TypeScript 对它不做多余属性检查。只写 `A11yInput` 的话，`a11y('img', { checked: true, label: 'x' })` 不会报错，拼错的 `lable` 也不会报错。名字被禁止的 role，`label` 也靠它挡：生成时已从 `supported` 里减掉。
 - **`FocusRequirement` 的条件写成 `true extends I['focusable']`**：只要类型里含 `true` 就打开额外必填项，`true | undefined` 变量也算。不能写成 `I extends { focusable: true }`，那样含 `undefined` 的变量会判不中，额外必填整个失效（审查 02 实测）。也不能用 `infer` 从可选属性里取类型：TypeScript 会去掉其中的 `undefined`。
@@ -662,6 +662,22 @@ round 13 起，值是**含空元组的 union**（`readonly [] | readonly ['a']`�
 round 14 起，`a11y.aria()` 的 props 也挂 `PropsDefiniteCheck`（与 `a11y(role, props)` 一致，机制见 §12.8）：union props 下 `AriaAttrs` 分布成各分支输出的并集，`keyof` 取公共键是 `never`，调用方拿到一个键都读不出的输出类型，运行时却发其中一个分支的属性——类型承诺和实际输出漂移，宁可在调用点报错，让调用方把分支写进一个对象或拆成两次调用。
 
 测试证据：`src/a11y/types.test.ts`（required idlist / 名字必填的 `labelledBy` 传含空元组 union 报错，非空 union 与 `string[]` 变量通过；aria 的 union props 报错、单分支调用通过）。
+
+### 12.10 Plan B 裁决：输入 key 定为输出形态（小写无前缀）
+
+`AriaKey` 的输入 key 从可读 camelCase（`valueNow`、`labelledBy`）改为
+最终输出形态去掉 `aria-` 前缀的小写形式（`valuenow`、`labelledby`）。
+规则只有一条：输入 key = 输出键去掉 `aria-` 前缀。输出键仍是
+`` `aria-${Lowercase<K>}` ``（`Lowercase` 对已是小写的 key 是恒等），
+运行时行为不变，生成器不再需要任何拼写规则。
+
+不引入 keyMap（输入名 → 输出名的注册表）：它会让包多出一套需要随
+ARIA 规范与 lint 演进的注册机制，且无法做到项目级重载。§11 问题 2
+选 camelCase 的理由（补全友好）不敌这条——`labelledBy` 这类大小写
+拼写错误面正是要消灭的。该条裁决取代 §11 问题 2 的结论。
+
+附录 A 原型与 §12.1–12.9 修订记录里的旧拼写保留原样：它们是当时的
+实测记录，改写等于伪造证据；本条之后以小写形式为准。
 
 ## 附录 A：类型原型（已实测）
 

@@ -237,7 +237,7 @@ export type ResolveProfile<L> = ResolveProfileImpl<FlattenLint<L>, L>;
 type Rule<P extends A11yProfile, R extends A11yRole> = P['roles'][R];
 
 type NameRequirement<N> = N extends 'required'
-  ? { label: string } | { labelledBy: string | readonly string[] }
+  ? { label: string } | { labelledby: string | readonly string[] }
   : Record<never, never>;
 
 export type A11yInput<P extends A11yProfile, R extends A11yRole> = {
@@ -332,18 +332,18 @@ type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
     };
 
 /**
- * 名字必填的 role，labelledBy 传字面量空元组在调用点报错：空 idlist 按
+ * 名字必填的 role，labelledby 传字面量空元组在调用点报错：空 idlist 按
  * 「没传」处理（NoEmpty），对名字必填的 role 等于没给名字，§4 的
- * 「label / labelledBy 至少一个」落空。值是含空元组的 union 也拦
+ * 「label / labelledby 至少一个」落空。值是含空元组的 union 也拦
  * （round 13 起：分布判的 `V extends readonly []` 会把错误对象和
  * unknown 并起来吸收成 unknown）；label 在 I 里（label 已给名）不
- * 触发：此时空 labelledBy 只是死键，NoEmpty 丢掉它不算失约；非元组
+ * 触发：此时空 labelledby 只是死键，NoEmpty 丢掉它不算失约；非元组
  * （string[] 变量持有 []）认不出，是 NoEmpty 已记录的同一限制。
  */
 type NameEmptyCheck<N, I> = N extends 'required'
   ? I extends { label: string }
     ? unknown
-    : I extends { labelledBy: infer V }
+    : I extends { labelledby: infer V }
       ? Extract<V, readonly []> extends never
         ? unknown
         : { readonly 'accessible name must not be an empty id list': V }
@@ -368,7 +368,7 @@ type RoleDefiniteCheck<R extends A11yRole> =
  * props 是 union 时在调用点报错（机制同 RoleDefiniteCheck）：条件表达式
  * 直接当 props 传（`cond ? { focusable: true } : { label: 'x' }`）时，
  * 对 I 分布的检查把「某成员的要求」和其余成员的 unknown 并起来——
- * `{ valueNow } | unknown` 吸收成 unknown，逐成员的强制全部失效
+ * `{ valuenow } | unknown` 吸收成 unknown，逐成员的强制全部失效
  * （focusable 的额外必填、名字必填都静默漏过）；键存在门对 union 取
  * 公共键，同样判不出。让调用方把分支写进对象（条件展开推可选键）或
  * 拆成两次调用。

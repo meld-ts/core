@@ -5,14 +5,14 @@
  * Plan B（bun run a11y:sync）整文件覆盖为全量生成版。
  */
 
-/** camelCase 的 ARIA 属性名（a11y() 的输入属性名）。 */
+/** 输出形态去掉 aria- 前缀的小写 ARIA 属性名（a11y() 的输入属性名）。 */
 export type AriaKey =
   | 'checked'
   | 'expanded'
   | 'controls'
   | 'label'
-  | 'labelledBy'
-  | 'valueNow'
+  | 'labelledby'
+  | 'valuenow'
   | 'selected'
   | 'details'
   | 'hidden';
@@ -21,7 +21,7 @@ export type AriaKey =
  * 引用多个 id 的属性（aria-query 类型 idlist）：
  * 接受 string 或 readonly string[]，输出时空格拼接。
  */
-export type AriaIdListKey = 'controls' | 'labelledBy';
+export type AriaIdListKey = 'controls' | 'labelledby';
 
 /** 引用单个 id 的属性（aria-query 类型 id）：只接受单个 string。 */
 export type AriaIdKey = 'details';
@@ -31,7 +31,7 @@ export type AriaValue<K extends AriaKey> = K extends 'checked'
   ? boolean | 'mixed'
   : K extends 'expanded' | 'selected' | 'hidden'
     ? boolean
-    : K extends 'valueNow'
+    : K extends 'valuenow'
       ? number
       : K extends AriaIdListKey
         ? string | readonly string[]

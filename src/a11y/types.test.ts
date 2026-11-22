@@ -35,11 +35,18 @@ describe('aria.generated', () => {
   test('AriaValue distributes by key', () => {
     const a: Assert<Eq<AriaValue<'checked'>, boolean | 'mixed'>> = true;
     const b: Assert<Eq<AriaValue<'expanded'>, boolean>> = true;
-    const c: Assert<Eq<AriaValue<'valueNow'>, number>> = true;
+    const c: Assert<Eq<AriaValue<'valuenow'>, number>> = true;
     const d: Assert<Eq<AriaValue<'controls'>, string | readonly string[]>> =
       true;
     const e: Assert<Eq<AriaValue<'details'>, string>> = true;
     check(a, b, c, d, e);
+  });
+
+  test('aria keys use the final output form', () => {
+    const a: Assert<Eq<AriaValue<'valuenow'>, number>> = true;
+    const b: Assert<Eq<AriaValue<'labelledby'>, string | readonly string[]>> =
+      true;
+    check(a, b);
   });
 
   test('name rule marks img as required', () => {
@@ -81,8 +88,8 @@ describe('builtin lint profiles', () => {
         | 'expanded'
         | 'controls'
         | 'label'
-        | 'labelledBy'
-        | 'valueNow'
+        | 'labelledby'
+        | 'valuenow'
         | 'selected'
         | 'details'
         | 'hidden'
@@ -127,26 +134,26 @@ describe.skip('a11y() input constraints', () => {
   });
 
   test('missing accessible name', () => {
-    // @ts-expect-error img 必须给 label / labelledBy
+    // @ts-expect-error img 必须给 label / labelledby
     check(a11yBiome('img', {}));
   });
 
   test('focusable requires extra props', () => {
-    // @ts-expect-error 可聚焦 separator 缺 valueNow
+    // @ts-expect-error 可聚焦 separator 缺 valuenow
     check(a11yBiome('separator', { focusable: true }));
   });
 
   test('focusable as true | undefined still requires extra props', () => {
-    // @ts-expect-error focusable 变量类型含 true，也要 valueNow
+    // @ts-expect-error focusable 变量类型含 true，也要 valuenow
     check(a11yBiome('separator', { focusable: maybeFocus }));
-    check(a11yBiome('separator', { focusable: maybeFocus, valueNow: 1 }));
+    check(a11yBiome('separator', { focusable: maybeFocus, valuenow: 1 }));
   });
 
   test('conditional-spread focusable counts as key presence', () => {
     const cond = Math.random() > 0.5;
     check(
       // @ts-expect-error 条件展开把 focusable 推成可选键（focusable?: true）：
-      // 键在 I 里、值含 true 就按可聚焦要求 valueNow（§3 宁可多要求），
+      // 键在 I 里、值含 true 就按可聚焦要求 valuenow（§3 宁可多要求），
       // 形状匹配（I extends { focusable: unknown }）判不中可选键
       a11yBiome('separator', {
         label: 'x',
@@ -158,21 +165,21 @@ describe.skip('a11y() input constraints', () => {
   test('union-typed props are rejected at the call site', () => {
     const cond = Math.random() > 0.5;
     // @ts-expect-error props 是 union：分布检查把「某成员的要求」和其余
-    // 成员的 unknown 并起来吸收成 unknown，valueNow 的额外必填静默失效
+    // 成员的 unknown 并起来吸收成 unknown，valuenow 的额外必填静默失效
     check(a11yBiome('separator', cond ? { focusable: true } : { label: 'x' }));
     // @ts-expect-error 同一漏洞的镜像：分支 1 的 img 没给名字也静默通过
-    check(a11yBiome('img', cond ? { labelledBy: [] } : { label: 'b' }));
+    check(a11yBiome('img', cond ? { labelledby: [] } : { label: 'b' }));
     // 拆开调用：各分支的 props 单独合法
-    check(a11yBiome('separator', { focusable: true, valueNow: 1 }));
+    check(a11yBiome('separator', { focusable: true, valuenow: 1 }));
     check(a11yBiome('separator', { label: 'x' }));
-    check(a11yBiome('img', { labelledBy: ['a'] }));
+    check(a11yBiome('img', { labelledby: ['a'] }));
     check(a11yBiome('img', { label: 'b' }));
   });
 
   test('focusable: false is rejected', () => {
     // @ts-expect-error focusable 只收 true（§3 / 审查 02 M1）：
     // 不可聚焦就不写 focusable
-    check(a11yBiome('separator', { focusable: false, valueNow: 1 }));
+    check(a11yBiome('separator', { focusable: false, valuenow: 1 }));
   });
 
   test('required props reject undefined', () => {
@@ -238,25 +245,25 @@ describe.skip('a11y() input constraints', () => {
     );
   });
 
-  test('name-required roles reject the literal empty tuple for labelledBy', () => {
-    // @ts-expect-error img 名字必填：labelledBy 空元组被 NoEmpty 归一成
-    // undefined，等于没给名字（§4 的 label / labelledBy 至少一个落空）
-    check(a11yBiome('img', { labelledBy: [] }));
+  test('name-required roles reject the literal empty tuple for labelledby', () => {
+    // @ts-expect-error img 名字必填：labelledby 空元组被 NoEmpty 归一成
+    // undefined，等于没给名字（§4 的 label / labelledby 至少一个落空）
+    check(a11yBiome('img', { labelledby: [] }));
     check(a11yBiome('img', { label: 'x' }));
-    check(a11yBiome('img', { labelledBy: ['a'] }));
-    // label 已给名时不拦：空 labelledBy 只是死键，NoEmpty 丢掉它，
-    // label / labelledBy 至少一个已经满足
-    check(a11yBiome('img', { label: 'x', labelledBy: [] }));
+    check(a11yBiome('img', { labelledby: ['a'] }));
+    // label 已给名时不拦：空 labelledby 只是死键，NoEmpty 丢掉它，
+    // label / labelledby 至少一个已经满足
+    check(a11yBiome('img', { label: 'x', labelledby: [] }));
     // string[] 变量仍允许：非元组认不出空数组（NoEmpty 已记录的限制）
-    check(a11yBiome('img', { labelledBy: idList }));
+    check(a11yBiome('img', { labelledby: idList }));
   });
 
   test('name-required roles reject union values containing the empty tuple', () => {
     // @ts-expect-error 值是含空元组的 union：NoEmpty 归一后等于可能没给
-    // 名字，label / labelledBy 至少一个落空
-    check(a11yBiome('img', { labelledBy: maybeEmptyIds }));
+    // 名字，label / labelledby 至少一个落空
+    check(a11yBiome('img', { labelledby: maybeEmptyIds }));
     // 非空元组的 union 不触发
-    check(a11yBiome('img', { labelledBy: nonEmptyIds }));
+    check(a11yBiome('img', { labelledby: nonEmptyIds }));
   });
 });
 
@@ -307,9 +314,9 @@ describe.skip('a11y() output inference', () => {
     const a: Assert<Eq<(typeof h1)['aria-checked'], 'false'>> = true;
     const h2 = a11yBoth('switch', { checked: 'mixed', label: 'x' });
     const b: Assert<Eq<(typeof h2)['aria-checked'], 'mixed'>> = true;
-    const h3 = a11yBoth('separator', { valueNow: 50, label: 'x' });
+    const h3 = a11yBoth('separator', { valuenow: 50, label: 'x' });
     const c: Assert<Eq<(typeof h3)['aria-valuenow'], '50'>> = true;
-    const h4 = a11yBoth('separator', { focusable: true, valueNow: 50 });
+    const h4 = a11yBoth('separator', { focusable: true, valuenow: 50 });
     const d: Assert<Eq<(typeof h4)['tabindex'], '0'>> = true;
     const e: Assert<Eq<Extract<keyof typeof h4, 'tabIndex'>, never>> = true;
     check(a, b, c, d, e);
@@ -336,17 +343,17 @@ describe.skip('a11y() output inference', () => {
   test('focusable true | undefined makes tabIndex optional', () => {
     const r5 = a11yBiome('separator', {
       focusable: maybeFocus,
-      valueNow: 2,
+      valuenow: 2,
     });
     const a: Assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>> = true;
     check(a);
   });
 
-  test('conditional-spread focusable with valueNow keeps tabIndex optional', () => {
+  test('conditional-spread focusable with valuenow keeps tabIndex optional', () => {
     const cond = Math.random() > 0.5;
     const r5 = a11yBiome('separator', {
       label: 'x',
-      valueNow: 50,
+      valuenow: 50,
       ...(cond ? { focusable: true } : {}),
     });
     const a: Assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>> = true;
@@ -354,7 +361,7 @@ describe.skip('a11y() output inference', () => {
   });
 
   test('optional idlist empty tuple drops the output key', () => {
-    const r = a11yBiome('separator', { labelledBy: [] });
+    const r = a11yBiome('separator', { labelledby: [] });
     const a: Assert<Eq<Extract<keyof typeof r, 'aria-labelledby'>, never>> =
       true;
     check(a);
@@ -381,7 +388,7 @@ describe.skip('multi-lint merge', () => {
   });
 
   test('biome focusable separator requirement survives merge', () => {
-    // @ts-expect-error 合并后可聚焦 separator 要 biome 的 valueNow
+    // @ts-expect-error 合并后可聚焦 separator 要 biome 的 valuenow
     check(a11yBoth('separator', { focusable: true }));
   });
 
@@ -441,12 +448,12 @@ describe.skip('multi-lint merge', () => {
         AllNever
       >
     > = true;
-    // 名字必填的 role，label 和 labelledBy 都在 supported 里
+    // 名字必填的 role，label 和 labelledby 都在 supported 里
     const c: Assert<
       Eq<
         {
           [R in A11yRole]: A11yNameRule[R] extends 'required'
-            ? Exclude<'label' | 'labelledBy', Merged['roles'][R]['supported']>
+            ? Exclude<'label' | 'labelledby', Merged['roles'][R]['supported']>
             : never;
         },
         AllNever

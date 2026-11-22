@@ -9,22 +9,22 @@ export type OxlintA11yProfile = {
   roles: {
     switch: {
       required: 'checked';
-      supported: 'checked' | 'label' | 'labelledBy';
+      supported: 'checked' | 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
     img: {
       required: never;
-      supported: 'label' | 'labelledBy' | 'details';
+      supported: 'label' | 'labelledby' | 'details';
       requiredWhenFocusable: never;
     };
     separator: {
       required: never;
-      supported: 'valueNow' | 'label' | 'labelledBy';
+      supported: 'valuenow' | 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
     combobox: {
       required: 'expanded' | 'controls';
-      supported: 'expanded' | 'controls' | 'label' | 'labelledBy';
+      supported: 'expanded' | 'controls' | 'label' | 'labelledby';
       requiredWhenFocusable: never;
     };
   };
