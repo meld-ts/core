@@ -29,6 +29,13 @@ const sorted = (names: readonly string[]): string[] =>
 const typeName = (lint: string): string =>
   `${lint.charAt(0).toUpperCase()}${lint.slice(1)}A11yProfile`;
 
+// eslint 表的版本取的是 eslint-plugin-jsx-a11y 插件的版本（detect.ts），
+// 头部按插件署名，避免读成 eslint 自身的版本。
+const versionLabel = (lint: string, version: string): string =>
+  lint === 'eslint'
+    ? `eslint-plugin-jsx-a11y ${version}`
+    : `${lint} ${version}`;
+
 export const serializeProfile = (profile: ProfileData): string => {
   const alias = profile.aliasOf ? `; aliasOf: '${profile.aliasOf}'` : '';
   const roles = Object.entries(profile.roles)
@@ -41,7 +48,7 @@ export const serializeProfile = (profile: ProfileData): string => {
   return `/**
  * ${profile.lint} 内置规则表。
  *
- * 生成文件，勿手改。${profile.lint} ${profile.version}。
+ * 生成文件，勿手改。${versionLabel(profile.lint, profile.version)}。
  */
 export type ${typeName(profile.lint)} = {
   meta: { lint: '${profile.lint}'; version: '${profile.version}'; source: 'builtin'${alias} };

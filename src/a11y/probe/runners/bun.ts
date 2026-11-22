@@ -50,7 +50,11 @@ export const parseBun = (raw: string): LintReport => {
     const supRole = sup?.[2];
     if (prop !== undefined && supRole !== undefined) {
       unsupported.push({ role: supRole, prop });
+      continue;
     }
+    // 白名单内的规则却匹配不出已知形状：静默跳过会让表悄悄缺数据，
+    // 直接失败交给上层排查。
+    throw new Error(`bun ${d.code}: unrecognized message: ${d.message}`);
   }
   return { missing, unsupported };
 };

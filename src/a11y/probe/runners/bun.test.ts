@@ -62,6 +62,20 @@ describe('parseBun', () => {
       'unparseable required props: `weird` role is missing required aria props nothing here.',
     );
   });
+
+  test('fails when a whitelisted rule carries an unknown message', () => {
+    const raw = JSON.stringify({
+      diagnostics: [
+        {
+          code: 'jsx-a11y(role-supports-aria-props)',
+          message: 'The role `switch` rejects the attribute `aria-valuenow`.',
+        },
+      ],
+    });
+    expect(() => parseBun(raw)).toThrow(
+      'bun jsx-a11y(role-supports-aria-props): unrecognized message: The role `switch` rejects the attribute `aria-valuenow`.',
+    );
+  });
 });
 
 describe('runBun', () => {

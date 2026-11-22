@@ -1,7 +1,7 @@
 /**
  * eslint 内置规则表。
  *
- * 生成文件，勿手改。eslint 6.10.2。
+ * 生成文件，勿手改。eslint-plugin-jsx-a11y 6.10.2。
  */
 export type EslintA11yProfile = {
   meta: { lint: 'eslint'; version: '6.10.2'; source: 'builtin' };

@@ -100,6 +100,24 @@ describe('parseBiome', () => {
       'cannot resolve role at .meld-a11y-probe/fixtures/other.jsx:1',
     );
   });
+
+  test('fails when a whitelisted rule carries an unknown message', () => {
+    const raw = JSON.stringify({
+      diagnostics: [
+        {
+          category: 'lint/a11y/useAriaPropsForRole',
+          message: 'The element with the checkbox ARIA role is missing props.',
+          location: {
+            path: '.meld-a11y-probe/fixtures/required.jsx',
+            start: { line: 1 },
+          },
+        },
+      ],
+    });
+    expect(() => parseBiome(raw, fixtures)).toThrow(
+      'biome lint/a11y/useAriaPropsForRole: unrecognized message: The element with the checkbox ARIA role is missing props.',
+    );
+  });
 });
 
 describe('runBiome', () => {

@@ -4,9 +4,10 @@ import type { ExecFn } from '../exec';
 import { parseOxlint, runOxlint } from './oxlint';
 
 /**
- * JSON 形状按 oxlint 的 --format=json 文档，消息文本按 oxc 源码
- * （role_has_required_aria_props.rs / role_supports_aria_props.rs）手写。
- * Task 7 必须用 lab 录制的真实输出替换并复核解析器。
+ * 手写回归固定样本：JSON 形状按 oxlint 的 --format=json 文档，消息文本
+ * 按 oxc 源码（role_has_required_aria_props.rs / role_supports_aria_props.rs）
+ * 写成，已在 Task 7 的真实同步里核验与真实输出一致。
+ * lint 改消息文本时同步刷新。
  */
 const RAW = JSON.stringify({
   diagnostics: [
@@ -73,6 +74,20 @@ describe('parseOxlint', () => {
     });
     expect(() => parseOxlint(raw)).toThrow(
       'unparseable required props: `weird` role is missing required aria props nothing here.',
+    );
+  });
+
+  test('fails when a whitelisted rule carries an unknown message', () => {
+    const raw = JSON.stringify({
+      diagnostics: [
+        {
+          code: 'jsx-a11y(role-supports-aria-props)',
+          message: 'The role `switch` rejects the attribute `aria-valuenow`.',
+        },
+      ],
+    });
+    expect(() => parseOxlint(raw)).toThrow(
+      'oxlint jsx-a11y(role-supports-aria-props): unrecognized message: The role `switch` rejects the attribute `aria-valuenow`.',
     );
   });
 });

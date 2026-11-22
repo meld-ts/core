@@ -46,7 +46,11 @@ export const parseBiome = (
     const prop = sup?.[1];
     if (prop !== undefined) {
       unsupported.push({ role: roleAt(linesOf, d.location), prop });
+      continue;
     }
+    // 白名单内的规则却匹配不出已知形状：静默跳过会让表悄悄缺数据，
+    // 直接失败交给上层排查。
+    throw new Error(`biome ${d.category}: unrecognized message: ${d.message}`);
   }
   return { missing, unsupported };
 };

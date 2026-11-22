@@ -4,9 +4,9 @@ import type { ExecFn } from '../exec';
 import { parseEslint, runEslint } from './eslint';
 
 /**
- * 消息按 eslint-plugin-jsx-a11y 6.x 源码的模板手写
- * （role-has-required-aria-props / role-supports-aria-props）。
- * Task 7 必须用 lab 录制的真实输出替换并复核解析器。
+ * 手写回归固定样本：消息按 eslint-plugin-jsx-a11y 6.x 源码的模板写
+ * （role-has-required-aria-props / role-supports-aria-props），已在
+ * Task 7 的真实同步里核验与真实输出一致。lint 改消息文本时同步刷新。
  */
 const RAW = JSON.stringify([
   {
@@ -50,6 +50,22 @@ describe('parseEslint', () => {
 
   test('returns an empty report when nothing fired', () => {
     expect(parseEslint('[]')).toEqual({ missing: [], unsupported: [] });
+  });
+
+  test('fails when a whitelisted rule carries an unknown message', () => {
+    const raw = JSON.stringify([
+      {
+        messages: [
+          {
+            ruleId: 'jsx-a11y/role-supports-aria-props',
+            message: 'The role switch rejects the attribute aria-valuenow.',
+          },
+        ],
+      },
+    ]);
+    expect(() => parseEslint(raw)).toThrow(
+      'eslint jsx-a11y/role-supports-aria-props: unrecognized message: The role switch rejects the attribute aria-valuenow.',
+    );
   });
 });
 

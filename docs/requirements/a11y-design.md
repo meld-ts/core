@@ -36,7 +36,7 @@ AI 用 devtools 测页面时，靠的是 a11y 树里的 role 和名字；但它�
 另外几点实测结论：
 
 - **bun lint 的 jsx-a11y 是 eslint 版的移植**，消息文本和结果都一致。但 `bun lint` 目前只在 canary（1.4.5）里有，1.4.4 正式版没有这个命令。（§12.11：此条已被真实同步取代——bun 1.4.4 起 `bun lint` 内嵌的是 oxlint，不是 eslint 移植；上表 bun 列的 treeitem 行与实测不符。）
-- **oxlint 一次报全部缺失属性**：1.94.0 对 combobox 一条消息里同时报 `aria-controls` 和 `aria-expanded`。之前记录的「一次只报一个」没有复现，已删除。探针仍然循环补属性直到不再报错（§6），这样不依赖任何一家的报告方式。
+- **oxlint 一次报全部缺失属性**：1.94.0 对 combobox 一条消息里同时报 `aria-controls` 和 `aria-expanded`。之前记录的「一次只报一个」没有复现，已删除。探针的 required 发现不读消息里的属性清单：先测出 supported，再逐个去掉一个 supported 属性看哪个 role 报错（§6），不依赖任何一家的报告方式。
 - **biome 的规则看上下文**：separator 只有可聚焦（带 tabIndex）时才要求 `aria-valuenow`。纯按 role 建表会漏掉这类条件。
 - **lint 看不到 spread**：`<div {...p} />` 里没有字面 role，lint 什么都不报。
 
@@ -419,8 +419,8 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 ### 每个 lint 测三张表，再自检一次
 
-1. **required**：每个 role 一个空元素，读「缺少哪些属性」；循环补上已报的属性再跑，直到不再报错。
-2. **supported**：role × 每个 aria 属性，读「不支持」的报错，反推出允许集合。127 个 role × 约 50 个属性，约 6000 个元素，分批放进几个文件，一次跑完。
+1. **supported**：role × 每个 aria 属性，读「不支持」的报错，从属性全集里减掉报了不支持的，再减掉名字规则为 prohibited 的 role 的 label / labelledby。127 个 role × 约 50 个属性，约 6000 个元素，分批放进几个文件，一次跑完。
+2. **required**：先跑一遍全 supported 属性在身的基线（报错说明 supported 测漏了，直接失败），然后分批 fixture 逐个去掉一个 supported 属性再跑：某轮去掉 K 后 role 仍报缺失，K 就是它的必填。只看「哪个 role 报了错」，不解析消息里的属性名，biome 的消息只含 role 也成立。这比条件必填（「有 B 才要求 A」）保守：去掉 K 时其余属性都在身，条件成立也会把 K 记成无条件必填；现有四条数据驱动的必填规则没有这种条件，两种算法结果一致。
 3. **可聚焦差异**：同一 role 加 / 不加 `tabIndex={0}` 各测一遍，差出来的就是 `requiredWhenFocusable`。
 
 **自检**：表生成后，挑几个已知有必填项的 role（如 checkbox、switch、slider），故意少写一个必填属性，确认 lint 确实报错。不报错说明这个 lint 根本没跑起来规则（配置没生效、文件被忽略、解析失败），探针直接失败，不写文件。这一步在用户模式和维护者模式都跑。
@@ -429,7 +429,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 1. `required` ⊆ `supported`；
 2. `requiredWhenFocusable` ⊆ `supported`；
-3. 名字规则为 `required` 的 role，`label` 和 `labelledBy` 都在 `supported` 里。
+3. 名字规则为 `required` 的 role，`label` 和 `labelledby` 都在 `supported` 里。
 
 不成立的典型原因是探针部分解析失败，或者减禁止属性减过头。后果是这个 role 的所有合法写法都会同时报「缺必填」和「never」，所以必须在生成时挡住。上面的自检只能证明 lint 跑起来了，证明不了这三条。
 
@@ -467,7 +467,7 @@ meld a11y probe [--lint biome,oxlint] [--out ./a11y-lints.generated.d.ts] [--kee
 4. 以 lab 为 cwd 调 `probe()`，每个 lint 覆盖写 `src/a11y/lints/<lint>.ts`，头部写版本。
 5. 在仓库根对生成的文件跑 `biome format`：格式化由仓库自己的 biome（lockfile 锁定）做，不是 lab 里的最新版，`git diff` 才不随 lab 漂。
 
-`--lint` 只更新指定的 lint，其他文件不动。
+`--lint` 只更新指定的 lint，其他文件不动；`aria.generated.ts` 和 `samples.generated.ts` 不在此列，每次仍会重写——这两份只随 aria-query 变，与 lint 版本无关，今天重跑内容不变，aria-query 更新后跑 sync 动的才是它们。
 
 core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注意 core 自己用来 lint 源码的 biome（devDependencies 里的 `^2.5.0`）和 lab 里探测用的 biome 是两回事，版本可以不同，文档和生成文件头部写版本时别混。
 
@@ -530,7 +530,7 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' --glob '*.{tsx,jsx}'
 | # | 问题 | 建议 |
 |---|---|---|
 | 1 | 命令名：`meld a11y probe`，还是单独叫 `meld-a11y`？ | `meld a11y probe`：`meld` 加子命令，以后别的功能也能挂上来 |
-| 2 | 输入用 camelCase（`checked`），还是直接写 `aria-checked`？ | camelCase：短，而且 `labelledBy` 这种拼写容易错的地方有补全 |
+| 2 | 输入用 camelCase（`checked`），还是直接写 `aria-checked`？ | 已被取代（§12.10）：输入 key 定为输出形态去掉 `aria-` 前缀的小写形式（`valuenow`、`labelledby`），不是 camelCase |
 | 3 | 要不要导出一个默认的 `a11y`（如四家合并 + `react`），让不想配置的人直接 `import { a11y }`？ | 先不导出，项目里写一行 `createA11y` 不费事，也逼着项目明确自己用哪个 lint |
 | 4 | bun lint 目前只在 canary 里有：内置表现在就用 canary 生成 `bun.ts`，还是等正式版？ | 已被取代（§12.11）：bun 1.4.4 起 `bun lint` 内嵌 oxlint，runner 直接探测，`lints/bun.ts` 是独立生成的表，不沿用 eslint |
 
