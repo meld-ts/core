@@ -125,6 +125,7 @@
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ --coverage",
     "a11y:sync": "bun scripts/a11y-sync.ts",
+    "test:a11y-lint": "bun scripts/a11y-lint-test.ts",
     "build:exports": "bunup --config bunup.exports.ts",
     "build:browser": "bunup --config bunup.browser.ts",
     "build:dist": "bunup",

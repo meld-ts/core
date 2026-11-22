@@ -1,9 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  attrsOf,
+  batchFiles,
   buildRemovalFixtures,
   buildSelfCheckFixture,
   buildSupportedFixtures,
+  elementOf,
+  expressionOf,
+  fixtureSamples,
 } from './fixtures';
 
 describe('buildSupportedFixtures', () => {
@@ -151,5 +156,36 @@ describe('buildSelfCheckFixture', () => {
       name: 'self-check-switch-aria-checked',
       code: `export const F0 = () => <div role="switch" aria-label={'x'} aria-labelledby={'x'} />;`,
     });
+  });
+});
+
+describe('expressionOf / fixtureSamples', () => {
+  test('quotes strings, keeps booleans and numbers literal', () => {
+    expect(expressionOf('both')).toBe("'both'");
+    expect(expressionOf(true)).toBe('true');
+    expect(expressionOf(1)).toBe('1');
+  });
+
+  test('converts runtime SAMPLES into expression text', () => {
+    expect(fixtureSamples({ label: 'x', atomic: true, colcount: 1 })).toEqual({
+      label: "'x'",
+      atomic: 'true',
+      colcount: '1',
+    });
+  });
+});
+
+describe('exported fixture vocabulary', () => {
+  test('elementOf and attrsOf compose an element line', () => {
+    expect(elementOf('switch', attrsOf(['checked'], { checked: 'true' }))).toBe(
+      '<div role="switch" aria-checked={true} />',
+    );
+  });
+
+  test('batchFiles batches elements and pads file names', () => {
+    expect(batchFiles(['a', 'b', 'c'], 'x', 2).map((f) => f.name)).toEqual([
+      'x-0',
+      'x-1',
+    ]);
   });
 });

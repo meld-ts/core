@@ -15,6 +15,7 @@ import type { DetectedLint } from '../a11y/probe/detect';
 import { nodeExec } from '../a11y/probe/exec';
 import type { ExecFn } from '../a11y/probe/exec';
 import { serializeOverride } from '../a11y/probe/emit-override';
+import { fixtureSamples } from '../a11y/probe/fixtures';
 import { runBiome } from '../a11y/probe/runners/biome';
 import { runBun } from '../a11y/probe/runners/bun';
 import { runEslint } from '../a11y/probe/runners/eslint';
@@ -109,18 +110,7 @@ export const nodeDeps: ProbeDeps = {
 };
 
 // SAMPLES 存运行时值，fixtures 要的是 TS 表达式文本（aria-label={'x'}）：
-// 字符串包回引号、布尔/数字原样，得到与 a11y:sync 相同的 fixture 文本，
-// 同一 lint 版本在维护者模式与用户模式产出逐字节一致的表。
-const expressionOf = (value: string | boolean | number): string =>
-  typeof value === 'string' ? `'${value}'` : String(value);
-
-const fixtureSamples = (): Record<string, string> => {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(SAMPLES)) {
-    out[key] = expressionOf(value);
-  }
-  return out;
-};
+// 转换在 probe/fixtures 的 fixtureSamples，与 a11y:sync 产出逐字节一致。
 
 export interface RunProbeInput {
   readonly cwd: string;
@@ -192,7 +182,7 @@ export const runProbe = ({
     lints: detected,
     roles: Object.keys(NAME_RULES),
     keys: ARIA_KEYS,
-    samples: fixtureSamples(),
+    samples: fixtureSamples(SAMPLES),
     nameRule: NAME_RULES,
     runners: deps.runners,
     exec: deps.exec,
