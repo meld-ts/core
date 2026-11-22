@@ -36,7 +36,14 @@ const versionLabel = (lint: string, version: string): string =>
     ? `eslint-plugin-jsx-a11y ${version}`
     : `${lint} ${version}`;
 
-export const serializeProfile = (profile: ProfileData): string => {
+/**
+ * 单张表的内联类型字面量（无 export、无文件头）：内置表与用户模式重载
+ * 共用同一段序列化，同一 lint 版本两种模式产出逐字节一致。
+ */
+export const serializeProfileLiteral = (
+  profile: ProfileData,
+  source: 'builtin' | 'probe',
+): string => {
   const alias = profile.aliasOf ? `; aliasOf: '${profile.aliasOf}'` : '';
   const roles = Object.entries(profile.roles)
     .sort(([a], [b]) => SORT(a, b))
@@ -45,16 +52,22 @@ export const serializeProfile = (profile: ProfileData): string => {
         `    ${objectKeyOf(role)}: { required: ${union(sorted(r.required))}; supported: ${union(sorted(r.supported))}; requiredWhenFocusable: ${union(sorted(r.requiredWhenFocusable))} };`,
     )
     .join('\n');
-  return `/**
+  return `{
+  meta: { lint: '${profile.lint}'; version: '${profile.version}'; source: '${source}'${alias} };
+  roles: {
+${roles}
+  };
+}`;
+};
+
+export const serializeProfile = (profile: ProfileData): string =>
+  `/**
  * ${profile.lint} 内置规则表。
  *
  * 生成文件，勿手改。${versionLabel(profile.lint, profile.version)}。
  */
-export type ${typeName(profile.lint)} = {
-  meta: { lint: '${profile.lint}'; version: '${profile.version}'; source: 'builtin'${alias} };
-  roles: {
-${roles}
-  };
-};
+export type ${typeName(profile.lint)} = ${serializeProfileLiteral(
+    profile,
+    'builtin',
+  )};
 `;
-};

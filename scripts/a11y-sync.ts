@@ -26,7 +26,7 @@ import {
   samplesOf,
 } from '../src/a11y/probe/aria-gen';
 import type { DetectedLint } from '../src/a11y/probe/detect';
-import { detectLints, versionOf } from '../src/a11y/probe/detect';
+import { detectLints } from '../src/a11y/probe/detect';
 import { nodeExec } from '../src/a11y/probe/exec';
 import { generateProfiles } from '../src/a11y/probe/profiles-gen';
 import { runBiome } from '../src/a11y/probe/runners/biome';
@@ -145,28 +145,18 @@ try {
   console.log(`[a11y-sync] ${roles.length} roles, ${keys.length} aria keys`);
 
   console.log('[a11y-sync] detecting installed lints');
+  // bun 也是 detect 的一部分：lab 装了 oxlint，探出的 bin 带
+  // --jsx-a11y-plugin（与内置表录制时的命令一致）。
   const detected = detectLints({
     cwd: lab,
     exec: nodeExec,
     readJson: (path) => JSON.parse(readFileSync(path, 'utf8')),
     exists: existsSync,
-    wanted: wanted.filter((name) => name !== 'bun'),
+    wanted,
   });
 
   const lints: DetectedLint[] = [];
   for (const name of wanted) {
-    if (name === 'bun') {
-      // bun 装在 lab 外（就是当前运行时），版本与 bin 都指向它自己。
-      lints.push({
-        name,
-        version: versionOf(
-          'bun',
-          nodeExec([process.execPath, '--version'], { cwd: root }),
-        ),
-        bin: [process.execPath],
-      });
-      continue;
-    }
     const lint = detected.find((d) => d.name === name);
     // 装了却探测不到（安装失败/探测失败）不能静默跳过：
     // 漏写一张表会让漂移检查形同虚设。
