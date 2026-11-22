@@ -121,6 +121,19 @@ describe('checkTsconfigIncludes', () => {
     ).toEqual({ included: true, reason: 'files' });
   });
 
+  test('files and include coexist as a union', () => {
+    expect(
+      checkTsconfigIncludes({
+        cwd: '/p',
+        outPath: '/p/a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({
+          files: ['a11y-lints.generated.d.ts'],
+          include: ['src/**/*.ts'],
+        }),
+      }),
+    ).toEqual({ included: true, reason: 'files' });
+  });
+
   test('an out path outside the tsconfig directory is reported', () => {
     expect(
       checkTsconfigIncludes({

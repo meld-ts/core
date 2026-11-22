@@ -1,7 +1,13 @@
 /**
  * tsconfig include/exclude 的最小 glob：`**` 整段匹配零或多段路径、
  * 段内 `*` 不跨段；目录名（含 `a/**`）按「目录下全部文件」处理。
- * 只作告警依据，不追求与 tsc 的完整 glob 方言一致（`?` 不支持）。
+ * include 与 files 并存取并集（tsc 语义：列进 files 的文件也算编译进去）。
+ * 只作告警依据，不追求与 tsc 的完整方言一致；已知局限：
+ * - 不跟随 extends——extends 链上游收窄过 include 时，这里按本文件报
+ *   default/已包含，重载实际不生效，这个方向拦不住；
+ * - `./` 前缀的模式匹配不上（误报未包含）；`?` 通配不支持（按字面量）；
+ * - exclude 先于显式 files 条目判定——tsc 里显式列进 files 的文件不受
+ *   exclude 影响，这里更保守（宁可误告警）。
  */
 
 export interface TsconfigCheckInput {
@@ -90,7 +96,11 @@ export const checkTsconfigIncludes = ({
       ? { included: true, reason: 'files' }
       : { included: false, reason: 'not-files' };
   }
-  return tsconfig.include.some((p) => matches(p, file))
-    ? { included: true, reason: 'include' }
+  if (tsconfig.include.some((p) => matches(p, file))) {
+    return { included: true, reason: 'include' };
+  }
+  // include 与 files 并存取并集：列进 files 的文件也算编译进去
+  return tsconfig.files?.includes(file)
+    ? { included: true, reason: 'files' }
     : { included: false, reason: 'not-include' };
 };

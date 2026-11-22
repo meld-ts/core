@@ -112,6 +112,12 @@ describe('parseBun', () => {
       'bun jsx-a11y(role-supports-aria-props): unrecognized message: The role `switch` rejects the attribute `aria-valuenow`.',
     );
   });
+
+  test('fails readably when the defaults envelope misses messages', () => {
+    expect(() => parseBun('[{"filePath":"/p/f.jsx"}]')).toThrow(
+      'bun lint output is missing messages',
+    );
+  });
 });
 
 const FIXTURE = [

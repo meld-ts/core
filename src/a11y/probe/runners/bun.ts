@@ -22,10 +22,16 @@ export const parseBun = (raw: string): LintReport => {
     Array.isArray(parsed)
       ? (
           parsed as Array<{
-            messages: Array<{ ruleId: string | null; message: string }>;
+            messages?: Array<{ ruleId: string | null; message: string }>;
           }>
         )
-          .flatMap((f) => f.messages)
+          .flatMap((f) => {
+            // 信封漂移（缺 messages）报可读错误，不抛 flatMap 的裸 TypeError
+            if (!Array.isArray(f.messages)) {
+              throw new Error('bun lint output is missing messages');
+            }
+            return f.messages;
+          })
           .map((m) => ({
             code:
               m.ruleId === null
