@@ -28,6 +28,7 @@ import {
 import type { DetectedLint } from '../src/a11y/probe/detect';
 import { detectLints, versionOf } from '../src/a11y/probe/detect';
 import { nodeExec } from '../src/a11y/probe/exec';
+import { generateProfiles } from '../src/a11y/probe/profiles-gen';
 import { runBiome } from '../src/a11y/probe/runners/biome';
 import { runBun } from '../src/a11y/probe/runners/bun';
 import { runEslint } from '../src/a11y/probe/runners/eslint';
@@ -219,6 +220,11 @@ try {
       content: serializeProfile(profile),
     });
   }
+  // lint 表之后写运行时快照；进 generated 列表即同时进 biome format 的路径列表。
+  generated.push({
+    rel: 'src/a11y/probe/profiles.generated.ts',
+    content: generateProfiles(profiles),
+  });
 
   console.log('[a11y-sync] writing generated files');
   for (const { rel, content } of generated) {

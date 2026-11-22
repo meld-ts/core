@@ -188,18 +188,32 @@ ${nameRows}
 };
 
 export const generateSamples = (src: AriaQuerySource): string => {
-  const rows = Object.entries(samplesOf(src))
+  const sampleRows = Object.entries(samplesOf(src))
     .sort(([a], [b]) => byKey(a, b))
     .map(([key, value]) => `  '${key}': ${value},`)
     .join('\n');
+  const keyRows = ariaKeys(src)
+    .map((key) => `  '${key}',`)
+    .join('\n');
+  const ruleRows = Object.entries(nameRules(src))
+    .sort(([a], [b]) => byKey(a, b))
+    .map(([role, rule]) => `  ${objectKeyOf(role)}: '${rule}',`)
+    .join('\n');
   return `/**
- * 每个 AriaKey 的合法样例值。
+ * 每个 AriaKey 的合法样例值与运行时元数据。
  *
- * 生成文件，勿手改。探针与维护者脚本共用；Plan C 一致性测试将复用；
- * 不进入 a11y 入口。
+ * 生成文件，勿手改。探针、维护者脚本与用户模式共用；不进入 a11y 入口。
  */
 export const SAMPLES = {
-${rows}
+${sampleRows}
+} as const;
+
+export const ARIA_KEYS = [
+${keyRows}
+] as const;
+
+export const NAME_RULES = {
+${ruleRows}
 } as const;
 `;
 };
