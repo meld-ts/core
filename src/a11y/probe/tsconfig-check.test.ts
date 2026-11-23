@@ -143,4 +143,32 @@ describe('checkTsconfigIncludes', () => {
       }),
     ).toEqual({ included: false, reason: 'outside' });
   });
+
+  test('windows-style backslash paths match include patterns', () => {
+    expect(
+      checkTsconfigIncludes({
+        cwd: 'C:\\p',
+        outPath: 'C:\\p\\a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({ include: ['a11y-lints.generated.d.ts'] }),
+      }),
+    ).toEqual({ included: true, reason: 'include' });
+    // 嵌套 --out（Windows 上 resolve 产出反斜杠路径）也要对得上 POSIX glob
+    expect(
+      checkTsconfigIncludes({
+        cwd: 'C:\\p',
+        outPath: 'C:\\p\\sub\\a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({ include: ['sub/**/*.d.ts'] }),
+      }),
+    ).toEqual({ included: true, reason: 'include' });
+  });
+
+  test('a windows-style backslash path outside cwd is reported', () => {
+    expect(
+      checkTsconfigIncludes({
+        cwd: 'C:\\p',
+        outPath: 'C:\\q\\a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({ include: ['**/*.d.ts'] }),
+      }),
+    ).toEqual({ included: false, reason: 'outside' });
+  });
 });
