@@ -63,6 +63,18 @@ describe('parseOxlint', () => {
     });
   });
 
+  test('fails readably when the envelope misses diagnostics', () => {
+    expect(() => parseOxlint('{"summary":{}}')).toThrow(
+      'oxlint lint output is missing diagnostics',
+    );
+  });
+
+  test('fails readably when the envelope carries non-array diagnostics', () => {
+    expect(() => parseOxlint('{"diagnostics":{"code":"x"}}')).toThrow(
+      'oxlint lint output is missing diagnostics',
+    );
+  });
+
   test('fails when a required message carries no aria props', () => {
     const raw = JSON.stringify({
       diagnostics: [
@@ -137,5 +149,30 @@ describe('runOxlint', () => {
       { role: 'switch', prop: 'aria-valuenow' },
       { role: 'graphics-object', prop: 'aria-valuenow' },
     ]);
+  });
+
+  test('fails with lint stderr when the command is rejected with empty stdout', () => {
+    const exec: ExecFn = () => ({
+      code: 1,
+      stdout: '',
+      stderr: 'unknown option: --jsx-a11y-plugin',
+    });
+    expect(() =>
+      runOxlint(
+        [
+          {
+            name: 'required',
+            code: 'export const F0 = () => <div role="switch" />;',
+          },
+        ],
+        {
+          bin: ['oxlint-bin'],
+          cwd: '/p',
+          workDir: '/p/.meld-a11y-probe',
+          writeFile: () => {},
+          exec,
+        },
+      ),
+    ).toThrow('oxlint lint exited 1: unknown option: --jsx-a11y-plugin');
   });
 });

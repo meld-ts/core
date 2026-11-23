@@ -15,7 +15,7 @@ import type { Fixture } from './fixtures';
 import type { LintReport, RunnerOptions } from './runners/eslint';
 import type { ProfileData, RoleRuleData } from './serialize';
 
-/** 单个 lint 的执行入口，与 runners 的 RunnerOptions 对齐（bun 忽略 bin）。 */
+/** 单个 lint 的执行入口，与 runners 的 RunnerOptions 对齐（bin 含 bun 的模式标志）。 */
 export type ProbeRunner = (
   fixtures: readonly Fixture[],
   opts: RunnerOptions,
@@ -33,7 +33,7 @@ export interface ProbeFs {
 
 export interface ProbeInput {
   readonly cwd: string;
-  /** 要探测的 lint；bun 不在 detectLints 的输出里，由调用方自行拼装。 */
+  /** 要探测的 lint；bun 不在 node_modules 里，由 detectLints 探活当前运行时。 */
   readonly lints: ReadonlyArray<DetectedLint>;
   /** 全部要探测的 role（aria-query 非抽象 role，排序）。 */
   readonly roles: readonly string[];

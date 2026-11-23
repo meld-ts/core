@@ -115,6 +115,20 @@ describe('generateSamples', () => {
       expect(out).toContain(`'${key}': ${value},`);
     }
   });
+
+  test('emits keys and name rules', () => {
+    const out = generateSamples(src);
+    expect(out).toContain('export const SAMPLES');
+    expect(out).toContain('export const ARIA_KEYS');
+    expect(out).toContain("'checked'");
+    // keys 按名排序输出
+    expect(out.indexOf("'checked',")).toBeLessThan(out.indexOf("'controls',"));
+    expect(out).toContain('export const NAME_RULES');
+    expect(out).toContain("generic: 'prohibited'");
+    expect(out).toContain("separator: 'optional'");
+    // 带连字符的 role 名不是合法标识符，作对象键必须加引号
+    expect(out).toContain("'graphics-symbol': 'required'");
+  });
 });
 
 // 脚本（Task 6）直接消费的三个投影：keys / nameRule / samples 的唯一事实源。

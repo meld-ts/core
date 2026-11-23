@@ -23,10 +23,19 @@ const SUP =
 export const parseEslint = (raw: string): LintReport => {
   const missing: Array<{ role: string; props: string[] }> = [];
   const unsupported: Array<{ role: string; prop: string }> = [];
-  const files = JSON.parse(raw) as Array<{
+  const parsed: unknown = JSON.parse(raw);
+  // 信封漂移（对象信封一类）报可读错误，不让 for...of 抛裸 TypeError
+  if (!Array.isArray(parsed)) {
+    throw new Error('eslint lint output is not an array');
+  }
+  const files = parsed as Array<{
     messages: Array<{ ruleId: string | null; message: string }>;
   }>;
   for (const file of files) {
+    // 信封漂移（缺 messages）报可读错误，不让 for...of 抛 `not iterable` 的裸 TypeError
+    if (!Array.isArray(file.messages)) {
+      throw new Error('eslint lint output is missing messages');
+    }
     for (const m of file.messages) {
       if (
         m.ruleId !== 'jsx-a11y/role-has-required-aria-props' &&
@@ -96,5 +105,10 @@ export const runEslint = (
     ],
     { cwd },
   );
+  // stdout 为空且非零退出 = 命令本身被拒（配置被拒 / lint 崩溃）：
+  // 交给 JSON.parse 只会得到没法排查的 EOF。
+  if (r.code !== 0 && r.stdout.trim() === '') {
+    throw new Error(`eslint lint exited ${r.code}: ${r.stderr || r.stdout}`);
+  }
   return parseEslint(r.stdout);
 };

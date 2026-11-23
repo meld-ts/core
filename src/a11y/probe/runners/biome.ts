@@ -9,8 +9,8 @@ const SUP =
 /**
  * biome 的 JSON 报告（2.5.0 / 2.6.8 实测）有两个缺口，解析方式由此决定：
  * - required 消息只含 role，缺失属性清单在 footer 里，JSON 不输出
- *   （advices 恒为空数组），所以 missing.props 恒为空，
- *   缺哪些属性由上层循环补属性直到不再报错来发现；
+ *   （advices 恒为空数组），所以 missing.props 恒为空；required 靠上层
+ *   「逐个去掉一个 supported 属性再跑」发现（probe/index.ts），不读消息清单；
  * - unsupported 消息不含 role，靠诊断的文件与行号回查 fixture 那一行的 role。
  */
 export const parseBiome = (
@@ -20,12 +20,17 @@ export const parseBiome = (
   const missing: Array<{ role: string; props: string[] }> = [];
   const unsupported: Array<{ role: string; prop: string }> = [];
   const out = JSON.parse(raw) as {
-    diagnostics: Array<{
+    diagnostics?: Array<{
       category: string | null;
       message: string;
       location: { path: string; start: { line: number } };
     }>;
-  };
+  } | null;
+  // 信封漂移（缺 diagnostics / 非数组）报可读错误，
+  // 不让 for...of 抛 `not iterable` 的裸 TypeError
+  if (!Array.isArray(out?.diagnostics)) {
+    throw new Error('biome lint output is missing diagnostics');
+  }
   const linesOf = new Map(
     fixtures.map((f) => [f.name, f.code.split('\n')] as const),
   );
@@ -105,5 +110,10 @@ export const runBiome = (
     ],
     { cwd },
   );
+  // stdout 为空且非零退出 = 命令本身被拒（配置被拒 / lint 崩溃）：
+  // 交给 JSON.parse 只会得到没法排查的 EOF。
+  if (r.code !== 0 && r.stdout.trim() === '') {
+    throw new Error(`biome lint exited ${r.code}: ${r.stderr || r.stdout}`);
+  }
   return parseBiome(r.stdout, fixtures);
 };

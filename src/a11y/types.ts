@@ -92,7 +92,7 @@ export type OverrideKeyCheck = ([UnknownOverrideKeys] extends [never]
   ([BadShapeKeys] extends [never]
     ? unknown
     : {
-        readonly 'Invalid A11yLintOverrides shape, rerun meld a11y probe': BadShapeKeys;
+        readonly 'Invalid A11yLintOverrides shape, rerun meld-ts a11y probe': BadShapeKeys;
       });
 
 /**

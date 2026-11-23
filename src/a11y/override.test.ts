@@ -42,7 +42,7 @@ describe('A11yLintOverrides', () => {
     const { exitCode, output } = tsc('override-shape');
     expect(exitCode).not.toBe(0);
     expect(output).toContain(
-      'Invalid A11yLintOverrides shape, rerun meld a11y probe',
+      'Invalid A11yLintOverrides shape, rerun meld-ts a11y probe',
     );
   });
 
@@ -50,7 +50,7 @@ describe('A11yLintOverrides', () => {
     const { exitCode, output } = tsc('override-union');
     expect(exitCode).not.toBe(0);
     expect(output).toContain(
-      'Invalid A11yLintOverrides shape, rerun meld a11y probe',
+      'Invalid A11yLintOverrides shape, rerun meld-ts a11y probe',
     );
   });
 

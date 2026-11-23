@@ -52,6 +52,18 @@ describe('parseEslint', () => {
     expect(parseEslint('[]')).toEqual({ missing: [], unsupported: [] });
   });
 
+  test('fails readably when the envelope is not an array', () => {
+    expect(() => parseEslint('{"summary":{"errors":0}}')).toThrow(
+      'eslint lint output is not an array',
+    );
+  });
+
+  test('fails readably when the envelope misses messages', () => {
+    expect(() => parseEslint('[{"filePath":"/p/f.jsx"}]')).toThrow(
+      'eslint lint output is missing messages',
+    );
+  });
+
   test('fails when a whitelisted rule carries an unknown message', () => {
     const raw = JSON.stringify([
       {
@@ -113,5 +125,32 @@ describe('runEslint', () => {
     expect(report.missing).toEqual([
       { role: 'combobox', props: ['aria-expanded', 'aria-controls'] },
     ]);
+  });
+
+  test('fails with lint stderr when the command is rejected with empty stdout', () => {
+    const exec: ExecFn = () => ({
+      code: 2,
+      stdout: '',
+      stderr: 'ESLint configuration in --config file is invalid.',
+    });
+    expect(() =>
+      runEslint(
+        [
+          {
+            name: 'required',
+            code: 'export const F0 = () => <div role="switch" />;',
+          },
+        ],
+        {
+          bin: ['eslint-bin'],
+          cwd: '/p',
+          workDir: '/p/.meld-a11y-probe',
+          writeFile: () => {},
+          exec,
+        },
+      ),
+    ).toThrow(
+      'eslint lint exited 2: ESLint configuration in --config file is invalid.',
+    );
   });
 });

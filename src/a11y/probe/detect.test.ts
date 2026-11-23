@@ -12,8 +12,13 @@ const fakeJson =
   };
 
 describe('detectLints', () => {
+  // bun 分支的探活命令：`bun lint --help`；code !== 0 = 这个 bun 没有内置 lint
+  const noBunLint = (cmd: readonly string[]) =>
+    cmd[0] === process.execPath && cmd[1] === 'lint';
+
   test('finds installed lints and their versions', () => {
     const exec = (cmd: readonly string[]) => {
+      if (noBunLint(cmd)) return { code: 1, stdout: '', stderr: 'no lint' };
       if (cmd[0]?.endsWith('biome'))
         return { code: 0, stdout: '2.6.8', stderr: '' };
       if (cmd[0]?.endsWith('oxlint'))
@@ -44,7 +49,10 @@ describe('detectLints', () => {
   test('skips lints that are not installed', () => {
     const detected = detectLints({
       cwd: '/p',
-      exec: () => ({ code: 0, stdout: '', stderr: '' }),
+      exec: (cmd: readonly string[]) =>
+        noBunLint(cmd)
+          ? { code: 1, stdout: '', stderr: 'no lint' }
+          : { code: 0, stdout: '', stderr: '' },
       readJson: fakeJson({ 'package.json': { devDependencies: {} } }),
       exists: () => false,
     });
@@ -54,6 +62,7 @@ describe('detectLints', () => {
   test('reads eslint version from the jsx-a11y plugin', () => {
     const detected = detectLints({
       cwd: '/p',
+      wanted: ['eslint'],
       exec: () => {
         throw new Error('exec must not be called');
       },
@@ -96,6 +105,7 @@ describe('detectLints', () => {
     const detected = detectLints({
       cwd: '/p',
       exec: (cmd: readonly string[]) => {
+        if (noBunLint(cmd)) return { code: 1, stdout: '', stderr: 'no lint' };
         if (cmd[0]?.endsWith('biome'))
           return { code: 0, stdout: 'Version: 2.5.0\n', stderr: '' };
         throw new Error(`unexpected exec: ${cmd[0]}`);
@@ -140,5 +150,137 @@ describe('detectLints', () => {
         exists: () => true,
       }),
     ).toThrow('biome --version output has no semver: built from source');
+  });
+
+  // bun 探活序列：help → 模式探针（这个 cwd 是否接受 --jsx-a11y-plugin）→
+  // --version。help 未通过就不该走到模式探针（fake 对多余命令直接抛错）。
+  const bunExec =
+    (helpCode: number, oxlintMode: boolean) => (cmd: readonly string[]) => {
+      if (cmd[0] === process.execPath && cmd[1] === 'lint') {
+        // lint 探针一律带 --no-script：不带时 bun 会转去执行项目的
+        // lint 脚本（exit 0、无 oxlint 拒绝语），探不出真实模式。
+        if (!cmd.includes('--no-script')) {
+          throw new Error(
+            `bun lint probe without --no-script: ${cmd.join(' ')}`,
+          );
+        }
+        if (cmd.includes('--help')) {
+          return {
+            code: helpCode,
+            stdout: '',
+            stderr: helpCode === 0 ? '' : 'no lint',
+          };
+        }
+        if (cmd.includes('--jsx-a11y-plugin')) {
+          return oxlintMode
+            ? { code: 1, stdout: '{ "diagnostics": [] }', stderr: '' }
+            : {
+                code: 2,
+                stdout: '',
+                stderr:
+                  'error: --jsx-a11y-plugin is an oxlint flag and has no effect here',
+              };
+        }
+      }
+      if (cmd[0] === process.execPath && cmd[1] === '--version') {
+        return { code: 0, stdout: '1.4.4\n', stderr: '' };
+      }
+      throw new Error(`unexpected exec: ${cmd.join(' ')}`);
+    };
+
+  test('detects the running bun with oxlint-mode flags when a marker exists', () => {
+    const detected = detectLints({
+      cwd: '/p',
+      exec: bunExec(0, true),
+      readJson: fakeJson({ 'package.json': {} }),
+      exists: () => false,
+    });
+    expect(detected).toEqual([
+      {
+        name: 'bun',
+        version: '1.4.4',
+        bin: [process.execPath, 'lint', '--no-script', '--jsx-a11y-plugin'],
+      },
+    ]);
+  });
+
+  test('detects the running bun with defaults flags without an oxlint marker', () => {
+    const detected = detectLints({
+      cwd: '/p',
+      exec: bunExec(0, false),
+      readJson: fakeJson({ 'package.json': {} }),
+      exists: () => false,
+    });
+    expect(detected).toEqual([
+      {
+        name: 'bun',
+        version: '1.4.4',
+        bin: [process.execPath, 'lint', '--no-script'],
+      },
+    ]);
+  });
+
+  test('judges defaults mode even when package.json defines a lint script', () => {
+    // bun lint 不带 --no-script 时，带 lint 脚本的项目里 bun 会转去执行
+    // 脚本：exit 0、stderr 无 oxlint 拒绝语，被误判成 oxlint 模式。模式
+    // 探针必须带 --no-script 才测得到内置 lint 的真实行为。
+    const detected = detectLints({
+      cwd: '/p',
+      exec: (cmd: readonly string[]) => {
+        if (cmd[0] === process.execPath && cmd[1] === 'lint') {
+          if (cmd.includes('--help')) {
+            return { code: 0, stdout: '', stderr: '' };
+          }
+          if (cmd.includes('--no-script')) {
+            // 内置 lint 亲自应答：defaults 模式拒绝插件标志
+            return {
+              code: 2,
+              stdout: '',
+              stderr:
+                'error: --jsx-a11y-plugin is an oxlint flag and has no effect here',
+            };
+          }
+          // 不带 --no-script：bun 转去执行项目 lint 脚本（劫持输出）
+          return { code: 0, stdout: '$ biome lint ./src\n', stderr: '' };
+        }
+        if (cmd[0] === process.execPath && cmd[1] === '--version') {
+          return { code: 0, stdout: '1.4.4\n', stderr: '' };
+        }
+        throw new Error(`unexpected exec: ${cmd.join(' ')}`);
+      },
+      readJson: fakeJson({
+        'package.json': { scripts: { lint: 'biome lint ./src' } },
+      }),
+      exists: () => false,
+    });
+    expect(detected).toEqual([
+      {
+        name: 'bun',
+        version: '1.4.4',
+        bin: [process.execPath, 'lint', '--no-script'],
+      },
+    ]);
+  });
+
+  test('skips bun when its lint is unavailable and bun is not wanted', () => {
+    const detected = detectLints({
+      cwd: '/p',
+      exec: bunExec(1, true),
+      readJson: fakeJson({ 'package.json': {} }),
+      exists: () => false,
+    });
+    expect(detected).toEqual([]);
+  });
+
+  test('fails with a readable error when bun lint is wanted but unavailable', () => {
+    expect(() =>
+      detectLints({
+        cwd: '/p',
+        exec: bunExec(1, true),
+        readJson: fakeJson({ 'package.json': {} }),
+        exists: () => false,
+        wanted: ['bun'],
+      }),
+    ).toThrow('bun lint is not available in this bun; upgrade bun or omit bun');
   });
 });

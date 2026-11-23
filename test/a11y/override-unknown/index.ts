@@ -1,7 +1,4 @@
-import {
-  type BiomeA11yProfile,
-  createA11y,
-} from '../../../src/a11y/index.ts';
+import { type BiomeA11yProfile, createA11y } from '../../../src/a11y/index.ts';
 
 declare module '../../../src/a11y/index.ts' {
   interface A11yLintOverrides {

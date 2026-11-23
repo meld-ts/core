@@ -26,17 +26,22 @@ import {
   samplesOf,
 } from '../src/a11y/probe/aria-gen';
 import type { DetectedLint } from '../src/a11y/probe/detect';
-import { detectLints, versionOf } from '../src/a11y/probe/detect';
+import { detectLints } from '../src/a11y/probe/detect';
 import { nodeExec } from '../src/a11y/probe/exec';
+import {
+  generateProfiles,
+  mergeProfilesSnapshot,
+} from '../src/a11y/probe/profiles-gen';
+import { PROFILES } from '../src/a11y/probe/profiles.generated';
 import { runBiome } from '../src/a11y/probe/runners/biome';
 import { runBun } from '../src/a11y/probe/runners/bun';
 import { runEslint } from '../src/a11y/probe/runners/eslint';
 import { runOxlint } from '../src/a11y/probe/runners/oxlint';
 import type { ProfileData } from '../src/a11y/probe/serialize';
 import { serializeProfile } from '../src/a11y/probe/serialize';
+import { createLab, labDirOf, runCmd } from './lab';
 
 const root = resolve(import.meta.dir, '..');
-const lab = join(root, '.cache/a11y-lab');
 
 const LINTS = ['eslint', 'oxlint', 'biome', 'bun'] as const;
 type LintName = (typeof LINTS)[number];
@@ -76,15 +81,6 @@ const wanted = [
   ),
 ];
 
-const run = (cmd: readonly string[], cwd: string): void => {
-  const r = nodeExec(cmd, { cwd });
-  if (r.code !== 0) {
-    throw new Error(
-      `${cmd.join(' ')} failed (exit ${r.code}): ${r.stderr || r.stdout}`,
-    );
-  }
-};
-
 // aria-query 是无类型的 CJS 包，按文件 URL 装载后只剩 any；
 // 这里声明脚本依赖的最小形状（lab 实测：aria/roles 均为 Map）。
 interface AriaQueryMaps {
@@ -109,23 +105,14 @@ const fs: ProbeFs = {
 
 // 失败也不能留下几百 MB 的 lab：统一在 finally 清理，--keep 保留排查现场。
 try {
-  console.log(`[a11y-sync] preparing lab at ${lab}`);
-  rmSync(lab, { recursive: true, force: true });
-  mkdirSync(lab, { recursive: true });
-  run([process.execPath, 'init', '-y'], lab);
-  run(
-    [
-      process.execPath,
-      'add',
-      '-d',
-      'eslint',
-      'eslint-plugin-jsx-a11y',
-      '@biomejs/biome',
-      'oxlint',
-      'aria-query',
-    ],
-    lab,
-  );
+  console.log(`[a11y-sync] preparing lab at ${labDirOf(root)}`);
+  // 四个 lint 全量装（含未点名的）：lab 里有没有 oxlint 标记决定 bun lint
+  // 走内嵌 oxlint 模式还是默认规则集，bun 表的录制条件因此固定含 oxlint。
+  const { cwd: lab } = createLab({
+    root,
+    lints: LINTS.map((name) => ({ name })),
+    extraDeps: ['aria-query'],
+  });
 
   console.log('[a11y-sync] loading aria-query from the lab');
   const maps = (await import(
@@ -144,28 +131,18 @@ try {
   console.log(`[a11y-sync] ${roles.length} roles, ${keys.length} aria keys`);
 
   console.log('[a11y-sync] detecting installed lints');
+  // bun 也是 detect 的一部分：lab 装了 oxlint，探出的 bin 带
+  // --jsx-a11y-plugin（与内置表录制时的命令一致）。
   const detected = detectLints({
     cwd: lab,
     exec: nodeExec,
     readJson: (path) => JSON.parse(readFileSync(path, 'utf8')),
     exists: existsSync,
-    wanted: wanted.filter((name) => name !== 'bun'),
+    wanted,
   });
 
   const lints: DetectedLint[] = [];
   for (const name of wanted) {
-    if (name === 'bun') {
-      // bun 装在 lab 外（就是当前运行时），版本与 bin 都指向它自己。
-      lints.push({
-        name,
-        version: versionOf(
-          'bun',
-          nodeExec([process.execPath, '--version'], { cwd: root }),
-        ),
-        bin: [process.execPath],
-      });
-      continue;
-    }
     const lint = detected.find((d) => d.name === name);
     // 装了却探测不到（安装失败/探测失败）不能静默跳过：
     // 漏写一张表会让漂移检查形同虚设。
@@ -219,6 +196,13 @@ try {
       content: serializeProfile(profile),
     });
   }
+  // lint 表之后写运行时快照；进 generated 列表即同时进 biome format 的路径列表。
+  // 以现有快照为基底合并本轮结果：--lint 只点名部分 lint 时，未同步的表
+  // 保留原快照，不能整文件重写成只剩本轮的子集。
+  generated.push({
+    rel: 'src/a11y/probe/profiles.generated.ts',
+    content: generateProfiles(mergeProfilesSnapshot(PROFILES, profiles)),
+  });
 
   console.log('[a11y-sync] writing generated files');
   for (const { rel, content } of generated) {
@@ -226,7 +210,7 @@ try {
   }
 
   console.log('[a11y-sync] formatting generated files');
-  run(
+  runCmd(
     [
       process.execPath,
       'x',
@@ -240,7 +224,7 @@ try {
 } finally {
   if (!keep) {
     console.log('[a11y-sync] removing lab');
-    rmSync(lab, { recursive: true, force: true });
+    rmSync(labDirOf(root), { recursive: true, force: true });
   }
 }
 console.log('[a11y-sync] done');

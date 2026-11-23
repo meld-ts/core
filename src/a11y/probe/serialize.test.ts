@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { serializeProfile } from './serialize';
+import { serializeProfile, serializeProfileLiteral } from './serialize';
 
 const profile = {
   lint: 'biome',
@@ -90,6 +90,38 @@ describe('serializeProfile', () => {
     });
     expect(out).toContain(
       "'graphics-symbol': { required: never; supported: 'label'; requiredWhenFocusable: never };",
+    );
+  });
+});
+
+describe('serializeProfileLiteral', () => {
+  test('emits a brace-to-brace literal with the given meta source', () => {
+    const out = serializeProfileLiteral(profile, 'probe');
+    expect(out.startsWith('{\n')).toBe(true);
+    expect(out.endsWith('\n}')).toBe(true);
+    expect(out).toContain(
+      "meta: { lint: 'biome'; version: '2.6.8'; source: 'probe' };",
+    );
+    expect(out).toContain(
+      "switch: { required: 'checked'; supported: 'checked' | 'label'; requiredWhenFocusable: never };",
+    );
+    expect(out).not.toContain('export ');
+    expect(out).not.toContain('const ');
+  });
+
+  test('keeps aliasOf', () => {
+    const out = serializeProfileLiteral(
+      { ...profile, aliasOf: 'eslint' },
+      'probe',
+    );
+    expect(out).toContain("aliasOf: 'eslint'");
+  });
+
+  test('serializeProfile embeds the builtin literal verbatim', () => {
+    // serializeProfile 与 serializeProfileLiteral 共用同一段序列化：
+    // 内置表的用户模式重跑才可能与内置表逐字节一致（生成文件确定性）。
+    expect(serializeProfile(profile)).toContain(
+      `= ${serializeProfileLiteral(profile, 'builtin')};`,
     );
   });
 });

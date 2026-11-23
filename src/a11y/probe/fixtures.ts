@@ -21,10 +21,11 @@ export interface RemovalSpec {
 const fileOf = (elements: readonly string[]): string =>
   elements.map((el, i) => `export const F${i} = () => ${el};`).join('\n');
 
-const elementOf = (role: string, attrs: string): string =>
+/** 单个元素一行；biome 的 unsupported 归因靠行号回查 role。 */
+export const elementOf = (role: string, attrs: string): string =>
   `<div role="${role}"${attrs} />`;
 
-const attrsOf = (
+export const attrsOf = (
   keys: readonly string[],
   samples: Readonly<Record<string, string>>,
 ): string => {
@@ -40,7 +41,27 @@ const attrsOf = (
   return parts.join('');
 };
 
-const batchFiles = (
+/**
+ * 运行时样例值 → JSX 表达式文本：字符串包回引号、布尔/数字原样，
+ * 与 a11y:sync 里 samplesOf 的表达式文本一致，同一 lint 版本两种
+ * 模式产出逐字节相同的 fixture。
+ */
+export const expressionOf = (value: string | boolean | number): string =>
+  typeof value === 'string' ? `'${value}'` : String(value);
+
+/** SAMPLES（运行时值）整体转成 fixture 要的表达式文本表。 */
+export const fixtureSamples = (
+  samples: Readonly<Record<string, string | boolean | number>>,
+): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(samples)) {
+    out[key] = expressionOf(value);
+  }
+  return out;
+};
+
+/** 按文件分批（默认 200 个元素/文件），文件名按文件数补零。 */
+export const batchFiles = (
   elements: readonly string[],
   prefix: string,
   batchSize = 200,
