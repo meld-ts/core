@@ -207,6 +207,12 @@ export const main = async (
   { cwd, ...deps }: MainDeps = { cwd: process.cwd(), ...nodeDeps },
 ): Promise<number> => {
   const [group, command, ...rest] = argv;
+  // --help / -h 在任意位置都算求助（含 a11y probe 的参数位），main 统一识别；
+  // parseProbeArgs 仍严格拒绝，不认识求助
+  if (argv.includes('--help') || argv.includes('-h')) {
+    console.log(usage);
+    return 0;
+  }
   if (group !== 'a11y' || command !== 'probe') {
     console.error(usage);
     return 1;

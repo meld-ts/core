@@ -34,6 +34,13 @@ describe('parseProbeArgs', () => {
   test('rejects an empty --out', () => {
     expect(() => parseProbeArgs(['--out='])).toThrow('empty --out');
   });
+
+  // --help 由 main 统一识别，parse 仍严格拒绝，不认识求助
+  test('rejects --help (recognized by main, not by parse)', () => {
+    expect(() => parseProbeArgs(['--help'])).toThrow(
+      'unknown argument: --help',
+    );
+  });
 });
 
 /**
@@ -256,6 +263,23 @@ describe('main', () => {
     expect(
       await main(['a11y', 'probe', '--lint=biome'], { cwd: '/p', ...deps }),
     ).toBe(0);
+  });
+
+  test('help flags print usage to stdout and return 0', async () => {
+    const logs: string[] = [];
+    const original = console.log;
+    console.log = (message: string) => {
+      logs.push(message);
+    };
+    try {
+      expect(await main(['--help'])).toBe(0);
+      expect(await main(['-h'])).toBe(0);
+      expect(await main(['a11y', 'probe', '--help'])).toBe(0);
+    } finally {
+      console.log = original;
+    }
+    expect(logs).toHaveLength(3);
+    expect(logs[0]).toContain('Usage:');
   });
 
   test('invalid probe args print message and usage, return 1', async () => {

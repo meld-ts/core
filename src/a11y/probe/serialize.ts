@@ -38,7 +38,9 @@ const versionLabel = (lint: string, version: string): string =>
 
 /**
  * 单张表的内联类型字面量（无 export、无文件头）：内置表与用户模式重载
- * 共用同一段序列化，同一 lint 版本两种模式产出逐字节一致。
+ * 共用同一段序列化，同一 lint 版本两种模式产出逐字节一致；但内置表落盘后
+ * 还会经过 `biome format --write`，文件级比对需先格式化或按语义比对
+ * （用户模式生成的是单行字面量，不再格式化）。
  */
 export const serializeProfileLiteral = (
   profile: ProfileData,

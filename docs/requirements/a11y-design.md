@@ -81,6 +81,8 @@ a11y.aria({ expanded: open, controls: menuId });
 // 给原生元素补状态，不带 role：{ readonly 'aria-expanded': boolean; readonly 'aria-controls': string }
 ```
 
+缺名时的报错只显示一个分支：`NameRequirement` 是 `{ label } | { labelledby }` 的 union，TypeScript 对 union 参数报「缺属性」只点名其中一个分支（TS 固有行为），不代表另一个分支不满足。
+
 ### `createA11y(options)`
 
 ```ts
