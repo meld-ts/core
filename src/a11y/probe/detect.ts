@@ -75,8 +75,11 @@ export const detectLints = ({
   const root = `${cwd}/node_modules`;
   const bin = (name: string): readonly string[] => [`${root}/.bin/${name}`];
   const out: DetectedLint[] = [];
+  // 默认（wanted 未传）只按 package.json 判 biome/oxlint/eslint（设计 §6：
+  // 装了哪些 lint 就探哪些）。bun 不是依赖、是当前运行时，机器上有 bun
+  // 不等于项目用 bun——只有 --lint=bun 点名时才探它。
   const want = (n: DetectedLint['name']): boolean =>
-    !wanted || wanted.includes(n);
+    n === 'bun' ? wanted?.includes(n) === true : !wanted || wanted.includes(n);
 
   const pkg = readJson(`${cwd}/package.json`) as {
     dependencies?: Record<string, string>;
@@ -117,10 +120,10 @@ export const detectLints = ({
     });
   }
   if (want('bun')) {
-    // bun 不在 node_modules 里（就是当前运行时），可用性靠探活：
-    // `bun lint --help` 退出 0 = 这个 bun 带内置 lint（1.4.4+）。
-    // lint 命令一律带 --no-script（见 bunLintOf）：探活与模式探针都不能
-    // 让带 lint 脚本的项目把命令劫持成脚本执行。
+    // 只有点名 --lint=bun 才走到这里（见 want）：bun 不在 node_modules 里
+    // （就是当前运行时），可用性靠探活：`bun lint --help` 退出 0 =
+    // 这个 bun 带内置 lint（1.4.4+）。lint 命令一律带 --no-script（见
+    // bunLintOf）：探活与模式探针都不能让带 lint 脚本的项目把命令劫持成脚本执行。
     const help = exec([process.execPath, 'lint', '--no-script', '--help'], {
       cwd,
     });
@@ -133,8 +136,9 @@ export const detectLints = ({
         ),
         bin: bunLintOf(exec, cwd),
       });
-    } else if (wanted?.includes('bun')) {
-      // 点名要 bun 却不可用：明说，而不是静默跳过让生成文件悄悄少一张表
+    } else {
+      // 走到这里一定点名要 bun 却探活失败：明说，而不是静默跳过
+      // 让生成文件悄悄少一张表
       throw new Error(
         'bun lint is not available in this bun; upgrade bun or omit bun',
       );

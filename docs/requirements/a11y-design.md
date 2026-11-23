@@ -391,7 +391,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 ```
 .meld-a11y-probe/
   config/
-    eslint/eslint.config.js
+    eslint/eslint.config.mjs
     oxlint/.oxlintrc.json
     biome/biome.json
   fixtures/
@@ -409,7 +409,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 | lint | 启用的规则 | 命令 | 解析 |
 |---|---|---|---|
-| eslint | `jsx-a11y/role-has-required-aria-props`、`jsx-a11y/role-supports-aria-props` | `eslint -c config/eslint/eslint.config.js -f json fixtures/` | `messages[].ruleId` |
+| eslint | `jsx-a11y/role-has-required-aria-props`、`jsx-a11y/role-supports-aria-props` | `eslint -c config/eslint/eslint.config.mjs -f json fixtures/` | `messages[].ruleId` |
 | oxlint | `plugins: ["jsx-a11y"]`，规则同上 | `oxlint -c config/oxlint/.oxlintrc.json -f json <显式文件>` | `code` 形如 `jsx-a11y(role-has-required-aria-props)` |
 | biome | `lint/a11y/useAriaPropsForRole`、`lint/a11y/useAriaPropsSupportedByRole`，其余规则关掉 | `biome lint --config-path=config/biome --reporter=json fixtures/` | `category` |
 | bun | 同 oxlint 两条规则；`--jsx-a11y-plugin` 打开插件，规则走 CLI `--rule`，不写配置文件 | `bun lint --no-script --jsx-a11y-plugin -f json --rule jsx_a11y/…: error <显式文件>` | JSON 是 oxlint 形状，`code` 形如 `jsx-a11y(role-has-required-aria-props)` |
@@ -445,7 +445,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 meld-ts a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts] [--keep]
 ```
 
-- `--lint`：不传就读项目的 package.json，装了哪些 lint 就探哪些。用户只用 biome，就只生成 biome 一份。
+- `--lint`：不传就读项目的 package.json，装了哪些 lint 就探哪些。用户只用 biome，就只生成 biome 一份。bun 不在 package.json 里（是当前运行时），不算「装了的 lint」——要探 bun 得 `--lint=bun` 点名。
 - `--out`：不传就生成到项目根目录的 `a11y-lints.generated.d.ts`。
 - lint 从项目目录解析：biome、oxlint、eslint 和 eslint-plugin-jsx-a11y 都用项目 node_modules 里的；bun 用项目当前的 bun。
 - 生成后检查输出文件在不在 tsconfig 的 `include` 里，不在就提示。不然重载不生效，用户还以为生效了。

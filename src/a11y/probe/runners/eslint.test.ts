@@ -106,17 +106,17 @@ describe('runEslint', () => {
       },
     );
     expect([...writes.keys()].sort()).toEqual([
-      '/p/.meld-a11y-probe/config/eslint/eslint.config.js',
+      '/p/.meld-a11y-probe/config/eslint/eslint.config.mjs',
       '/p/.meld-a11y-probe/fixtures/required.jsx',
     ]);
     expect(
-      writes.get('/p/.meld-a11y-probe/config/eslint/eslint.config.js'),
+      writes.get('/p/.meld-a11y-probe/config/eslint/eslint.config.mjs'),
     ).toContain("'jsx-a11y/role-has-required-aria-props': 'error'");
     expect(commands).toEqual([
       [
         'eslint-bin',
         '-c',
-        '/p/.meld-a11y-probe/config/eslint/eslint.config.js',
+        '/p/.meld-a11y-probe/config/eslint/eslint.config.mjs',
         '-f',
         'json',
         '/p/.meld-a11y-probe/fixtures',

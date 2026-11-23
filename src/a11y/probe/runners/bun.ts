@@ -18,11 +18,14 @@ export const parseBun = (raw: string): LintReport => {
   const missing: Array<{ role: string; props: string[] }> = [];
   const unsupported: Array<{ role: string; prop: string }> = [];
   const parsed: unknown = JSON.parse(raw);
-  const entries: Array<{ code: string | null; message: string }> | undefined =
+  const entries: Array<{ code: string | null; message?: string }> | undefined =
     Array.isArray(parsed)
       ? (
           parsed as Array<{
-            messages?: Array<{ ruleId?: string | null; message: string }>;
+            messages?: Array<{
+              ruleId?: string | null;
+              message?: string;
+            }>;
           }>
         )
           .flatMap((f) => {
@@ -41,7 +44,7 @@ export const parseBun = (raw: string): LintReport => {
         // 报可读错误，不让 for...of 抛 `not iterable` 的裸 TypeError
         (
           parsed as {
-            diagnostics?: Array<{ code: string | null; message: string }>;
+            diagnostics?: Array<{ code: string | null; message?: string }>;
           } | null
         )?.diagnostics;
   if (!Array.isArray(entries)) {
@@ -53,6 +56,11 @@ export const parseBun = (raw: string): LintReport => {
       d.code !== 'jsx-a11y(role-supports-aria-props)'
     ) {
       continue;
+    }
+    // 白名单内的诊断却缺 message：报可读错误，不让 .match 抛裸 TypeError
+    // （fail-closed，不静默跳过）
+    if (typeof d.message !== 'string') {
+      throw new Error('bun diagnostic is missing message');
     }
     const req = d.message.match(REQ);
     const role = req?.[1];

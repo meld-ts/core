@@ -121,6 +121,51 @@ describe('checkTsconfigIncludes', () => {
     ).toEqual({ included: true, reason: 'files' });
   });
 
+  test('an extends-only tsconfig fails safe as not judgeable', () => {
+    // extends 链上游的 include/files 这里看不到：本文件没有可判的依据时
+    // 宁可按未包含告警（fail-safe），也不静默按 default 放行
+    expect(
+      checkTsconfigIncludes({
+        cwd: '/p',
+        outPath: '/p/a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({ extends: '../tsconfig.base.json' }),
+      }),
+    ).toEqual({ included: false, reason: 'extends' });
+  });
+
+  test('local include and files still decide when extends is present', () => {
+    expect(
+      checkTsconfigIncludes({
+        cwd: '/p',
+        outPath: '/p/a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({
+          extends: '../tsconfig.base.json',
+          include: ['a11y-lints.generated.d.ts'],
+        }),
+      }),
+    ).toEqual({ included: true, reason: 'include' });
+    expect(
+      checkTsconfigIncludes({
+        cwd: '/p',
+        outPath: '/p/a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({
+          extends: '../tsconfig.base.json',
+          files: ['a11y-lints.generated.d.ts'],
+        }),
+      }),
+    ).toEqual({ included: true, reason: 'files' });
+    expect(
+      checkTsconfigIncludes({
+        cwd: '/p',
+        outPath: '/p/a11y-lints.generated.d.ts',
+        readJson: tsconfigOf({
+          extends: '../tsconfig.base.json',
+          files: ['src/index.ts'],
+        }),
+      }),
+    ).toEqual({ included: false, reason: 'not-files' });
+  });
+
   test('files and include coexist as a union', () => {
     expect(
       checkTsconfigIncludes({

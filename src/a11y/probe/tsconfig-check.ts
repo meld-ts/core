@@ -3,8 +3,9 @@
  * 段内 `*` 不跨段；目录名（含 `a/**`）按「目录下全部文件」处理。
  * include 与 files 并存取并集（tsc 语义：列进 files 的文件也算编译进去）。
  * 只作告警依据，不追求与 tsc 的完整方言一致；已知局限：
- * - 不跟随 extends——extends 链上游收窄过 include 时，这里按本文件报
- *   default/已包含，重载实际不生效，这个方向拦不住；
+ * - 不跟随 extends——本文件没有 include/files 可判而只有 extends 时，
+ *   按未包含告警（fail-safe，提示去上游配置核对），上游收窄过 include
+ *   导致重载不生效的方向不再被静默放行；本文件有 include/files 时照常判；
  * - `./` 前缀的模式匹配不上（误报未包含）；`?` 通配不支持（按字面量）；
  * - exclude 先于显式 files 条目判定——tsc 里显式列进 files 的文件不受
  *   exclude 影响，这里更保守（宁可误告警）。
@@ -24,7 +25,8 @@ export type TsconfigCheckReason =
   | 'default'
   | 'files'
   | 'not-files'
-  | 'outside';
+  | 'outside'
+  | 'extends';
 
 export interface TsconfigCheckResult {
   readonly included: boolean;
@@ -91,11 +93,12 @@ export const checkTsconfigIncludes = ({
     return { included: false, reason: 'outside' };
   }
   const file = rel.replaceAll('\\', '/');
-  // tsconfig.json 是用户文件，只取这三个可选字段作告警依据
+  // tsconfig.json 是用户文件，只取这四个可选字段作告警依据
   const tsconfig = readJson(`${cwd}/tsconfig.json`) as {
     include?: readonly string[];
     exclude?: readonly string[];
     files?: readonly string[];
+    extends?: string | readonly string[];
   };
   if ((tsconfig.exclude ?? []).some((p) => matches(p, file))) {
     return { included: false, reason: 'exclude' };
@@ -103,6 +106,13 @@ export const checkTsconfigIncludes = ({
   if (tsconfig.include === undefined) {
     // tsc 语义：include 缺省编译全部（默认排除除外）；files 存在时只编 files
     if (tsconfig.files === undefined) {
+      // 只有 extends 而没有本地 include/files：上游的 include/files 这里
+      // 看不到，按 tsc 语义报「已包含」会在上游收窄过 include 时静默放过
+      // （重载实际不生效）。宁可按未包含告警（fail-safe），
+      // 提示用户去上游配置里核对。
+      if (tsconfig.extends !== undefined) {
+        return { included: false, reason: 'extends' };
+      }
       return { included: true, reason: 'default' };
     }
     return tsconfig.files.includes(file)

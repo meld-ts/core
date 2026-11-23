@@ -23,7 +23,7 @@ export const parseBiome = (
     diagnostics?: Array<{
       category: string | null;
       message: string;
-      location: { path: string; start: { line: number } };
+      location?: { path?: string; start?: { line?: number } };
     }>;
   } | null;
   // 信封漂移（缺 diagnostics / 非数组）报可读错误，
@@ -62,17 +62,22 @@ export const parseBiome = (
 
 const roleAt = (
   linesOf: ReadonlyMap<string, readonly string[]>,
-  location: { path: string; start: { line: number } },
+  location: { path?: string; start?: { line?: number } } | undefined,
 ): string => {
+  const path = location?.path;
+  const line = location?.start?.line;
+  // 定位整体或部分缺失（信封漂移）时报可读错误，
+  // 不让 .split 抛 `undefined is not an object` 的裸 TypeError
+  if (typeof path !== 'string' || typeof line !== 'number') {
+    throw new Error('biome diagnostic is missing location');
+  }
   // 两种分隔符都切：Windows 上 biome 报反斜杠路径，POSIX 上报正斜杠
-  const file = location.path.split(/[/\\]/).at(-1)?.slice(0, -4) ?? '';
-  const row = linesOf.get(file)?.at(location.start.line - 1);
+  const file = path.split(/[/\\]/).at(-1)?.slice(0, -4) ?? '';
+  const row = linesOf.get(file)?.at(line - 1);
   const role = row?.match(/role="([^"]+)"/)?.[1];
   // 诊断定位对不上写出的 fixture 说明行号约定漂了，直接失败而不是静默丢数据。
   if (role === undefined) {
-    throw new Error(
-      `cannot resolve role at ${location.path}:${location.start.line}`,
-    );
+    throw new Error(`cannot resolve role at ${path}:${line}`);
   }
   return role;
 };

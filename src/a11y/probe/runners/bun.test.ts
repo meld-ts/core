@@ -121,6 +121,21 @@ describe('parseBun', () => {
     );
   });
 
+  test('fails readably when a whitelisted diagnostic carries no message', () => {
+    // 两种信封都试：code / ruleId 命中白名单但 message 缺失时，
+    // 报可读错误而不是 undefined.match 的裸 TypeError（fail-closed，不静默跳过）
+    expect(() =>
+      parseBun(
+        '{"diagnostics":[{"code":"jsx-a11y(role-supports-aria-props)"}]}',
+      ),
+    ).toThrow('bun diagnostic is missing message');
+    expect(() =>
+      parseBun(
+        '[{"messages":[{"ruleId":"jsx-a11y/role-supports-aria-props"}]}]',
+      ),
+    ).toThrow('bun diagnostic is missing message');
+  });
+
   test('fails readably when the defaults envelope misses messages', () => {
     expect(() => parseBun('[{"filePath":"/p/f.jsx"}]')).toThrow(
       'bun lint output is missing messages',

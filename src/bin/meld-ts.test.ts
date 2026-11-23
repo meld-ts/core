@@ -202,6 +202,16 @@ describe('runProbe', () => {
     expect(warns[0]).toContain('cannot read tsconfig.json');
   });
 
+  test('warns with an actionable message when tsconfig only extends a base', () => {
+    const { deps, warns } = fakeDeps({
+      tsconfig: { extends: '../tsconfig.base.json' },
+    });
+    const target = runProbe({ cwd: '/p', lint: ['biome'], keep: false, deps });
+    expect(warns).toEqual([
+      `warning: tsconfig.json extends a base config without local include/files; verify the base config includes ${target} or the override will not take effect`,
+    ]);
+  });
+
   test('errors on a wanted lint that is not installed', () => {
     const { deps } = fakeDeps({ tsconfig: {}, devDependencies: {} });
     expect(() =>

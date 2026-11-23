@@ -140,6 +140,14 @@ const warnUnlessIncluded = (
     return;
   }
   if (!check.included) {
+    if (check.reason === 'extends') {
+      // extends 链上游的 include/files 这里判不了：给可操作的提示，
+      // 让用户去上游配置里核对，而不是误报「不在 include 里」
+      deps.warn(
+        `warning: tsconfig.json extends a base config without local include/files; verify the base config includes ${target} or the override will not take effect`,
+      );
+      return;
+    }
     deps.warn(
       `warning: ${target} is not in tsconfig include (${check.reason}); the override will not take effect`,
     );
@@ -174,7 +182,7 @@ export const runProbe = ({
   }
   if (detected.length === 0) {
     throw new Error(
-      'no supported lint found; install @biomejs/biome, oxlint or eslint with eslint-plugin-jsx-a11y, or run under a bun with built-in lint',
+      'no supported lint found; install @biomejs/biome, oxlint or eslint with eslint-plugin-jsx-a11y, or pass --lint=bun to probe the running bun',
     );
   }
   const profiles = probe({

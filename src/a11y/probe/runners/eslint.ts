@@ -86,25 +86,21 @@ export default [{
 }];
 `;
 
+// .mjs：配置内容是 ESM（import / export default）。CJS 项目（package.json
+// 无 "type": "module"）里 ESLint 9 对 .js 配置走 require，直接加载失败；
+// .mjs 一律按 ESM 加载，与项目的模块类型无关。
 export const runEslint = (
   fixtures: readonly Fixture[],
   { bin, cwd, workDir, writeFile, exec }: RunnerOptions,
 ): LintReport => {
-  writeFile(`${workDir}/config/eslint/eslint.config.js`, CONFIG);
+  const config = `${workDir}/config/eslint/eslint.config.mjs`;
+  writeFile(config, CONFIG);
   for (const f of fixtures) {
     writeFile(`${workDir}/fixtures/${f.name}.jsx`, f.code);
   }
-  const r = exec(
-    [
-      ...bin,
-      '-c',
-      `${workDir}/config/eslint/eslint.config.js`,
-      '-f',
-      'json',
-      `${workDir}/fixtures`,
-    ],
-    { cwd },
-  );
+  const r = exec([...bin, '-c', config, '-f', 'json', `${workDir}/fixtures`], {
+    cwd,
+  });
   // stdout 为空且非零退出 = 命令本身被拒（配置被拒 / lint 崩溃）：
   // 交给 JSON.parse 只会得到没法排查的 EOF。
   if (r.code !== 0 && r.stdout.trim() === '') {

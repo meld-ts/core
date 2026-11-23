@@ -12,13 +12,12 @@ const fakeJson =
   };
 
 describe('detectLints', () => {
-  // bun 分支的探活命令：`bun lint --help`；code !== 0 = 这个 bun 没有内置 lint
-  const noBunLint = (cmd: readonly string[]) =>
-    cmd[0] === process.execPath && cmd[1] === 'lint';
-
   test('finds installed lints and their versions', () => {
     const exec = (cmd: readonly string[]) => {
-      if (noBunLint(cmd)) return { code: 1, stdout: '', stderr: 'no lint' };
+      // 机器上有 bun（运行时就是 bun）也不该探：默认一发 bun 命令都不能有
+      if (cmd[0] === process.execPath) {
+        throw new Error(`bun must not be probed by default: ${cmd.join(' ')}`);
+      }
       if (cmd[0]?.endsWith('biome'))
         return { code: 0, stdout: '2.6.8', stderr: '' };
       if (cmd[0]?.endsWith('oxlint'))
@@ -49,10 +48,9 @@ describe('detectLints', () => {
   test('skips lints that are not installed', () => {
     const detected = detectLints({
       cwd: '/p',
-      exec: (cmd: readonly string[]) =>
-        noBunLint(cmd)
-          ? { code: 1, stdout: '', stderr: 'no lint' }
-          : { code: 0, stdout: '', stderr: '' },
+      exec: () => {
+        throw new Error('exec must not be called');
+      },
       readJson: fakeJson({ 'package.json': { devDependencies: {} } }),
       exists: () => false,
     });
@@ -105,7 +103,12 @@ describe('detectLints', () => {
     const detected = detectLints({
       cwd: '/p',
       exec: (cmd: readonly string[]) => {
-        if (noBunLint(cmd)) return { code: 1, stdout: '', stderr: 'no lint' };
+        // biome-only 的 package.json 默认只报 biome；bun 一发都不能探
+        if (cmd[0] === process.execPath) {
+          throw new Error(
+            `bun must not be probed by default: ${cmd.join(' ')}`,
+          );
+        }
         if (cmd[0]?.endsWith('biome'))
           return { code: 0, stdout: 'Version: 2.5.0\n', stderr: '' };
         throw new Error(`unexpected exec: ${cmd[0]}`);
@@ -194,6 +197,7 @@ describe('detectLints', () => {
       exec: bunExec(0, true),
       readJson: fakeJson({ 'package.json': {} }),
       exists: () => false,
+      wanted: ['bun'],
     });
     expect(detected).toEqual([
       {
@@ -210,6 +214,7 @@ describe('detectLints', () => {
       exec: bunExec(0, false),
       readJson: fakeJson({ 'package.json': {} }),
       exists: () => false,
+      wanted: ['bun'],
     });
     expect(detected).toEqual([
       {
@@ -252,6 +257,7 @@ describe('detectLints', () => {
         'package.json': { scripts: { lint: 'biome lint ./src' } },
       }),
       exists: () => false,
+      wanted: ['bun'],
     });
     expect(detected).toEqual([
       {
@@ -262,14 +268,25 @@ describe('detectLints', () => {
     ]);
   });
 
-  test('skips bun when its lint is unavailable and bun is not wanted', () => {
+  test('returns only package.json lints by default on a machine with bun', () => {
+    // 设计 §6：不传 --lint 只读 package.json，装了哪些 lint 就探哪些。
+    // bun 不在 package.json 里（是当前运行时），机器上有也不探——
+    // biome-only 的项目默认只报 biome，bun 要 --lint=bun 点名。
     const detected = detectLints({
       cwd: '/p',
-      exec: bunExec(1, true),
-      readJson: fakeJson({ 'package.json': {} }),
-      exists: () => false,
+      exec: (cmd: readonly string[]) => {
+        if (cmd[0]?.endsWith('biome')) {
+          return { code: 0, stdout: '2.6.8', stderr: '' };
+        }
+        // bun 的任何探活命令一发都不该有：发了就炸，证明默认不探 bun
+        throw new Error(`bun must not be probed by default: ${cmd.join(' ')}`);
+      },
+      readJson: fakeJson({
+        'package.json': { devDependencies: { '@biomejs/biome': '2.6.8' } },
+      }),
+      exists: (p: string) => p.endsWith('node_modules/.bin/biome'),
     });
-    expect(detected).toEqual([]);
+    expect(detected.map((d) => d.name)).toEqual(['biome']);
   });
 
   test('fails with a readable error when bun lint is wanted but unavailable', () => {

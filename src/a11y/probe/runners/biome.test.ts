@@ -120,6 +120,40 @@ describe('parseBiome', () => {
     );
   });
 
+  test('fails readably when a diagnostic is missing its location', () => {
+    // unsupported 的 role 靠 location 回查 fixture；location 整个缺失
+    // （信封漂移）时报可读错误，不让 .split 抛裸 TypeError
+    const raw = JSON.stringify({
+      diagnostics: [
+        {
+          category: 'lint/a11y/useAriaPropsSupportedByRole',
+          message:
+            "The ARIA attribute 'aria-valuenow' is not supported by this element.",
+        },
+      ],
+    });
+    expect(() => parseBiome(raw, fixtures)).toThrow(
+      'biome diagnostic is missing location',
+    );
+  });
+
+  test('fails readably when a diagnostic location is partially missing', () => {
+    // location 有 path 但缺 start.line：一样按 missing location 处理（fail-closed）
+    const raw = JSON.stringify({
+      diagnostics: [
+        {
+          category: 'lint/a11y/useAriaPropsSupportedByRole',
+          message:
+            "The ARIA attribute 'aria-valuenow' is not supported by this element.",
+          location: { path: '.meld-a11y-probe/fixtures/supported-0.jsx' },
+        },
+      ],
+    });
+    expect(() => parseBiome(raw, fixtures)).toThrow(
+      'biome diagnostic is missing location',
+    );
+  });
+
   test('fails when a whitelisted rule carries an unknown message', () => {
     const raw = JSON.stringify({
       diagnostics: [

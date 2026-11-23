@@ -121,6 +121,9 @@ try {
     exec: nodeExec,
     readJson: (path) => JSON.parse(readFileSync(path, 'utf8')),
     exists: existsSync,
+    // lab 要全部四家（含 bun）：detect 默认只按 package.json 探，
+    // bun 得点名（--lint=bun 的同款语义）
+    wanted: LINTS,
   });
   const byName = new Map(detected.map((d) => [d.name, d] as const));
 
