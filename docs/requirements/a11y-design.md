@@ -775,6 +775,25 @@ Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设�
 - 旧的 `meld a11y probe` 表述只保留在历史审查记录里；现行文档、类型错误文案
   （`rerun meld-ts a11y probe`）和生成文件注释均已更新。
 
+### 12.14 rfi round 1：tokenlist 映射成 string（ND 裁定）
+
+审查 ND 项：aria-query 的 `tokenlist`（`aria-relevant`）此前按 `token` 同路生成
+单 token 并集（`'additions' | 'all' | 'removals' | 'text'`），但 ARIA 的
+tokenlist 合法值是空格分隔的组合（`aria-relevant="additions text"`），单 token
+并集把合法组合挡在类型外。裁定：`aria-gen.ts` 里 `tokenlist` 映射成 `string`
+（`token` 仍生成值并集、仍过滤 `undefined` 成员；`tokenlist` 的样例仍取排序后的
+首成员，满足 `string`）。代价是丢掉 token 层面的拼写检查——这是数据粒度的取舍：
+tokenlist 的组合语义（顺序无关、可多选）在 TS 类型层表达不了完整值域，宁可放开
+到 `string`，也不把合法组合挡在外面。
+
+- 同轮修订（本条外的 1 / 2 项）：空串与空元组同一条空值语义——`label` /
+  `labelledby` 的 `''`、idlist 键的 `''` 运行时按「没传」跳过（与空元组、
+  `undefined` 一致）；类型层 `NoEmpty` 对 label / idlist 键把字面量 `''` 归一成
+  `undefined`，`NameEmptyCheck` 拦名字必填 role 的字面量空名字，`NoEmptyRequired`
+  拦必填 idlist 键的字面量空值（`EmptyTupleScope` / `EmptyTupleKeys` 随之更名
+  `EmptyValueScope` / `EmptyValueKeys`，报错文案同步改「空值」）。非字面量
+  （`string` / `string[]` 变量持空值）认不出，是 NoEmpty 已记录的同一限制。
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。

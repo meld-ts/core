@@ -1,6 +1,7 @@
 import type {
   A11yNameRule,
   A11yRole,
+  AriaIdListKey,
   AriaKey,
   AriaValue,
 } from './aria.generated';
@@ -265,7 +266,7 @@ type Exact<I, Allowed extends PropertyKey> = {
  * （§3 宁可多要求）。值判定用「含 true」而不是 `I extends { focusable:
  * true }`：`true | undefined` 变量也要打开额外必填。
  *
- * 这里的三段式和 EmptyTupleScope / FocusAttr 里的重复是有意的，不要抽成
+ * 这里的三段式和 EmptyValueScope / FocusAttr 里的重复是有意的，不要抽成
  * 共享谓词：三处的输出形状不同（必填键映射 / 键集合 / tabIndex 键）。
  * 外层条件的被检类型是字面量 'focusable'，不对 I 分布——union 的 props
  * 由 PropsDefiniteCheck 在调用点拦下；按成员分布反而会把「某成员的要求、
@@ -283,12 +284,12 @@ type FocusRequirement<
   : unknown;
 
 /**
- * 空元组拦截要查的键集合：required，加上 focusable 激活时（激活判定
+ * 空值拦截要查的键集合：required，加上 focusable 激活时（激活判定
  * 与 FocusRequirement 同源：键在 I 里、值含 true 就算，可选键和
  * true | undefined 变量也打开）的 requiredWhenFocusable——两组必填
  * 同一条承诺，只拦一组会漏。
  */
-type EmptyTupleScope<P extends A11yProfile, R extends A11yRole, I> =
+type EmptyValueScope<P extends A11yProfile, R extends A11yRole, I> =
   | Rule<P, R>['required']
   | ('focusable' extends keyof I
       ? true extends I['focusable']
@@ -297,56 +298,67 @@ type EmptyTupleScope<P extends A11yProfile, R extends A11yRole, I> =
       : never);
 
 /**
- * 键集合里实际触发空元组拦截的键名。键不在 I 里（没传）不触发：缺失键
- * 由 A11yInput / FocusRequirement 报错，这里不叠加。
+ * 键集合里实际触发空值拦截的键名。键不在 I 里（没传）不触发：缺失键
+ * 由 A11yInput / FocusRequirement 报错，这里不叠加。只查运行时真会跳过
+ * 空值的键（label / idlist，见 NoEmpty）：其余键的 '' 原样输出，
+ * 必填承诺不因空串落空，不该拦。
  */
-type EmptyTupleKeys<Keys extends PropertyKey, I> = {
+type EmptyValueKeys<Keys extends PropertyKey, I> = {
   [K in Keys]: [K] extends [keyof I]
-    ? Extract<I[K], readonly []> extends never
-      ? never
-      : K
+    ? [K] extends ['label' | AriaIdListKey]
+      ? Extract<I[K], readonly [] | ''> extends never
+        ? never
+        : K
+      : never
     : never;
 }[Keys];
 
 /**
- * 必填键的空元组拦截：`controls: []` 满足 AriaValue，但 NoEmpty 会把
- * 输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。值是含
- * 空元组的 union（`readonly [] | readonly ['a']`）也拦（round 13 起：
- * Extract 分布取出空元组成员判，非分布的 `I[K] extends readonly []`
- * 对 union 判不中）；非元组（string[] 变量持有 []）类型层认不出，是
- * NoEmpty 已记录的同一限制。
+ * 必填键的空值拦截：`controls: []`、`controls: ''` 满足 AriaValue，但
+ * NoEmpty 会把输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。
+ * 值是含空值的 union（`readonly [] | readonly ['a']`、`'' | 'm'`）也拦
+ * （round 13 起：Extract 分布取出空值成员判，非分布的 `I[K] extends ...`
+ * 对 union 判不中）；非字面量（string / string[] 变量持有 '' / []）类型层
+ * 认不出，是 NoEmpty 已记录的同一限制。
  *
  * 报错形状：触发键名编码进 message 属性的值（同 OverrideKeyCheck 的做法）。
  * 不要改回「把触发键映射成 never」：tsc 会把 props 里每个键都报成
  * not assignable to never（实测），看不出哪个键触发。
  */
 type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
-  EmptyTupleKeys<EmptyTupleScope<P, R, I>, I>,
+  EmptyValueKeys<EmptyValueScope<P, R, I>, I>,
 ] extends [never]
   ? unknown
   : {
-      readonly 'required idlist keys must not be the empty tuple': EmptyTupleKeys<
-        EmptyTupleScope<P, R, I>,
+      readonly 'required idlist keys must not be empty': EmptyValueKeys<
+        EmptyValueScope<P, R, I>,
         I
       >;
     };
 
 /**
- * 名字必填的 role，labelledby 传字面量空元组在调用点报错：空 idlist 按
- * 「没传」处理（NoEmpty），对名字必填的 role 等于没给名字，§4 的
- * 「label / labelledby 至少一个」落空。值是含空元组的 union 也拦
- * （round 13 起：分布判的 `V extends readonly []` 会把错误对象和
- * unknown 并起来吸收成 unknown）；label 在 I 里（label 已给名）不
- * 触发：此时空 labelledby 只是死键，NoEmpty 丢掉它不算失约；非元组
- * （string[] 变量持有 []）认不出，是 NoEmpty 已记录的同一限制。
+ * 名字必填的 role，label / labelledby 传字面量空值（label 的 ''、
+ * labelledby 的 '' / 空元组）在调用点报错：空值运行时按「没传」跳过
+ * （NoEmpty 同源），对名字必填的 role 等于没给名字，§4 的「label /
+ * labelledby 至少一个」落空。值是含空值的 union 也拦（round 13 起：
+ * 分布判会把错误对象和 unknown 并起来吸收成 unknown）；另一边给了非空
+ * 名时不拦：空的这边只是死键，NoEmpty 丢掉它不算失约；非字面量
+ * （string / string[] 变量持有 '' / []）认不出，是 NoEmpty 已记录的
+ * 同一限制。
  */
 type NameEmptyCheck<N, I> = N extends 'required'
-  ? I extends { label: string }
-    ? unknown
+  ? I extends { label: infer L }
+    ? Extract<L, ''> extends never
+      ? unknown
+      : I extends { labelledby: infer V }
+        ? Extract<V, readonly [] | ''> extends never
+          ? unknown
+          : { readonly 'accessible name must not be empty': L | V }
+        : { readonly 'accessible name must not be empty': L }
     : I extends { labelledby: infer V }
-      ? Extract<V, readonly []> extends never
+      ? Extract<V, readonly [] | ''> extends never
         ? unknown
-        : { readonly 'accessible name must not be an empty id list': V }
+        : { readonly 'accessible name must not be empty': V }
       : unknown
   : unknown;
 
@@ -393,30 +405,35 @@ type OutValue<V, O extends A11yOutputMode> = V extends readonly string[]
     : V;
 
 /**
- * 空 idlist 数组按「没传」处理：join 出的 '' 不是合法 id 列表，运行时
- * 跳过空数组。类型层把空元组归一成 undefined，输出键和 undefined 一样
- * 消失或变可选，两边不漂。
+ * 空值按「没传」处理：空 idlist 数组 join 出 '' 不是合法 id 列表，label /
+ * idlist 键的空串同样不是合法输出，运行时跳过这些空值。类型层把字面量
+ * 空元组、以及 label / idlist 键的字面量空串归一成 undefined，输出键和
+ * undefined 一样消失或变可选，两边不漂。
  *
- * 已知限制：非元组类型认不出空数组——`string[]` 变量持有 `[]` 时，类型层
- * 仍承诺输出键，运行时却跳过它；必填的 idlist 键同理。只有字面量空元组
+ * 已知限制：非字面量类型认不出空值——string / string[] 变量持有 '' / []
+ * 时，类型层仍承诺输出键，运行时却跳过它；必填的键同理。只有字面量空值
  * 能在两层间对齐（见 createA11y.ts 的运行时跳过）。
  */
-type NoEmpty<V> = V extends readonly [] ? undefined : V;
+type NoEmpty<K extends PropertyKey, V> = [K] extends ['label' | AriaIdListKey]
+  ? V extends '' | readonly []
+    ? undefined
+    : V
+  : V;
 
 type AriaAttrs<I, O extends A11yOutputMode> = {
   readonly [K in keyof I as K extends string
-    ? undefined extends NoEmpty<I[K]>
+    ? undefined extends NoEmpty<K, I[K]>
       ? never
       : `aria-${Lowercase<K>}`
-    : never]: OutValue<NoEmpty<I[K]>, O>;
+    : never]: OutValue<NoEmpty<K, I[K]>, O>;
 } & {
   readonly [K in keyof I as K extends string
-    ? undefined extends NoEmpty<I[K]>
-      ? [NoEmpty<I[K]>] extends [undefined]
+    ? undefined extends NoEmpty<K, I[K]>
+      ? [NoEmpty<K, I[K]>] extends [undefined]
         ? never
         : `aria-${Lowercase<K>}`
       : never
-    : never]?: OutValue<Exclude<NoEmpty<I[K]>, undefined>, O>;
+    : never]?: OutValue<Exclude<NoEmpty<K, I[K]>, undefined>, O>;
 };
 
 type TabKey<O extends A11yOutputMode> = O extends 'html'

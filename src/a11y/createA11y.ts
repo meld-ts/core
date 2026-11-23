@@ -21,6 +21,17 @@ const IDLIST_KEYS = [
 ] as const;
 const IDLIST_SET: ReadonlySet<string> = new Set(IDLIST_KEYS);
 
+/**
+ * 运行时跳过空串的键：名字键 label，加全部 idlist 键。空串按「没传」
+ * 处理，与空 idlist 数组同一条路径（types.ts 的 NoEmpty 同源）。
+ */
+const isEmptyValue = (key: string, value: unknown): boolean => {
+  if (IDLIST_SET.has(key)) {
+    return (Array.isArray(value) && value.length === 0) || value === '';
+  }
+  return key === 'label' && value === '';
+};
+
 type Eq<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
     ? true
@@ -96,13 +107,11 @@ export function createA11y(options: A11yOptions): unknown {
     for (const key of Object.keys(props)) {
       if (key === 'focusable') continue;
       const value = props[key];
-      // 空数组按没传处理：[] join 出 ''，不是合法 id 列表。
-      // 限制：类型层只认字面量空元组（types.ts 的 NoEmpty），string[]
-      // 变量持有 [] 时类型仍带键、运行时跳过，两边会漂。
-      if (
-        value === undefined ||
-        (IDLIST_SET.has(key) && Array.isArray(value) && value.length === 0)
-      ) {
+      // 空值按没传处理：idlist 空数组 join 出 ''，label / idlist 空串
+      // 同样不是合法输出。
+      // 限制：类型层只认字面量空元组 / 空串（types.ts 的 NoEmpty），
+      // string / string[] 变量持空值时类型仍带键、运行时跳过，两边会漂。
+      if (value === undefined || isEmptyValue(key, value)) {
         continue;
       }
       out[`aria-${key.toLowerCase()}`] = convert(key, value);

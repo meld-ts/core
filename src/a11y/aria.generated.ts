@@ -109,13 +109,7 @@ export type AriaValue<K extends AriaKey> = K extends 'activedescendant'
                               : K extends 'disabled'
                                 ? boolean
                                 : K extends 'dropeffect'
-                                  ?
-                                      | 'copy'
-                                      | 'execute'
-                                      | 'link'
-                                      | 'move'
-                                      | 'none'
-                                      | 'popup'
+                                  ? string
                                   : K extends 'errormessage'
                                     ? string
                                     : K extends 'expanded'
@@ -179,11 +173,7 @@ export type AriaValue<K extends AriaKey> = K extends 'activedescendant'
                                                                           : K extends 'readonly'
                                                                             ? boolean
                                                                             : K extends 'relevant'
-                                                                              ?
-                                                                                  | 'additions'
-                                                                                  | 'all'
-                                                                                  | 'removals'
-                                                                                  | 'text'
+                                                                              ? string
                                                                               : K extends 'required'
                                                                                 ? boolean
                                                                                 : K extends 'roledescription'
