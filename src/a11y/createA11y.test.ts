@@ -23,7 +23,7 @@ describe('createA11y runtime', () => {
       'aria-controls': 'm',
       'aria-label': 'x',
     });
-    expect(html('separator', { valueNow: 50, label: 'x' })).toEqual({
+    expect(html('separator', { valuenow: 50, label: 'x' })).toEqual({
       role: 'separator',
       'aria-valuenow': '50',
       'aria-label': 'x',
@@ -53,6 +53,22 @@ describe('createA11y runtime', () => {
     });
   });
 
+  test('empty idlist array emits no key', () => {
+    expect(
+      react('combobox', { expanded: true, controls: [], label: 'x' }),
+    ).toEqual({
+      role: 'combobox',
+      'aria-expanded': true,
+      'aria-label': 'x',
+    });
+    // img 名字必填，空元组 labelledby 被 NameEmptyCheck 拦在类型层；
+    // 这里用名字可选的 separator 验证同一条运行时跳过路径
+    expect(react('separator', { label: 'x', labelledby: [] })).toEqual({
+      role: 'separator',
+      'aria-label': 'x',
+    });
+  });
+
   test('undefined optional value emits no key', () => {
     expect(react('img', { label: 'x', details: undefined })).toEqual({
       role: 'img',
@@ -61,7 +77,7 @@ describe('createA11y runtime', () => {
   });
 
   test('focusable true emits tabIndex in react mode', () => {
-    expect(react('separator', { focusable: true, valueNow: 50 })).toEqual({
+    expect(react('separator', { focusable: true, valuenow: 50 })).toEqual({
       role: 'separator',
       tabIndex: 0,
       'aria-valuenow': 50,
@@ -69,7 +85,7 @@ describe('createA11y runtime', () => {
   });
 
   test('focusable true emits tabindex string in html mode', () => {
-    expect(html('separator', { focusable: true, valueNow: 50 })).toEqual({
+    expect(html('separator', { focusable: true, valuenow: 50 })).toEqual({
       role: 'separator',
       tabindex: '0',
       'aria-valuenow': '50',
@@ -78,7 +94,7 @@ describe('createA11y runtime', () => {
 
   test('focusable undefined variable emits no tabIndex', () => {
     const maybeFocus: true | undefined = undefined;
-    expect(react('separator', { focusable: maybeFocus, valueNow: 50 })).toEqual(
+    expect(react('separator', { focusable: maybeFocus, valuenow: 50 })).toEqual(
       {
         role: 'separator',
         'aria-valuenow': 50,

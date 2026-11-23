@@ -19,11 +19,11 @@ export type A11yRoleRule = {
 /** 一张 lint 规则表：某个 lint、某个版本下的规则。由探针生成，不手写。 */
 export type A11yProfile = {
   readonly meta: {
-    readonly lint: string;
+    readonly lint: A11yLintName;
     readonly version: string;
     readonly source: 'builtin' | 'probe' | 'merged';
-    /** 这张表直接沿用另一个 lint 的表（bun 表 aliasOf eslint） */
-    readonly aliasOf?: string;
+    /** 这张表直接沿用另一个 lint 的表（保留字段；当前四张内置表均独立探测生成） */
+    readonly aliasOf?: A11yLintName;
   };
   readonly roles: { readonly [R in A11yRole]: A11yRoleRule };
 };
@@ -47,19 +47,36 @@ export type A11yOptions = {
 // biome-ignore lint/suspicious/noEmptyInterface: 留给使用方用 declaration merging 重载
 export interface A11yLintOverrides {}
 
-/** 有重载且结构对，用重载；否则用内置表 */
+/**
+ * 有重载且结构对（单张表），用重载；否则用内置表。
+ * 形状判定不分布（`[O] extends [A11yProfile]`）：union 值分布判定会
+ * 保留 union 表，Rule 对 union 取表时 supported 变并集，只有单侧
+ * 支持的属性静默通过（lint 名 union 漏洞的同型，§12.6）。union 值
+ * 由 BadShapeKeys 在 createA11y 调用点报错，这里退回内置表——直接
+ * 构造 A11yOf 绕过那道检查也不放宽。
+ */
 type CheckOverride<K extends A11yLintName> =
   A11yLintOverrides extends Record<K, infer O>
-    ? O extends A11yProfile
-      ? O
+    ? [O] extends [A11yProfile]
+      ? IsUnion<O> extends true
+        ? A11yBuiltinLints[K]
+        : O
       : A11yBuiltinLints[K]
     : A11yBuiltinLints[K];
 
 type UnknownOverrideKeys = Exclude<keyof A11yLintOverrides, A11yLintName>;
 
+/**
+ * 结构不对的键：值不是 A11yProfile，或是 union——探针只生成单张表，
+ * union 值会让 Rule<P, R> 对 union 分布式取表，supported 变并集，
+ * 只有单侧支持的属性静默通过（lint 名 union 漏洞的同型），两种都算
+ * 结构不对，用同一条错误信息在 createA11y 调用点报错。
+ */
 type BadShapeKeys = {
   [K in keyof A11yLintOverrides]: A11yLintOverrides[K] extends A11yProfile
-    ? never
+    ? IsUnion<A11yLintOverrides[K]> extends true
+      ? K
+      : never
     : K;
 }[keyof A11yLintOverrides];
 
@@ -77,6 +94,55 @@ export type OverrideKeyCheck = ([UnknownOverrideKeys] extends [never]
     : {
         readonly 'Invalid A11yLintOverrides shape, rerun meld a11y probe': BadShapeKeys;
       });
+
+/**
+ * 空 lint 表检查：lint 传空数组字面量时，选择归约成 never 表（不是
+ * 「没有任何必填的表」）：Exact 把所有 aria 键映射成 never，每个带
+ * aria 属性的 a11y() 调用都报错——没有静默漏网，只是错误散落在每个
+ * 调用点上且不可读（"not assignable to never"）。这个检查把错误前移
+ * 到 createA11y 调用点，换成一条可读的消息。判据是选中的字面量类型
+ * 可赋给 `readonly []`（空元组）或 `readonly never[]`（never 数组同样
+ * 归约成 never 表）：`A11yLintName[]` / `readonly A11yLintName[]` 变量
+ * 两个都不可赋，不受影响。和 OverrideKeyCheck 同一机制，挂到
+ * createA11y 参数上在调用点报错。
+ */
+export type LintSelectionCheck<Opt extends A11yOptions> = [
+  Opt['lint'],
+] extends [readonly [] | readonly never[]]
+  ? { readonly 'lint array must not be empty': Opt['lint'] }
+  : unknown;
+
+/**
+ * output 单模式检查：`output` 键存在时，类型必须恰好是一个模式——
+ * `'react'` 或 `'html'`（非分布判定，union 不会被拆开逐个成员判）。
+ * 类型含 `undefined` 的变量、收着整个 `A11yOptions` 的非泛型包装、
+ * 以及同时含两个模式的 union（`A11yOutputMode` 变量、跨模式默认值
+ * `out ?? 'react'`）都拦：union 会让输出类型同时要求 `tabIndex` 和
+ * `tabindex` 两个键，运行时只发一个，类型承诺和实际输出漂移。
+ * 收窄成单模式后可用（out 已收窄为 `'html' | undefined` 时，
+ * `out ?? 'html'` 就是 `'html'`）；键缺失不拦，走默认 react。
+ * 同 OptionsKeyCheck / LintSelectionCheck 挂到 createA11y 参数上
+ * 在调用点报错。
+ */
+export type OutputDefiniteCheck<Opt extends A11yOptions> =
+  'output' extends keyof Opt
+    ? [Opt['output']] extends ['react']
+      ? unknown
+      : [Opt['output']] extends ['html']
+        ? unknown
+        : {
+            readonly "output must be exactly 'react' or 'html', not a union of both modes nor a type containing undefined": Opt['output'];
+          }
+    : unknown;
+
+/**
+ * 选项键检查：lint / output 之外的键（拼错的 outpt 之类）映射成 never，
+ * 在 createA11y 调用点报错，不静默退回默认值。机制同 Exact 拦拼错属性。
+ */
+export type OptionsKeyCheck<Opt extends A11yOptions> = Exact<
+  Opt,
+  'lint' | 'output'
+>;
 
 /** 实际生效的表：有重载、且结构对，用重载；否则用内置 */
 export type A11yLints = { [K in A11yLintName]: CheckOverride<K> };
@@ -123,18 +189,55 @@ export type MergeProfiles<Ps extends A11yProfile> = {
   };
 };
 
-export type ResolveProfile<L> = L extends A11yLintName
-  ? A11yLints[L]
-  : L extends readonly A11yLintName[]
-    ? MergeProfiles<A11yLints[L[number]]>
-    : never;
+/**
+ * 非分布的 union 判定：lint 是变量 / 条件表达式（类型为几个名字的 union）
+ * 时为 true。分布写法会对 union 的每个成员各判一次，永远得到 false。
+ */
+type IsUnion<T, U = T> = T extends unknown
+  ? [U] extends [T]
+    ? false
+    : true
+  : never;
+
+/**
+ * lint 名是 union 时必须走 MergeProfiles（supported 取交集）：
+ * 分布式条件类型会把 union 拆成几张表的并集，supported 变成并集，
+ * 只有部分 lint 支持的属性会静默通过，违反「按项目的 lint 分表」。
+ * 数组（含单元素数组）同样走 MergeProfiles（§4：传数组就是合并）：
+ * 约束结果和单表一致，只有 meta.source 变 'merged'。
+ *
+ * 分布检查走牺牲参数 _D：条件类型分布时会按成员替换 _D，但 L 不被替换，
+ * 名字分支里 IsUnion<L> 看到的仍是完整 union。数组与否走牺牲参数 _Orig
+ * （展平前的原始 L）：单元素数组被 FlattenLint 展平成单个名字，
+ * IsUnion<L> 是 false，只有 _Orig 还认得出它是数组——round 4 删掉的
+ * 数组分支因此不可达，本分支是它在可达位置的等价恢复。顶层保持分布式
+ * 条件类型的原因：A11yOf 在泛型 Opt 下要靠它算出各分支的约束（非分布
+ * 的 `[L] extends [...]` 会让约束退化为 unknown，A11yOf 编译不过）。
+ */
+type ResolveProfileImpl<L, _Orig = L, _D = L> = _D extends A11yLintName
+  ? IsUnion<L> extends true
+    ? MergeProfiles<L extends A11yLintName ? A11yLints[L] : never>
+    : [_Orig] extends [readonly A11yLintName[]]
+      ? MergeProfiles<L extends A11yLintName ? A11yLints[L] : never>
+      : A11yLints[L extends A11yLintName ? L : never]
+  : never;
+
+/**
+ * 混合形状（`'biome' | readonly ['oxlint']`，条件表达式推出来的类型）先
+ * 展平成名字并集：不展平就直接分布，名字和数组两个成员各走各的分支，
+ * 得到两张表的并集（supported 变并集，fail-open）；展平后统一走名字
+ * 并集的合并（supported 取交集）。
+ */
+type FlattenLint<L> = L extends readonly A11yLintName[] ? L[number] : L;
+
+export type ResolveProfile<L> = ResolveProfileImpl<FlattenLint<L>, L>;
 
 // ---- 输入 ----
 
 type Rule<P extends A11yProfile, R extends A11yRole> = P['roles'][R];
 
 type NameRequirement<N> = N extends 'required'
-  ? { label: string } | { labelledBy: string | readonly string[] }
+  ? { label: string } | { labelledby: string | readonly string[] }
   : Record<never, never>;
 
 export type A11yInput<P extends A11yProfile, R extends A11yRole> = {
@@ -155,19 +258,125 @@ type Exact<I, Allowed extends PropertyKey> = {
 
 /**
  * 可聚焦时的额外必填。
- * 条件必须是 `true extends I['focusable']`：变量类型含 true（如
- * true | undefined）也要打开额外必填。用 `I extends { focusable: true }`
- * 会判不中含 undefined 的变量。
+ * 两道门：`'focusable' extends keyof I`（键存在）先于 `true extends
+ * I['focusable']`（值含 true）。键存在不能用形状匹配（`I extends {
+ * focusable: unknown }`）：条件展开 `...(cond ? { focusable: true } : {})`
+ * 推出的是可选键 `focusable?: true`，形状匹配判不中，额外必填整个漏掉
+ * （§3 宁可多要求）。值判定用「含 true」而不是 `I extends { focusable:
+ * true }`：`true | undefined` 变量也要打开额外必填。
+ *
+ * 这里的三段式和 EmptyTupleScope / FocusAttr 里的重复是有意的，不要抽成
+ * 共享谓词：三处的输出形状不同（必填键映射 / 键集合 / tabIndex 键）。
+ * 外层条件的被检类型是字面量 'focusable'，不对 I 分布——union 的 props
+ * 由 PropsDefiniteCheck 在调用点拦下；按成员分布反而会把「某成员的要求、
+ * 其余成员的 unknown」并起来吸收成 unknown，逐成员的强制全部落空
+ * （round 12 修复，见设计稿 §12.8）。
  */
 type FocusRequirement<
   P extends A11yProfile,
   R extends A11yRole,
   I,
-> = I extends { focusable: unknown }
+> = 'focusable' extends keyof I
   ? true extends I['focusable']
     ? { [K in Rule<P, R>['requiredWhenFocusable']]-?: AriaValue<K> }
     : unknown
   : unknown;
+
+/**
+ * 空元组拦截要查的键集合：required，加上 focusable 激活时（激活判定
+ * 与 FocusRequirement 同源：键在 I 里、值含 true 就算，可选键和
+ * true | undefined 变量也打开）的 requiredWhenFocusable——两组必填
+ * 同一条承诺，只拦一组会漏。
+ */
+type EmptyTupleScope<P extends A11yProfile, R extends A11yRole, I> =
+  | Rule<P, R>['required']
+  | ('focusable' extends keyof I
+      ? true extends I['focusable']
+        ? Rule<P, R>['requiredWhenFocusable']
+        : never
+      : never);
+
+/**
+ * 键集合里实际触发空元组拦截的键名。键不在 I 里（没传）不触发：缺失键
+ * 由 A11yInput / FocusRequirement 报错，这里不叠加。
+ */
+type EmptyTupleKeys<Keys extends PropertyKey, I> = {
+  [K in Keys]: [K] extends [keyof I]
+    ? Extract<I[K], readonly []> extends never
+      ? never
+      : K
+    : never;
+}[Keys];
+
+/**
+ * 必填键的空元组拦截：`controls: []` 满足 AriaValue，但 NoEmpty 会把
+ * 输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。值是含
+ * 空元组的 union（`readonly [] | readonly ['a']`）也拦（round 13 起：
+ * Extract 分布取出空元组成员判，非分布的 `I[K] extends readonly []`
+ * 对 union 判不中）；非元组（string[] 变量持有 []）类型层认不出，是
+ * NoEmpty 已记录的同一限制。
+ *
+ * 报错形状：触发键名编码进 message 属性的值（同 OverrideKeyCheck 的做法）。
+ * 不要改回「把触发键映射成 never」：tsc 会把 props 里每个键都报成
+ * not assignable to never（实测），看不出哪个键触发。
+ */
+type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
+  EmptyTupleKeys<EmptyTupleScope<P, R, I>, I>,
+] extends [never]
+  ? unknown
+  : {
+      readonly 'required idlist keys must not be the empty tuple': EmptyTupleKeys<
+        EmptyTupleScope<P, R, I>,
+        I
+      >;
+    };
+
+/**
+ * 名字必填的 role，labelledby 传字面量空元组在调用点报错：空 idlist 按
+ * 「没传」处理（NoEmpty），对名字必填的 role 等于没给名字，§4 的
+ * 「label / labelledby 至少一个」落空。值是含空元组的 union 也拦
+ * （round 13 起：分布判的 `V extends readonly []` 会把错误对象和
+ * unknown 并起来吸收成 unknown）；label 在 I 里（label 已给名）不
+ * 触发：此时空 labelledby 只是死键，NoEmpty 丢掉它不算失约；非元组
+ * （string[] 变量持有 []）认不出，是 NoEmpty 已记录的同一限制。
+ */
+type NameEmptyCheck<N, I> = N extends 'required'
+  ? I extends { label: string }
+    ? unknown
+    : I extends { labelledby: infer V }
+      ? Extract<V, readonly []> extends never
+        ? unknown
+        : { readonly 'accessible name must not be an empty id list': V }
+      : unknown
+  : unknown;
+
+/**
+ * role 单字面量检查：`Rule<P, R>` 对 role 并集分布式取表，supported 变成
+ * 各 role 的并集，只有部分 role 支持的属性会静默通过；`A11yNameRule[R]`
+ * 变成 'required' | 'optional'，NameRequirement 分布出一个 Record<never,
+ * never> 分支，名字必填被空对象满足（lint 名 union 漏洞的镜像）。不取
+ * 交集：一个 role 的必填可能不在另一个的 supported 里（switch 必填
+ * checked、img 的 supported 不含 checked），交集会把合法组合变成不可
+ * 满足。宁可在调用点报错，让调用方收窄成单个 role。
+ */
+type RoleDefiniteCheck<R extends A11yRole> =
+  IsUnion<R> extends true
+    ? { readonly 'role must be a single literal, not a union': R }
+    : unknown;
+
+/**
+ * props 是 union 时在调用点报错（机制同 RoleDefiniteCheck）：条件表达式
+ * 直接当 props 传（`cond ? { focusable: true } : { label: 'x' }`）时，
+ * 对 I 分布的检查把「某成员的要求」和其余成员的 unknown 并起来——
+ * `{ valuenow } | unknown` 吸收成 unknown，逐成员的强制全部失效
+ * （focusable 的额外必填、名字必填都静默漏过）；键存在门对 union 取
+ * 公共键，同样判不出。让调用方把分支写进对象（条件展开推可选键）或
+ * 拆成两次调用。
+ */
+type PropsDefiniteCheck<I> =
+  IsUnion<I> extends true
+    ? { readonly 'props must not be a union type; branch the call': I }
+    : unknown;
 
 // ---- 输出 ----
 
@@ -183,20 +392,31 @@ type OutValue<V, O extends A11yOutputMode> = V extends readonly string[]
     ? Str<V>
     : V;
 
+/**
+ * 空 idlist 数组按「没传」处理：join 出的 '' 不是合法 id 列表，运行时
+ * 跳过空数组。类型层把空元组归一成 undefined，输出键和 undefined 一样
+ * 消失或变可选，两边不漂。
+ *
+ * 已知限制：非元组类型认不出空数组——`string[]` 变量持有 `[]` 时，类型层
+ * 仍承诺输出键，运行时却跳过它；必填的 idlist 键同理。只有字面量空元组
+ * 能在两层间对齐（见 createA11y.ts 的运行时跳过）。
+ */
+type NoEmpty<V> = V extends readonly [] ? undefined : V;
+
 type AriaAttrs<I, O extends A11yOutputMode> = {
   readonly [K in keyof I as K extends string
-    ? undefined extends I[K]
+    ? undefined extends NoEmpty<I[K]>
       ? never
       : `aria-${Lowercase<K>}`
-    : never]: OutValue<I[K], O>;
+    : never]: OutValue<NoEmpty<I[K]>, O>;
 } & {
   readonly [K in keyof I as K extends string
-    ? undefined extends I[K]
-      ? [I[K]] extends [undefined]
+    ? undefined extends NoEmpty<I[K]>
+      ? [NoEmpty<I[K]>] extends [undefined]
         ? never
         : `aria-${Lowercase<K>}`
       : never
-    : never]?: OutValue<Exclude<I[K], undefined>, O>;
+    : never]?: OutValue<Exclude<NoEmpty<I[K]>, undefined>, O>;
 };
 
 type TabKey<O extends A11yOutputMode> = O extends 'html'
@@ -205,9 +425,7 @@ type TabKey<O extends A11yOutputMode> = O extends 'html'
 
 type TabVal<O extends A11yOutputMode> = O extends 'html' ? '0' : 0;
 
-type FocusAttr<I, O extends A11yOutputMode> = I extends {
-  focusable: unknown;
-}
+type FocusAttr<I, O extends A11yOutputMode> = 'focusable' extends keyof I
   ? true extends I['focusable']
     ? undefined extends I['focusable']
       ? { readonly [K in TabKey<O>]?: TabVal<O> }
@@ -230,10 +448,17 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
     role: R,
     props: I &
       Exact<I, Rule<P, R>['supported'] | 'focusable'> &
-      FocusRequirement<P, R, I>,
+      FocusRequirement<P, R, I> &
+      NoEmptyRequired<P, R, I> &
+      NameEmptyCheck<A11yNameRule[R], I> &
+      RoleDefiniteCheck<R> &
+      PropsDefiniteCheck<I>,
   ): A11yAttrs<R, I, O>;
+  // aria 也拦 union props（同 a11y(role, props) 挂 PropsDefiniteCheck）：
+  // AriaAttrs 对 union 分布成各分支输出的并集，keyof 取公共键是 never，
+  // 一个键都读不出来，运行时却发其中一个分支的属性（§12.9）。
   aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(
-    props: I & Exact<I, AriaKey>,
+    props: I & Exact<I, AriaKey> & PropsDefiniteCheck<I>,
   ): AriaAttrs<I, O>;
 };
 
@@ -246,6 +471,19 @@ type OutputOf<Opt extends A11yOptions> = Opt['output'] extends A11yOutputMode
 
 type AsProfile<P> = P extends A11yProfile ? P : never;
 
+/**
+ * 已知限制：挂在 createA11y 参数上的调用点检查（OverrideKeyCheck、
+ * LintSelectionCheck、OptionsKeyCheck、OutputDefiniteCheck）只拦
+ * createA11y 这个正式入口；直接构造 `A11yOf` 会整体绕过这层检查。
+ * 真正的绕过危险在 output 维度：`A11yOf<{ lint: 'biome'; output:
+ * A11yOutputMode }>` 绕过 OutputDefiniteCheck 后，TabKey 对双模式
+ * union 分布，输出类型同时要求 tabIndex 和 tabindex 两个键（值都推成
+ * `0 | '0'`），运行时只发一个。lint 维度没有静默漏网：`A11yOf<{
+ * lint: [] }>` 归约成 never 表，带 aria 属性的调用在各自调用点报错
+ * （见 LintSelectionCheck），只是错误不可读；union 值的重载在
+ * CheckOverride 内部退回内置表，supported 不会变并集。类型层的
+ * 保证以走 createA11y 为前提。
+ */
 export type A11yOf<Opt extends A11yOptions> = A11y<
   AsProfile<ResolveProfile<Opt['lint']>>,
   OutputOf<Opt>

@@ -16,6 +16,8 @@ export type {
 export type {
   A11yBuiltinLints,
   BiomeA11yProfile,
+  BunA11yProfile,
+  EslintA11yProfile,
   OxlintA11yProfile,
 } from './lints';
 export type { A11yLintName, A11yProfile, A11yRoleRule } from './types';
@@ -25,7 +27,6 @@ export type {
   A11yLints,
   A11yOptions,
   A11yOutputMode,
-  OverrideKeyCheck,
 } from './types';
 export type {
   A11y,
