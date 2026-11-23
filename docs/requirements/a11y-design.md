@@ -503,13 +503,13 @@ core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注
 lint 看不到 spread，这几条规则就是主要防线。「不手写」由 CI 的 grep 检查把关（`.github/workflows/pr-check.yml`，在 Test 前跑），排除库自身的 `src/a11y/**` 和接入文件 `src/a11y.ts`：
 
 ```
-rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})' \
+rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})|\btabIndex\s*=\s*["'\'']|\btabindex\s*=\s*["'\'']' \
   --glob '*.{tsx,jsx}' \
   --glob '!src/a11y/**' \
   --glob '!src/a11y.ts'
 ```
 
-它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；`tabIndex` 一并抓（`tabIndex={0}`、`tabIndex={var}`，只覆盖 JSX 花括号写法），唯一例外是手写的字面 `tabIndex={-1}`（§8 规则 4 的脚本聚焦例外）。脚本按 rg 的退出码分流：0（有命中）失败、1（无命中）通过；rg 自身出错（正则坏、缺 PCRE2、命令不在，exit 2）不放行——用 `git ls-files` 清点仓库的 tsx/jsx，滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有文件才失败；全部在排除路径里、或根本没有 tsx/jsx 则放行。`.cache/a11y-lab` 的一致性 fixture 故意写字面属性，但它在 gitignore 里，不进这个检查。抓不全的变形（比如先拼对象再 spread）靠 AGENTS 规则兜。
+它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；`tabIndex` 一并抓（`tabIndex={0}`、`tabIndex={var}`，以及字符串形式 `tabIndex="0"` / `tabindex="0"`），唯一例外是手写的字面 `tabIndex={-1}`（§8 规则 4 的脚本聚焦例外）。也会误报普通代码里的 `role = ...` 赋值和 `data-role` / `data-aria-label` 这类 data-* 属性（fail-closed，宁可拦下人工排查），按需加排除。脚本按 rg 的退出码分流：0（有命中）失败、1（无命中）通过；rg 自身出错（正则坏、缺 PCRE2、命令不在，exit 2）不放行——用 `git ls-files` 清点仓库的 tsx/jsx，滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有文件才失败；全部在排除路径里、或根本没有 tsx/jsx 则放行。`.cache/a11y-lab` 的一致性 fixture 故意写字面属性，但它在 gitignore 里，不进这个检查。抓不全的变形（比如先拼对象再 spread）靠 AGENTS 规则兜。
 
 ## 9. 和 core 的配合
 
