@@ -22,7 +22,7 @@ export const parseBiome = (
   const out = JSON.parse(raw) as {
     diagnostics?: Array<{
       category: string | null;
-      message: string;
+      message?: string;
       location?: { path?: string; start?: { line?: number } };
     }>;
   } | null;
@@ -40,6 +40,10 @@ export const parseBiome = (
       d.category !== 'lint/a11y/useAriaPropsSupportedByRole'
     ) {
       continue;
+    }
+    // 信封漂移（缺 message）报可读错误，不让 .match 抛裸 TypeError
+    if (typeof d.message !== 'string') {
+      throw new Error('biome diagnostic is missing message');
     }
     const req = d.message.match(REQ);
     const role = req?.[1];

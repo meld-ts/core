@@ -102,6 +102,19 @@ describe('parseOxlint', () => {
       'oxlint jsx-a11y(role-supports-aria-props): unrecognized message: The role `switch` rejects the attribute `aria-valuenow`.',
     );
   });
+
+  test('fails readably when a whitelisted diagnostic is missing its message', () => {
+    // 非白名单的诊断缺 message 仍被忽略；白名单内的缺 message 报可读错误
+    const raw = JSON.stringify({
+      diagnostics: [
+        { code: 'jsx-a11y(control-has-associated-label)' },
+        { code: 'jsx-a11y(role-has-required-aria-props)' },
+      ],
+    });
+    expect(() => parseOxlint(raw)).toThrow(
+      'oxlint diagnostic is missing message',
+    );
+  });
 });
 
 describe('runOxlint', () => {

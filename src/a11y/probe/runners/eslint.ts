@@ -29,7 +29,7 @@ export const parseEslint = (raw: string): LintReport => {
     throw new Error('eslint lint output is not an array');
   }
   const files = parsed as Array<{
-    messages: Array<{ ruleId: string | null; message: string }>;
+    messages: Array<{ ruleId: string | null; message?: string }>;
   }>;
   for (const file of files) {
     // 信封漂移（缺 messages）报可读错误，不让 for...of 抛 `not iterable` 的裸 TypeError
@@ -42,6 +42,10 @@ export const parseEslint = (raw: string): LintReport => {
         m.ruleId !== 'jsx-a11y/role-supports-aria-props'
       ) {
         continue;
+      }
+      // 信封漂移（缺 message）报可读错误，不让 .match 抛裸 TypeError
+      if (typeof m.message !== 'string') {
+        throw new Error('eslint diagnostic is missing message');
       }
       const req = m.message.match(REQ);
       const role = req?.[1];

@@ -79,6 +79,20 @@ describe('parseEslint', () => {
       'eslint jsx-a11y/role-supports-aria-props: unrecognized message: The role switch rejects the attribute aria-valuenow.',
     );
   });
+  test('fails readably when a whitelisted rule is missing its message', () => {
+    // 非白名单的规则缺 message 仍被忽略；白名单内的缺 message 报可读错误
+    const raw = JSON.stringify([
+      {
+        messages: [
+          { ruleId: 'jsx-a11y/no-static-element-interactions' },
+          { ruleId: 'jsx-a11y/role-has-required-aria-props' },
+        ],
+      },
+    ]);
+    expect(() => parseEslint(raw)).toThrow(
+      'eslint diagnostic is missing message',
+    );
+  });
 });
 
 describe('runEslint', () => {

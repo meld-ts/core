@@ -172,6 +172,19 @@ describe('parseBiome', () => {
     );
   });
 
+  test('fails readably when a whitelisted diagnostic is missing its message', () => {
+    // 非白名单的诊断缺 message 仍被忽略；白名单内的缺 message 报可读错误
+    const raw = JSON.stringify({
+      diagnostics: [
+        { category: 'lint/a11y/useSemanticElements' },
+        { category: 'lint/a11y/useAriaPropsForRole' },
+      ],
+    });
+    expect(() => parseBiome(raw, fixtures)).toThrow(
+      'biome diagnostic is missing message',
+    );
+  });
+
   test('fails readably when the envelope misses diagnostics', () => {
     expect(() => parseBiome('{"summary":{"errors":0}}', fixtures)).toThrow(
       'biome lint output is missing diagnostics',

@@ -9,7 +9,7 @@ export const parseOxlint = (raw: string): LintReport => {
   const missing: Array<{ role: string; props: string[] }> = [];
   const unsupported: Array<{ role: string; prop: string }> = [];
   const out = JSON.parse(raw) as {
-    diagnostics?: Array<{ code: string | null; message: string }>;
+    diagnostics?: Array<{ code: string | null; message?: string }>;
   } | null;
   // 信封漂移（缺 diagnostics / 非数组）报可读错误，
   // 不让 for...of 抛 `not iterable` 的裸 TypeError
@@ -22,6 +22,10 @@ export const parseOxlint = (raw: string): LintReport => {
       d.code !== 'jsx-a11y(role-supports-aria-props)'
     ) {
       continue;
+    }
+    // 信封漂移（缺 message）报可读错误，不让 .match 抛裸 TypeError
+    if (typeof d.message !== 'string') {
+      throw new Error('oxlint diagnostic is missing message');
     }
     const req = d.message.match(REQ);
     const role = req?.[1];
