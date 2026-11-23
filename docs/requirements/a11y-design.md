@@ -775,6 +775,34 @@ Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设�
 - 旧的 `meld a11y probe` 表述只保留在历史审查记录里；现行文档、类型错误文案
   （`rerun meld-ts a11y probe`）和生成文件注释均已更新。
 
+### 12.14 rfi round 1：tokenlist 映射成 string（ND 裁定）
+
+审查 ND 项：aria-query 的 `tokenlist`（`aria-relevant`）此前按 `token` 同路生成
+单 token 并集（`'additions' | 'all' | 'removals' | 'text'`），但 ARIA 的
+tokenlist 合法值是空格分隔的组合（`aria-relevant="additions text"`），单 token
+并集把合法组合挡在类型外。裁定：`aria-gen.ts` 里 `tokenlist` 映射成 `string`
+（`token` 仍生成值并集、仍过滤 `undefined` 成员；`tokenlist` 的样例仍取排序后的
+首成员，满足 `string`）。代价是丢掉 token 层面的拼写检查——这是数据粒度的取舍：
+tokenlist 的组合语义（顺序无关、可多选）在 TS 类型层表达不了完整值域，宁可放开
+到 `string`，也不把合法组合挡在外面。
+
+- 同轮修订（本条外的 1 / 2 项）：空串与空元组同一条空值语义——`label` /
+  `labelledby` 的 `''`、idlist 键的 `''` 运行时按「没传」跳过（与空元组、
+  `undefined` 一致）；类型层 `NoEmpty` 对 label / idlist 键把字面量 `''` 归一成
+  `undefined`，`NameEmptyCheck` 拦名字必填 role 的字面量空名字，`NoEmptyRequired`
+  拦必填 idlist 键的字面量空值（`EmptyTupleScope` / `EmptyTupleKeys` 随之更名
+  `EmptyValueScope` / `EmptyValueKeys`，报错文案同步改「空值」）。非字面量
+  （`string` / `string[]` 变量持空值）认不出，是 NoEmpty 已记录的同一限制。
+
+### 12.15 rfi round 3：空值语义入档（出货记录）
+
+§12.5 / §12.9 分轮记了空值检查的演进（§12.14 把 `''` 并入同一条路径），本条把出货的语义合成一份准绳（定义在 `src/a11y/types.ts` 的 `NoEmpty` / `AllEmptyIds`，运行时在 `createA11y.ts` 的 `isEmptyValue`）：
+
+- **空值集**（label / labelledby 名字键与全部 idlist 键通用）：`''`、`undefined`、空元组 `readonly []`、元素类型恰为 `''` 的数组（`['']`、`['','']`，见 `AllEmptyIds`）。三层一致：输出侧 `NoEmpty` 把字面量空值归一成 `undefined`（输出键消失或变可选）、运行时 `isEmptyValue` 跳过；对必填的键，按「没传」处理就意味着必填承诺落空——`NoEmptyRequired` / `NameEmptyCheck` 在调用点报错，不是另一套语义。
+- **死键不报错**：名字必填的 role，`label` / `labelledby` 一边给了非空名就成立，另一边的空值只是死键（`label: 'x', labelledby: undefined` 合法）；两边都空才报错。
+- **混合非空数组合法**：`['', 'a']` 的元素类型不是恰为 `''`，不在空值集里，照常输出 `join(' ')` = `' a'`。ARIA 的 IDREF 列表按空白切分，`' a'` 与 `'a'` 引用同一组 id，等价，不另作处理。
+- **已知限制（不追）**：纯空白成员的字面量（`[' ']`）类型层表达不出来——`' '` 不是 `''`，匹配不上 `AllEmptyIds`，类型层承诺输出键；运行时 join 后 trim 判空、按「没传」跳过，两边会漂。类型层没有「trim 后为空」的字面量判定可用，不在类型层追空白语义，与非字面量限制（§12.5 已记录）同一路径处置。
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。

@@ -81,6 +81,26 @@ describe('parseBiome', () => {
     });
   });
 
+  test('resolves roles when biome reports windows-style backslash paths', () => {
+    const raw = JSON.stringify({
+      diagnostics: [
+        {
+          category: 'lint/a11y/useAriaPropsSupportedByRole',
+          message:
+            "The ARIA attribute 'aria-valuenow' is not supported by this element.",
+          location: {
+            path: '.meld-a11y-probe\\fixtures\\supported-0.jsx',
+            start: { line: 2 },
+          },
+        },
+      ],
+    });
+    expect(parseBiome(raw, fixtures)).toEqual({
+      missing: [],
+      unsupported: [{ role: 'switch', prop: 'aria-valuenow' }],
+    });
+  });
+
   test('fails when a diagnostic line cannot be resolved to a role', () => {
     const raw = JSON.stringify({
       diagnostics: [

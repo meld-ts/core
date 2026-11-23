@@ -64,8 +64,11 @@ const valueTypeOf = (prop: AriaPropertySource): string => {
       return 'string';
     case 'idlist':
       return 'string | readonly string[]';
-    case 'token':
+    // tokenlist 是空格分隔的组合值（aria-relevant="additions text"）：
+    // 单 token 并集表达不了组合，映射成 string（§12.14）。
     case 'tokenlist':
+      return 'string';
+    case 'token':
       return unionOf(prop.values ?? []);
     default:
       return 'string';

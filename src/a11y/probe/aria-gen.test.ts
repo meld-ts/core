@@ -195,7 +195,7 @@ describe('generateAriaTypes and generateSamples edges', () => {
     expect(samples).toContain("'mystery': 'x'");
   });
 
-  test('tokenlist collapses boolean pairs and sorts members', () => {
+  test('tokenlist maps to string, samples pick the first member', () => {
     const edge = {
       aria: [
         {
@@ -206,8 +206,10 @@ describe('generateAriaTypes and generateSamples edges', () => {
       ],
       roles: [{ name: 'img', abstract: false, requiredProps: {} }],
     };
+    // tokenlist 是空格分隔的组合值（'additions text'），单 token 并集
+    // 表达不了，映射成 string（§12.14）
     expect(generateAriaTypes(edge)).toContain(
-      "'relevant' ? boolean | 'additions' | 'text'",
+      "K extends 'relevant' ? string :",
     );
     expect(generateSamples(edge)).toContain("'relevant': 'additions'");
   });

@@ -64,7 +64,8 @@ const roleAt = (
   linesOf: ReadonlyMap<string, readonly string[]>,
   location: { path: string; start: { line: number } },
 ): string => {
-  const file = location.path.split('/').at(-1)?.slice(0, -4) ?? '';
+  // 两种分隔符都切：Windows 上 biome 报反斜杠路径，POSIX 上报正斜杠
+  const file = location.path.split(/[/\\]/).at(-1)?.slice(0, -4) ?? '';
   const row = linesOf.get(file)?.at(location.start.line - 1);
   const role = row?.match(/role="([^"]+)"/)?.[1];
   // 诊断定位对不上写出的 fixture 说明行号约定漂了，直接失败而不是静默丢数据。

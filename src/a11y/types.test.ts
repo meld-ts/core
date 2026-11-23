@@ -56,6 +56,13 @@ describe('aria.generated', () => {
     const b: Assert<Eq<A11yNameRule['separator'], 'optional'>> = true;
     check(a, b);
   });
+
+  test('tokenlist values map to string', () => {
+    // aria-relevant 是 tokenlist：空格分隔的组合值（'additions text'）
+    // 合法，单 token 并集表达不了，映射成 string（§12.14）
+    const a: Assert<Eq<AriaValue<'relevant'>, string>> = true;
+    check(a);
+  });
 });
 
 describe('builtin lint profiles', () => {
@@ -154,6 +161,8 @@ declare const maybeBool: boolean | undefined;
 declare const idList: string[];
 declare const maybeEmptyIds: readonly [] | readonly ['a'];
 declare const nonEmptyIds: readonly ['a'] | readonly ['a', 'b'];
+declare const nameVar: string;
+declare const maybeEmptyName: '' | 'x';
 declare const rolePair: 'switch' | 'img';
 declare const roleUnion: A11yRole;
 
@@ -305,6 +314,74 @@ describe.skip('a11y() input constraints', () => {
     // 非空元组的 union 不触发
     check(a11yBiome('img', { labelledby: nonEmptyIds }));
   });
+
+  test('name-required roles reject all-empty-member idlist arrays', () => {
+    // @ts-expect-error labelledby: [''] 成员类型恰为 ''：join 出 ''，运行时
+    // 按「没传」跳过，等于没给名字（NoEmpty 同源）
+    check(a11yBiome('img', { labelledby: [''] }));
+    // @ts-expect-error 同一条：['',''] join 出 ' '，trim 后为空
+    check(a11yBiome('img', { labelledby: ['', ''] }));
+    // 混入非空成员：join 出 ' a'，运行时照常输出，不拦
+    check(a11yBiome('img', { labelledby: ['', 'a'] }));
+  });
+
+  test('name-required roles reject the literal empty string', () => {
+    // @ts-expect-error img 名字必填：label 空串运行时按「没传」跳过
+    // （NoEmpty 同源），等于没给名字
+    check(a11yBiome('img', { label: '' }));
+    // @ts-expect-error 同一条承诺的 labelledby 侧：空串同样被跳过
+    check(a11yBiome('img', { labelledby: '' }));
+    // 正例：非空 label 与 string 变量照常编译（变量持 '' 认不出，
+    // 是 NoEmpty 已记录的限制）
+    check(a11yBiome('img', { label: 'x' }));
+    check(a11yBiome('img', { label: nameVar }));
+    // 另一边给了非空名：空的这边只是死键，NoEmpty 丢掉它不算失约
+    check(a11yBiome('img', { label: '', labelledby: 'x' }));
+    check(a11yBiome('img', { label: 'x', labelledby: '' }));
+  });
+
+  test('name-required roles reject undefined as a provided name', () => {
+    // @ts-expect-error label: undefined 是提供了的名字键，但运行时按
+    // 「没传」跳过——undefined 计入 label 的空值集，配上空串 labelledby
+    // 等于没给名字
+    check(a11yBiome('img', { label: undefined, labelledby: '' }));
+    // @ts-expect-error 镜像：label 空串 + labelledby undefined 同样落空
+    check(a11yBiome('img', { label: '', labelledby: undefined }));
+    // @ts-expect-error 只有 label: undefined：名字必填落空
+    check(a11yBiome('img', { label: undefined }));
+    // 正例：另一边给了非空名，undefined 的这边只是死键，NoEmpty 丢掉它
+    // 不算失约
+    check(a11yBiome('img', { label: 'x', labelledby: undefined }));
+  });
+
+  test('required idlist keys reject the literal empty string', () => {
+    // @ts-expect-error 必填的 controls 传空串：运行时按「没传」跳过，
+    // 「输出过选中的表」的承诺落空
+    check(a11yOxlint('combobox', { expanded: true, controls: '', label: 'x' }));
+    check(
+      a11yOxlint('combobox', { expanded: true, controls: 'm', label: 'x' }),
+    );
+  });
+
+  test('required idlist keys reject all-empty-member arrays', () => {
+    check(
+      // @ts-expect-error 必填的 controls 传 ['']：join 出 ''，运行时按
+      // 「没传」跳过，输出就过不了 oxlint 的表（['',''] join 出 ' ' 同理）
+      a11yOxlint('combobox', { expanded: true, controls: [''], label: 'x' }),
+    );
+    check(
+      a11yOxlint('combobox', {
+        expanded: true,
+        controls: ['', 'a'],
+        label: 'x',
+      }),
+    );
+  });
+
+  test('tokenlist values accept space-separated combinations', () => {
+    check(a11yBiome('alert', { relevant: 'additions text' }));
+    check(a11yBiome('alert', { relevant: 'additions' }));
+  });
 });
 
 describe.skip('a11y() role literal constraints', () => {
@@ -405,6 +482,39 @@ describe.skip('a11y() output inference', () => {
     const a: Assert<Eq<Extract<keyof typeof r, 'aria-labelledby'>, never>> =
       true;
     check(a);
+  });
+
+  test('all-empty-member idlist arrays drop the output key', () => {
+    // 成员类型恰为 '' 的数组（['']、['','']）与空元组同一条归一：
+    // join 出 '' / ' '，运行时都按「没传」跳过
+    const r1 = a11yBiome('separator', { labelledby: [''] });
+    const r2 = a11yBiome('separator', { labelledby: ['', ''] });
+    const a: Assert<Eq<Extract<keyof typeof r1, 'aria-labelledby'>, never>> =
+      true;
+    const b: Assert<Eq<Extract<keyof typeof r2, 'aria-labelledby'>, never>> =
+      true;
+    check(a, b);
+  });
+
+  test('empty string name and idlist values drop the output key', () => {
+    // label / idlist 键的字面量空串与空元组同一条归一（NoEmpty）：
+    // 键消失，与运行时的跳过对齐
+    const r1 = a11yBiome('separator', { label: '' });
+    const r2 = a11yBiome('separator', { labelledby: '' });
+    const r3 = a11yBiome('combobox', {
+      expanded: true,
+      controls: '',
+      label: 'x',
+    });
+    const a: Assert<Eq<Extract<keyof typeof r1, 'aria-label'>, never>> = true;
+    const b: Assert<Eq<Extract<keyof typeof r2, 'aria-labelledby'>, never>> =
+      true;
+    const c: Assert<Eq<Extract<keyof typeof r3, 'aria-controls'>, never>> =
+      true;
+    // 含空串的 union：键变可选，值收窄到非空成员
+    const r4 = a11yBiome('separator', { label: maybeEmptyName });
+    const d: Assert<Eq<(typeof r4)['aria-label'], 'x' | undefined>> = true;
+    check(a, b, c, d);
   });
 });
 

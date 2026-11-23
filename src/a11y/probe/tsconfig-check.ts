@@ -9,6 +9,7 @@
  * - exclude 先于显式 files 条目判定——tsc 里显式列进 files 的文件不受
  *   exclude 影响，这里更保守（宁可误告警）。
  */
+import { isAbsolute, relative } from 'node:path';
 
 export interface TsconfigCheckInput {
   readonly cwd: string;
@@ -73,11 +74,23 @@ export const checkTsconfigIncludes = ({
   outPath,
   readJson,
 }: TsconfigCheckInput): TsconfigCheckResult => {
-  // include/exclude 模式相对 tsconfig 所在目录解析；cwd 外的文件对不上模式
-  if (!outPath.startsWith(`${cwd}/`)) {
+  // include/exclude 模式相对 tsconfig 所在目录解析；cwd 外的文件对不上模式。
+  // Windows 上 resolve 产出反斜杠：先归一成 POSIX 分隔符再算相对路径，
+  // `..`、跨盘符的绝对结果与 cwd 本身（目录而非其下文件）都按 cwd 外处理。
+  const rel = relative(
+    cwd.replaceAll('\\', '/'),
+    outPath.replaceAll('\\', '/'),
+  );
+  if (
+    rel === '' ||
+    rel === '..' ||
+    rel.startsWith('../') ||
+    rel.startsWith('..\\') ||
+    isAbsolute(rel)
+  ) {
     return { included: false, reason: 'outside' };
   }
-  const file = outPath.slice(cwd.length + 1);
+  const file = rel.replaceAll('\\', '/');
   // tsconfig.json 是用户文件，只取这三个可选字段作告警依据
   const tsconfig = readJson(`${cwd}/tsconfig.json`) as {
     include?: readonly string[];
