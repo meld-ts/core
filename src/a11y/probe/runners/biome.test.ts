@@ -168,4 +168,21 @@ describe('runBiome', () => {
       { role: 'switch', prop: 'aria-valuenow' },
     ]);
   });
+
+  test('fails with lint stderr when the command is rejected with empty stdout', () => {
+    const exec: ExecFn = () => ({
+      code: 1,
+      stdout: '',
+      stderr: 'checkConfiguration.noConfigurationFiles',
+    });
+    expect(() =>
+      runBiome(fixtures, {
+        bin: ['biome-bin'],
+        cwd: '/p',
+        workDir: '/p/.meld-a11y-probe',
+        writeFile: () => {},
+        exec,
+      }),
+    ).toThrow('biome lint exited 1: checkConfiguration.noConfigurationFiles');
+  });
 });

@@ -30,7 +30,7 @@ jobs:
       - name: Check no handwritten a11y attributes
         run: |
           set +e
-          rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
+          rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})' \
             --glob '*.{tsx,jsx}' \
             --glob '!src/a11y/**' \
             --glob '!src/a11y.ts'

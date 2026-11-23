@@ -110,5 +110,10 @@ export const runBiome = (
     ],
     { cwd },
   );
+  // stdout 为空且非零退出 = 命令本身被拒（配置被拒 / lint 崩溃）：
+  // 交给 JSON.parse 只会得到没法排查的 EOF。
+  if (r.code !== 0 && r.stdout.trim() === '') {
+    throw new Error(`biome lint exited ${r.code}: ${r.stderr || r.stdout}`);
+  }
   return parseBiome(r.stdout, fixtures);
 };

@@ -26,7 +26,7 @@ JSX 里的 a11y 属性（`role`、`aria-*`、`tabIndex`）不允许手写，只�
 PR 检查在 Test 前跑一次 grep（`.github/workflows/pr-check.yml`），排除接入文件 `src/a11y.ts` 和库自身的 `src/a11y/`：
 
 ```
-rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
+rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})' \
   --glob '*.{tsx,jsx}' \
   --glob '!src/a11y/**' \
   --glob '!src/a11y.ts'
@@ -34,6 +34,6 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
 
 rg 自身出错（正则坏、缺 PCRE2、命令不在）不放行——exit 2 时用 `git ls-files` 清点仓库的 tsx/jsx，滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后还有文件就失败（`rg failed with exit 2`）；全部在排除路径里、或根本没有 tsx/jsx 才放行（`only excluded tsx/jsx files`）。
 
-它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；也会误报普通代码里的 `role = ...` 赋值，按需加排除。抓不全的变形（比如先拼对象再 spread）靠上面的规则兜。
+它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；`tabIndex` 一并抓（`tabIndex={0}`、`tabIndex={var}`，只覆盖 JSX 花括号写法），唯一例外是手写的字面 `tabIndex={-1}`（§8 规则 4 的脚本聚焦例外）。也会误报普通代码里的 `role = ...` 赋值，按需加排除。抓不全的变形（比如先拼对象再 spread）靠上面的规则兜。
 
 例外：`.cache/a11y-lab` 的一致性测试 fixture 故意写字面属性——fixture 要喂给 lint，而 lint 看不到 spread（设计见 `docs/requirements/a11y-design.md` §7）。fixture 在 `.cache`（gitignore）里，不进这个检查。

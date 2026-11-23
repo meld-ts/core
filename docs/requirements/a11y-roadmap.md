@@ -101,7 +101,7 @@ grep -A4 '"./a11y"' package.json
 - 四种模式（用户/维护者 × 生成/测试）按设计 §6 工作
 - `bun run test:a11y-lint` 在 lab 里可重复运行
 - 发版前检查包含构建产物重载测试（见下文「发版前检查（a11y）」）
-- 决定 `bun run lint` 是否扩到 `./src` 之外：**已扩到 `./test`**——`lint` 脚本改为 `biome lint --error-on-warnings ./src ./test`，`test/a11y` 的编译 fixture 进 CI 的 lint；`scripts/` 维持不扩
+- 决定 `bun run lint` 是否扩到 `./src` 之外：**已扩到 `./src ./test ./scripts` + `bunup.*.ts`**——`lint` / `fmt` 脚本均为 `biome ... ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts`，`test/a11y` 的编译 fixture 进 CI 的 lint
 
 **遗留**：
 
