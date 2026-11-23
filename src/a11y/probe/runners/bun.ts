@@ -18,7 +18,7 @@ export const parseBun = (raw: string): LintReport => {
   const missing: Array<{ role: string; props: string[] }> = [];
   const unsupported: Array<{ role: string; prop: string }> = [];
   const parsed: unknown = JSON.parse(raw);
-  const entries: Array<{ code: string | null; message: string }> =
+  const entries: Array<{ code: string | null; message: string }> | undefined =
     Array.isArray(parsed)
       ? (
           parsed as Array<{
@@ -39,11 +39,16 @@ export const parseBun = (raw: string): LintReport => {
                 : m.ruleId.replace(/^jsx-a11y\/(.+)$/, 'jsx-a11y($1)'),
             message: m.message,
           }))
-      : (
+      : // 对象信封（oxlint 模式）的 diagnostics 缺失或非数组说明信封漂了，
+        // 报可读错误，不让 for...of 抛 `not iterable` 的裸 TypeError
+        (
           parsed as {
-            diagnostics: Array<{ code: string | null; message: string }>;
-          }
-        ).diagnostics;
+            diagnostics?: Array<{ code: string | null; message: string }>;
+          } | null
+        )?.diagnostics;
+  if (!Array.isArray(entries)) {
+    throw new Error('bun lint output is missing diagnostics');
+  }
   for (const d of entries) {
     if (
       d.code !== 'jsx-a11y(role-has-required-aria-props)' &&

@@ -32,7 +32,7 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
   --glob '!src/a11y.ts'
 ```
 
-rg 自身出错（正则坏、缺 PCRE2、命令不在）不放行——只有仓库里确实没有 tsx/jsx 时，「没有可搜的文件」才算通过。
+rg 自身出错（正则坏、缺 PCRE2、命令不在）不放行——exit 2 时用 `git ls-files` 清点仓库的 tsx/jsx，滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后还有文件就失败（`rg failed with exit 2`）；全部在排除路径里、或根本没有 tsx/jsx 才放行（`only excluded tsx/jsx files`）。
 
 它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；也会误报普通代码里的 `role = ...` 赋值，按需加排除。抓不全的变形（比如先拼对象再 spread）靠上面的规则兜。
 

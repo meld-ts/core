@@ -486,7 +486,7 @@ core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注
 4. **构建产物的重载测试**：`bun run build:dist` 之后，在临时项目里通过包名引用构建产物，写一个带 `export {};` 的重载文件，跑 `tsc`，断言重载生效；再去掉 `export {};` 跑一次，断言失败。防止打包方式变了以后重载悄悄失效。
 5. **运行时单测**：output 转换、id 数组拼接、undefined 跳过、focusable → tabIndex；探针的解析器、fixture 生成、序列化、重载模板（断言第一行是 `export {};`）用录好的 lint 输出做单测。`exec.ts` 可注入，runner 和 detect 的子进程、读文件部分用桩替换。保持仓库的 100% 覆盖率。
 
-第 2、3、4 层不进 `bun test src/`：第 2、3 层在 lab 里跑（`bun run test:a11y-lint`），跑之前按 `lints/*.ts` 头部记的版本重建 lab，保证测的就是提交进仓库的那几个版本；第 4 层依赖构建，放在发版前的检查里。
+第 2、3、4 层不进 `bun test src/`：第 2、3 层在 lab 里跑（`bun run test:a11y-lint`），跑之前按 `PROFILES.<lint>.version` 重建 lab（快照与 `lints/*.ts` 表头由同一次 sync 写出），保证测的就是提交进仓库的那几个版本；第 4 层依赖构建，放在发版前的检查里。
 
 漂移检查：定时跑一次 `a11y:sync`，`git diff src/a11y/lints/` 有变化就说明 lint 出了新版、规则变了，提示更新。
 
@@ -735,15 +735,19 @@ Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设�
   的模式匹配不上（误报未包含）；`?` 按字面量不通配；exclude 先于显式 files 条目判定
   （tsc 里显式列进 files 的文件不受 exclude 影响，这里更保守，宁可误告警）。
 - **第 2/3/4 层测试的运行方式**：第 2/3 层（一致性 + 反向）跑 `bun run
-  test:a11y-lint`，lab 按 `lints/*.ts` 头部记的版本精确重建，`--keep` 保留现场；第
+  test:a11y-lint`，lab 按 `PROFILES.<lint>.version` 精确重建（与 `lints/*.ts` 表头由同
+  一次 sync 写出），`--keep` 保留现场；第
   4 层（构建产物重载）跑 `bun run test:a11y-build`，在系统临时目录建最小项目、
   node_modules 用符号链接指向仓库根（不走 bun add，无网络副作用），tsc 按包名解析
   dist 产物，断言重载在场编译过、去掉首行 `export {};` 编译失败。两个脚本都慢，不进
   CI，进发版前检查（roadmap）。
 - **AGENTS / CI**：规则原文进仓库根 `AGENTS.md`（§8）；PR 检查在 Test 前跑一次
   grep（`pr-check.yml`），按 rg 退出码分流，空仓库（没有 tsx/jsx）通过、rg 自身出错
-  失败（§8）。`bun run lint` 同步扩为 `biome lint --error-on-warnings ./src ./test`，
-  `test/a11y` 的编译 fixture 进 CI 的 lint；`scripts/` 维持不扩。
+  时滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有 tsx/jsx 才失败（§8）。`bun run
+  lint` 覆盖 `./src ./test ./scripts` 与 `bunup.*.ts`（`biome
+  lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts
+  ./bunup.browser.ts ./bunup.bin.ts`），`test/a11y` 的编译 fixture 与维护脚本一起进
+  CI 的 lint。
 - **bun 1.4.4 的两种 lint 模式**：项目带 oxlint 标记（依赖或 `.oxlintrc.json`）时
   `bun lint` 走内嵌 oxlint 的插件体系，要 `--jsx-a11y-plugin` 先开插件；无标记时走
   bun 自己的默认规则集，jsx_a11y 插件默认开，传该标志直接报错。JSON 信封也不同

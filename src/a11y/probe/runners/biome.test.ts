@@ -117,6 +117,18 @@ describe('parseBiome', () => {
       'biome lint/a11y/useAriaPropsForRole: unrecognized message: The element with the checkbox ARIA role is missing props.',
     );
   });
+
+  test('fails readably when the envelope misses diagnostics', () => {
+    expect(() => parseBiome('{"summary":{"errors":0}}', fixtures)).toThrow(
+      'biome lint output is missing diagnostics',
+    );
+  });
+
+  test('fails readably when the envelope carries non-array diagnostics', () => {
+    expect(() => parseBiome('{"diagnostics":{"code":"x"}}', fixtures)).toThrow(
+      'biome lint output is missing diagnostics',
+    );
+  });
 });
 
 describe('runBiome', () => {

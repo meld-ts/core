@@ -97,7 +97,9 @@ export const createLab = ({
     const pkgs = LINT_PKGS[lint.name];
     deps.push(...pkgs.alsoInstall);
     deps.push(
-      lint.version === undefined ? pkgs.identity : `${pkgs.identity}@${lint.version}`,
+      lint.version === undefined
+        ? pkgs.identity
+        : `${pkgs.identity}@${lint.version}`,
     );
   }
   if (deps.length > 0) {

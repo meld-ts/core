@@ -20,12 +20,17 @@ export const parseBiome = (
   const missing: Array<{ role: string; props: string[] }> = [];
   const unsupported: Array<{ role: string; prop: string }> = [];
   const out = JSON.parse(raw) as {
-    diagnostics: Array<{
+    diagnostics?: Array<{
       category: string | null;
       message: string;
       location: { path: string; start: { line: number } };
     }>;
-  };
+  } | null;
+  // 信封漂移（缺 diagnostics / 非数组）报可读错误，
+  // 不让 for...of 抛 `not iterable` 的裸 TypeError
+  if (!Array.isArray(out?.diagnostics)) {
+    throw new Error('biome lint output is missing diagnostics');
+  }
   const linesOf = new Map(
     fixtures.map((f) => [f.name, f.code.split('\n')] as const),
   );

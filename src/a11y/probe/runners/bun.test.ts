@@ -118,6 +118,18 @@ describe('parseBun', () => {
       'bun lint output is missing messages',
     );
   });
+
+  test('fails readably when the oxlint envelope misses diagnostics', () => {
+    expect(() => parseBun('{"summary":{"errors":0}}')).toThrow(
+      'bun lint output is missing diagnostics',
+    );
+  });
+
+  test('fails readably when the oxlint envelope carries non-array diagnostics', () => {
+    expect(() => parseBun('{"diagnostics":{"code":"x"}}')).toThrow(
+      'bun lint output is missing diagnostics',
+    );
+  });
 });
 
 const FIXTURE = [

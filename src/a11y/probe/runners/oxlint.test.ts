@@ -63,6 +63,18 @@ describe('parseOxlint', () => {
     });
   });
 
+  test('fails readably when the envelope misses diagnostics', () => {
+    expect(() => parseOxlint('{"summary":{}}')).toThrow(
+      'oxlint lint output is missing diagnostics',
+    );
+  });
+
+  test('fails readably when the envelope carries non-array diagnostics', () => {
+    expect(() => parseOxlint('{"diagnostics":{"code":"x"}}')).toThrow(
+      'oxlint lint output is missing diagnostics',
+    );
+  });
+
   test('fails when a required message carries no aria props', () => {
     const raw = JSON.stringify({
       diagnostics: [

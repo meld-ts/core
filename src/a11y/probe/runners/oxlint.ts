@@ -9,8 +9,13 @@ export const parseOxlint = (raw: string): LintReport => {
   const missing: Array<{ role: string; props: string[] }> = [];
   const unsupported: Array<{ role: string; prop: string }> = [];
   const out = JSON.parse(raw) as {
-    diagnostics: Array<{ code: string | null; message: string }>;
-  };
+    diagnostics?: Array<{ code: string | null; message: string }>;
+  } | null;
+  // 信封漂移（缺 diagnostics / 非数组）报可读错误，
+  // 不让 for...of 抛 `not iterable` 的裸 TypeError
+  if (!Array.isArray(out?.diagnostics)) {
+    throw new Error('oxlint lint output is missing diagnostics');
+  }
   for (const d of out.diagnostics) {
     if (
       d.code !== 'jsx-a11y(role-has-required-aria-props)' &&

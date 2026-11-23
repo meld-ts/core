@@ -120,8 +120,8 @@
   "license": "MIT",
   "scripts": {
     "prepare": "lefthook install",
-    "fmt": "biome format --write ./src ./test",
-    "lint": "biome lint --error-on-warnings ./src ./test",
+    "fmt": "biome format --write ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
+    "lint": "biome lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ --coverage",
     "a11y:sync": "bun scripts/a11y-sync.ts",
