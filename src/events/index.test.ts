@@ -125,7 +125,7 @@ describe('createEmitter', () => {
       emitter.on('boom', () => {
         throw new Error('e2');
       });
-      expect(() => emitter.emit('boom', undefined)).not.toThrow(Error);
+      await emitter.emit('boom', undefined);
       expect(errors.length).toBe(2);
       // expect(emitter.emit('boom', undefined)).rejects.toThrow(Error);
     });

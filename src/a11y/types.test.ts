@@ -1,0 +1,215 @@
+import { describe, test } from 'bun:test';
+
+import type {
+  A11yNameRule,
+  A11yRole,
+  AriaKey,
+  AriaValue,
+} from './aria.generated';
+import type {
+  A11yBuiltinLints,
+  BiomeA11yProfile,
+  OxlintA11yProfile,
+} from './lints';
+import type { A11yOf, A11yProfile, ResolveProfile } from './types';
+
+/** 类型相等断言：Eq<A, B> 为 true 当且仅当 A、B 互相可赋值 */
+type Eq<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
+/** 断言辅助：T 不为 true 时此处即编译错误 */
+type Assert<T extends true> = T;
+/** 消费类型断言行产生的值，避开 biome noUnusedExpressions */
+const check = (..._args: unknown[]): void => {};
+
+describe('aria.generated', () => {
+  test('AriaValue distributes by key', () => {
+    const a: Assert<Eq<AriaValue<'checked'>, boolean | 'mixed'>> = true;
+    const b: Assert<Eq<AriaValue<'expanded'>, boolean>> = true;
+    const c: Assert<Eq<AriaValue<'valueNow'>, number>> = true;
+    const d: Assert<Eq<AriaValue<'controls'>, string | readonly string[]>> =
+      true;
+    const e: Assert<Eq<AriaValue<'details'>, string>> = true;
+    check(a, b, c, d, e);
+  });
+
+  test('name rule marks img as required', () => {
+    const a: Assert<Eq<A11yNameRule['img'], 'required'>> = true;
+    const b: Assert<Eq<A11yNameRule['separator'], 'optional'>> = true;
+    check(a, b);
+  });
+});
+
+describe('builtin lint profiles', () => {
+  test('registry exposes biome and oxlint keys', () => {
+    const a: Assert<Eq<keyof A11yBuiltinLints, 'biome' | 'oxlint'>> = true;
+    check(a);
+  });
+
+  test('profiles satisfy A11yProfile and keep precise data', () => {
+    const a: Assert<BiomeA11yProfile extends A11yProfile ? true : false> = true;
+    const b: Assert<OxlintA11yProfile extends A11yProfile ? true : false> =
+      true;
+    const c: Assert<
+      Eq<BiomeA11yProfile['roles']['switch']['required'], 'checked'>
+    > = true;
+    const d: Assert<
+      Eq<
+        OxlintA11yProfile['roles']['combobox']['required'],
+        'expanded' | 'controls'
+      >
+    > = true;
+    check(a, b, c, d);
+  });
+
+  test('shrunk role set is the four documented roles', () => {
+    const a: Assert<Eq<A11yRole, 'switch' | 'img' | 'separator' | 'combobox'>> =
+      true;
+    const b: Assert<
+      Eq<
+        AriaKey,
+        | 'checked'
+        | 'expanded'
+        | 'controls'
+        | 'label'
+        | 'labelledBy'
+        | 'valueNow'
+        | 'selected'
+        | 'details'
+        | 'hidden'
+      >
+    > = true;
+    check(a, b);
+  });
+});
+
+// ---- 类型机器 ----
+// 以下断言全部在编译期生效（ts-check 为准）；declare 的值运行时
+// 不存在，describe.skip 让 bun test 只登记不执行，避免 ReferenceError。
+declare const a11yBiome: A11yOf<{ lint: 'biome' }>;
+declare const a11yBoth: A11yOf<{
+  lint: readonly ['biome', 'oxlint'];
+  output: 'html';
+}>;
+declare const maybeFocus: true | undefined;
+declare const onBool: boolean;
+declare const maybeBool: boolean | undefined;
+
+describe.skip('a11y() input constraints', () => {
+  test('missing required prop', () => {
+    // @ts-expect-error 缺 checked（biome 表 switch.required）
+    check(a11yBiome('switch', { label: 'x' }));
+  });
+
+  test('unsupported prop', () => {
+    // @ts-expect-error img 不支持 checked
+    check(a11yBiome('img', { checked: true, label: 'x' }));
+  });
+
+  test('misspelled key', () => {
+    // @ts-expect-error 拼错的 lable 不在允许键里（Exact 拦截）
+    check(a11yBiome('img', { lable: 'x', label: 'y' }));
+  });
+
+  test('missing accessible name', () => {
+    // @ts-expect-error img 必须给 label / labelledBy
+    check(a11yBiome('img', {}));
+  });
+
+  test('focusable requires extra props', () => {
+    // @ts-expect-error 可聚焦 separator 缺 valueNow
+    check(a11yBiome('separator', { focusable: true }));
+  });
+
+  test('focusable as true | undefined still requires extra props', () => {
+    // @ts-expect-error focusable 变量类型含 true，也要 valueNow
+    check(a11yBiome('separator', { focusable: maybeFocus }));
+    check(a11yBiome('separator', { focusable: maybeFocus, valueNow: 1 }));
+  });
+
+  test('required props reject undefined', () => {
+    // @ts-expect-error 必填 checked 不接受 boolean | undefined
+    check(a11yBiome('switch', { checked: maybeBool, label: 'x' }));
+    check(a11yBiome('switch', { checked: onBool, label: 'x' }));
+  });
+
+  test('single-id props reject arrays', () => {
+    // @ts-expect-error details 只接受单个 id
+    check(a11yBiome('img', { label: 'x', details: ['a', 'b'] }));
+  });
+});
+
+describe.skip('a11y() output inference', () => {
+  test('react output keeps literal values and exact keys', () => {
+    const r1 = a11yBiome('switch', { checked: true, label: 'Wi-Fi' });
+    const a: Assert<Eq<(typeof r1)['aria-checked'], true>> = true;
+    const b: Assert<Eq<(typeof r1)['aria-label'], 'Wi-Fi'>> = true;
+    const c: Assert<Eq<(typeof r1)['role'], 'switch'>> = true;
+    const d: Assert<
+      Eq<Exclude<keyof typeof r1, 'role'>, 'aria-checked' | 'aria-label'>
+    > = true;
+    check(a, b, c, d);
+  });
+
+  test('img with details compiles and keeps exact keys', () => {
+    const r2 = a11yBiome('img', { label: 'x', details: 'd' });
+    const a: Assert<
+      Eq<Exclude<keyof typeof r2, 'role'>, 'aria-label' | 'aria-details'>
+    > = true;
+    check(a);
+  });
+
+  test('aria() has no role and infers optional keys', () => {
+    const r4 = a11yBiome.aria({ expanded: maybeBool, controls: ['a', 'b'] });
+    const a: Assert<Eq<(typeof r4)['aria-controls'], string>> = true;
+    const b: Assert<Eq<keyof typeof r4, 'aria-expanded' | 'aria-controls'>> =
+      true;
+    const c: Assert<Eq<(typeof r4)['aria-expanded'], boolean | undefined>> =
+      true;
+    check(a, b, c);
+  });
+
+  test('focusable true | undefined makes tabIndex optional', () => {
+    const r5 = a11yBiome('separator', {
+      focusable: maybeFocus,
+      valueNow: 2,
+    });
+    const a: Assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>> = true;
+    check(a);
+  });
+});
+
+describe.skip('multi-lint merge', () => {
+  test('merged output follows html mode', () => {
+    const r3 = a11yBoth('switch', { checked: true, label: 'x' });
+    const a: Assert<Eq<(typeof r3)['aria-checked'], 'true'>> = true;
+    check(a);
+  });
+
+  test('oxlint-required controls enforced after merge', () => {
+    // @ts-expect-error 合并后 combobox 仍要 oxlint 的 controls
+    check(a11yBoth('combobox', { expanded: true, label: 'x' }));
+    check(
+      a11yBoth('combobox', {
+        expanded: true,
+        controls: 'm',
+        label: 'x',
+      }),
+    );
+  });
+
+  test('biome focusable separator requirement survives merge', () => {
+    // @ts-expect-error 合并后可聚焦 separator 要 biome 的 valueNow
+    check(a11yBoth('separator', { focusable: true }));
+  });
+
+  test('merged meta reports union lint and merged source', () => {
+    type Merged = ResolveProfile<readonly ['biome', 'oxlint']>;
+    const a: Assert<Eq<Merged['meta']['lint'], 'biome' | 'oxlint'>> = true;
+    const b: Assert<Eq<Merged['meta']['source'], 'merged'>> = true;
+    const c: Assert<Eq<ResolveProfile<'biome'>['meta']['lint'], 'biome'>> =
+      true;
+    check(a, b, c);
+  });
+});

@@ -1,0 +1,71 @@
+import type { AriaIdListKey } from './aria.generated';
+import type { A11yOf, A11yOptions, OverrideKeyCheck } from './types';
+
+/**
+ * idlist 属性的运行时最小表：只有这些键的数组值用空格拼接。
+ * 其余逻辑全部由类型层保证。
+ */
+const IDLIST_KEYS = ['controls', 'labelledBy'] as const;
+const IDLIST_SET: ReadonlySet<string> = new Set(IDLIST_KEYS);
+
+type Eq<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
+type Assert<T extends true> = T;
+/**
+ * 生成数据更新而此处忘记同步时，编译期报错。
+ * 导出只为让 noUnusedLocals 认可这条声明，不进公共 API
+ * （index.ts 不再导出它）。
+ */
+export type IdListInSync = Assert<
+  Eq<(typeof IDLIST_KEYS)[number], AriaIdListKey>
+>;
+
+/** 实现内部用的宽松签名，对外不可见 */
+interface A11yCallable {
+  (role: string, props: Record<string, unknown>): Record<string, unknown>;
+  aria(props: Record<string, unknown>): Record<string, unknown>;
+}
+
+export function createA11y<const Opt extends A11yOptions>(
+  options: Opt & OverrideKeyCheck,
+): A11yOf<Opt>;
+export function createA11y(options: A11yOptions): unknown {
+  const html: boolean = options.output === 'html';
+
+  const convert = (key: string, value: unknown): unknown => {
+    if (IDLIST_SET.has(key) && Array.isArray(value)) {
+      return value.join(' ');
+    }
+    if (html && (typeof value === 'boolean' || typeof value === 'number')) {
+      return String(value);
+    }
+    return value;
+  };
+
+  const toAttrs = (props: Record<string, unknown>): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(props)) {
+      if (key === 'focusable') continue;
+      const value = props[key];
+      if (value === undefined) continue;
+      out[`aria-${key.toLowerCase()}`] = convert(key, value);
+    }
+    return out;
+  };
+
+  // 运行时实现只能用宽松签名；对外类型由公开重载 createA11y 保证
+  const a11y: A11yCallable = Object.assign(
+    (role: string, props: Record<string, unknown>): Record<string, unknown> => {
+      const attrs = toAttrs(props);
+      if (props.focusable === true) {
+        attrs[html ? 'tabindex' : 'tabIndex'] = html ? '0' : 0;
+      }
+      return { role, ...attrs };
+    },
+    { aria: toAttrs },
+  );
+
+  return a11y;
+}

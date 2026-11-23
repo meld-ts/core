@@ -22,6 +22,7 @@ src/
   events/           # EventsEmitter（Promise.all 并发）/ linkEvents / createDelegator
   async/            # StatefulRpc / pending / retry / timeout / sleep
   browser/          # Browser 全量入口（iife.ts 全局变量 MeldTS + index.ts ESM）
+  a11y/             # a11y 属性构造器：按 lint 规则表做类型约束（createA11y）
 docs/
   reviews/          # 代码审查记录，命名格式：YYYYMMDD-描述.md
 ```
@@ -31,7 +32,7 @@ docs/
 ```bash
 bun run fmt            # Biome 格式化（src/）
 bun run lint           # Biome lint，warning 视为错误
-bun run ts-check       # tsgo --noEmit，TS 6.x 原生类型检查
+bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率
 bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
 bun run build:browser  # bunup，产物到 browser/（esm + iife）
@@ -107,6 +108,7 @@ interface MyClass extends MyTrait {}
 - `.` — 主入口（types + guards + base）
 - `./timer` `./singleton` `./path`
 - `./traits` `./events` `./async`
+- `./a11y`
 - `./package.json`
 
 `browser/` 目录不在 `exports` 中——它只应被网页 `<script>` 直接引用，不应被打包工具作为模块导入。

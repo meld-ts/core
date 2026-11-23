@@ -21,16 +21,6 @@
         "default": "./dist/index.cjs"
       }
     },
-    "./singleton": {
-      "require": {
-        "types": "./dist/singleton.d.cts",
-        "default": "./dist/singleton.cjs"
-      },
-      "import": {
-        "types": "./dist/singleton.d.ts",
-        "default": "./dist/singleton.js"
-      }
-    },
     "./timer": {
       "import": {
         "types": "./dist/timer.d.ts",
@@ -41,24 +31,44 @@
         "default": "./dist/timer.cjs"
       }
     },
-    "./path": {
-      "require": {
-        "types": "./dist/path.d.cts",
-        "default": "./dist/path.cjs"
+    "./singleton": {
+      "import": {
+        "types": "./dist/singleton.d.ts",
+        "default": "./dist/singleton.js"
       },
+      "require": {
+        "types": "./dist/singleton.d.cts",
+        "default": "./dist/singleton.cjs"
+      }
+    },
+    "./path": {
       "import": {
         "types": "./dist/path.d.ts",
         "default": "./dist/path.js"
+      },
+      "require": {
+        "types": "./dist/path.d.cts",
+        "default": "./dist/path.cjs"
       }
     },
     "./traits": {
-      "require": {
-        "types": "./dist/traits/index.d.cts",
-        "default": "./dist/traits/index.cjs"
-      },
       "import": {
         "types": "./dist/traits/index.d.ts",
         "default": "./dist/traits/index.js"
+      },
+      "require": {
+        "types": "./dist/traits/index.d.cts",
+        "default": "./dist/traits/index.cjs"
+      }
+    },
+    "./events": {
+      "import": {
+        "types": "./dist/events/index.d.ts",
+        "default": "./dist/events/index.js"
+      },
+      "require": {
+        "types": "./dist/events/index.d.cts",
+        "default": "./dist/events/index.cjs"
       }
     },
     "./async": {
@@ -71,14 +81,14 @@
         "default": "./dist/async/index.js"
       }
     },
-    "./events": {
-      "import": {
-        "types": "./dist/events/index.d.ts",
-        "default": "./dist/events/index.js"
-      },
+    "./a11y": {
       "require": {
-        "types": "./dist/events/index.d.cts",
-        "default": "./dist/events/index.cjs"
+        "types": "./dist/a11y/index.d.cts",
+        "default": "./dist/a11y/index.cjs"
+      },
+      "import": {
+        "types": "./dist/a11y/index.d.ts",
+        "default": "./dist/a11y/index.js"
       }
     },
     "./package.json": "./package.json"

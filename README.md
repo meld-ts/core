@@ -44,6 +44,7 @@ import { createPathUtils } from '@meld-ts/core/path';
 import { implTraits, configurable } from '@meld-ts/core/traits';
 import { createTimer } from '@meld-ts/core/timer';
 import { singleton } from '@meld-ts/core/singleton';
+import { createA11y } from '@meld-ts/core/a11y';
 ```
 
 ### 主入口
@@ -65,6 +66,7 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 | `@meld-ts/core/traits` | Mixin 系统（implTraits / configurable / debuggable） |
 | `@meld-ts/core/events` | 事件发射器（Promise.all 并发 / 委托者 / 链式注册） |
 | `@meld-ts/core/async` | 异步工具（StatefulRpc / pending / retry / timeout / sleep） |
+| `@meld-ts/core/a11y` | 按 lint 规则表约束 aria 属性的构造器（createA11y，含类型与运行时） |
 
 ## 浏览器使用
 
