@@ -22,7 +22,7 @@ export const parseBun = (raw: string): LintReport => {
     Array.isArray(parsed)
       ? (
           parsed as Array<{
-            messages?: Array<{ ruleId: string | null; message: string }>;
+            messages?: Array<{ ruleId?: string | null; message: string }>;
           }>
         )
           .flatMap((f) => {
@@ -33,10 +33,8 @@ export const parseBun = (raw: string): LintReport => {
             return f.messages;
           })
           .map((m) => ({
-            code:
-              m.ruleId === null
-                ? null
-                : m.ruleId.replace(/^jsx-a11y\/(.+)$/, 'jsx-a11y($1)'),
+            // ruleId 可能整个缺失（致命解析错误一类），按无规则诊断归为 null
+            code: m.ruleId?.replace(/^jsx-a11y\/(.+)$/, 'jsx-a11y($1)') ?? null,
             message: m.message,
           }))
       : // 对象信封（oxlint 模式）的 diagnostics 缺失或非数组说明信封漂了，

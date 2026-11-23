@@ -32,8 +32,8 @@ docs/
 ## 常用命令
 
 ```bash
-bun run fmt            # Biome 格式化（src + test）
-bun run lint           # Biome lint，warning 视为错误（src + test）
+bun run fmt            # Biome 格式化（src + test + scripts + bunup.*.ts）
+bun run lint           # Biome lint，warning 视为错误（src + test + scripts + bunup.*.ts）
 bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率
 bun run a11y:sync      # 维护者：重建 lab，从最新 lint 探测重新生成 a11y 内置表（慢，约 2–4 分钟）

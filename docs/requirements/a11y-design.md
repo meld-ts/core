@@ -509,7 +509,7 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' \
   --glob '!src/a11y.ts'
 ```
 
-它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法。脚本按 rg 的退出码分流：0（有命中）失败、1（无命中）通过；rg 自身出错（正则坏、缺 PCRE2、命令不在）不放行——只有仓库里确实没有 tsx/jsx 文件时，「没有可搜的文件」才算通过。`.cache/a11y-lab` 的一致性 fixture 故意写字面属性，但它在 gitignore 里，不进这个检查。抓不全的变形（比如先拼对象再 spread）靠 AGENTS 规则兜。
+它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法。脚本按 rg 的退出码分流：0（有命中）失败、1（无命中）通过；rg 自身出错（正则坏、缺 PCRE2、命令不在，exit 2）不放行——用 `git ls-files` 清点仓库的 tsx/jsx，滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有文件才失败；全部在排除路径里、或根本没有 tsx/jsx 则放行。`.cache/a11y-lab` 的一致性 fixture 故意写字面属性，但它在 gitignore 里，不进这个检查。抓不全的变形（比如先拼对象再 spread）靠 AGENTS 规则兜。
 
 ## 9. 和 core 的配合
 

@@ -78,6 +78,14 @@ describe('parseBun', () => {
     expect(parseBun(DEFAULTS_RAW)).toEqual(DEFAULTS_REPORT);
   });
 
+  test('drops a defaults-mode message that carries no ruleId', () => {
+    // ruleId 可能整个缺失（致命解析错误一类），不崩、被白名单滤掉
+    expect(parseBun('[{"messages":[{}]}]')).toEqual({
+      missing: [],
+      unsupported: [],
+    });
+  });
+
   test('returns an empty report when nothing fired', () => {
     expect(parseBun('{"diagnostics":[]}')).toEqual({
       missing: [],
