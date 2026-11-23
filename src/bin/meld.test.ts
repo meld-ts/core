@@ -279,7 +279,7 @@ describe('main', () => {
       console.log = original;
     }
     expect(logs).toHaveLength(3);
-    expect(logs[0]).toContain('Usage:');
+    expect(logs.every((log) => log.includes('Usage:'))).toBe(true);
   });
 
   test('invalid probe args print message and usage, return 1', async () => {
