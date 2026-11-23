@@ -87,6 +87,24 @@ describe('createA11y runtime', () => {
     expect(react.aria({ label: '', controls: '' })).toEqual({});
   });
 
+  test('undefined name value and all-empty idlist arrays emit no key', () => {
+    // img 名字必填，空值名字键（含 undefined）被 NameEmptyCheck 拦在
+    // 类型层；这里用名字可选的 separator 验证同一条运行时跳过路径
+    expect(react('separator', { label: 'x', labelledby: undefined })).toEqual({
+      role: 'separator',
+      'aria-label': 'x',
+    });
+    // [''] join 出 ''、['',''] join 出 ' '，trim 后为空：按没传跳过
+    expect(react('separator', { label: 'x', labelledby: [''] })).toEqual({
+      role: 'separator',
+      'aria-label': 'x',
+    });
+    expect(react('separator', { label: 'x', labelledby: ['', ''] })).toEqual({
+      role: 'separator',
+      'aria-label': 'x',
+    });
+  });
+
   test('undefined optional value emits no key', () => {
     expect(react('img', { label: 'x', details: undefined })).toEqual({
       role: 'img',

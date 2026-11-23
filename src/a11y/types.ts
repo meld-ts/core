@@ -298,6 +298,14 @@ type EmptyValueScope<P extends A11yProfile, R extends A11yRole, I> =
       : never);
 
 /**
+ * 全空 idlist 数组的判定模式：元素类型恰为 '' 的只读字符串数组才可赋给
+ * `readonly ''[]`——空元组（vacuously）、['']、['',''] 都匹配，join 出的
+ * 值 trim 后为空，运行时按「没传」跳过；混入非空成员的 ['', 'a'] 和
+ * `string[]` 变量不匹配（非字面量认不出，NoEmpty 已记录的限制）。
+ */
+type AllEmptyIds = readonly ''[];
+
+/**
  * 键集合里实际触发空值拦截的键名。键不在 I 里（没传）不触发：缺失键
  * 由 A11yInput / FocusRequirement 报错，这里不叠加。只查运行时真会跳过
  * 空值的键（label / idlist，见 NoEmpty）：其余键的 '' 原样输出，
@@ -306,7 +314,7 @@ type EmptyValueScope<P extends A11yProfile, R extends A11yRole, I> =
 type EmptyValueKeys<Keys extends PropertyKey, I> = {
   [K in Keys]: [K] extends [keyof I]
     ? [K] extends ['label' | AriaIdListKey]
-      ? Extract<I[K], readonly [] | ''> extends never
+      ? Extract<I[K], AllEmptyIds | ''> extends never
         ? never
         : K
       : never
@@ -314,8 +322,9 @@ type EmptyValueKeys<Keys extends PropertyKey, I> = {
 }[Keys];
 
 /**
- * 必填键的空值拦截：`controls: []`、`controls: ''` 满足 AriaValue，但
- * NoEmpty 会把输出键归一成 undefined 丢掉，「输出过选中的表」的承诺落空。
+ * 必填键的空值拦截：`controls: []`、`controls: ['']`、`controls: ''` 满足
+ * AriaValue，但 NoEmpty 会把输出键归一成 undefined 丢掉，「输出过选中的
+ * 表」的承诺落空。
  * 值是含空值的 union（`readonly [] | readonly ['a']`、`'' | 'm'`）也拦
  * （round 13 起：Extract 分布取出空值成员判，非分布的 `I[K] extends ...`
  * 对 union 判不中）；非字面量（string / string[] 变量持有 '' / []）类型层
@@ -337,26 +346,28 @@ type NoEmptyRequired<P extends A11yProfile, R extends A11yRole, I> = [
     };
 
 /**
- * 名字必填的 role，label / labelledby 传字面量空值（label 的 ''、
- * labelledby 的 '' / 空元组）在调用点报错：空值运行时按「没传」跳过
- * （NoEmpty 同源），对名字必填的 role 等于没给名字，§4 的「label /
- * labelledby 至少一个」落空。值是含空值的 union 也拦（round 13 起：
- * 分布判会把错误对象和 unknown 并起来吸收成 unknown）；另一边给了非空
- * 名时不拦：空的这边只是死键，NoEmpty 丢掉它不算失约；非字面量
- * （string / string[] 变量持有 '' / []）认不出，是 NoEmpty 已记录的
- * 同一限制。
+ * 名字必填的 role，label / labelledby 传字面量空值在调用点报错：空值
+ * 运行时按「没传」跳过（NoEmpty 同源），对名字必填的 role 等于没给
+ * 名字，§4 的「label / labelledby 至少一个」落空。空值集：label 的
+ * `'' | undefined`（undefined 也是提供了的名字键，round 2 起计入，
+ * `string | undefined` 变量同拦——fail-closed）、labelledby 的
+ * `'' | undefined | AllEmptyIds`（空元组 / 全空串成员数组）。值是含空值
+ * 的 union 也拦（round 13 起：分布判会把错误对象和 unknown 并起来吸收成
+ * unknown）；另一边给了非空名时不拦：空的这边只是死键，NoEmpty 丢掉它
+ * 不算失约；非字面量（string / string[] 变量持有 '' / []）认不出，是
+ * NoEmpty 已记录的同一限制。
  */
 type NameEmptyCheck<N, I> = N extends 'required'
   ? I extends { label: infer L }
-    ? Extract<L, ''> extends never
+    ? Extract<L, '' | undefined> extends never
       ? unknown
       : I extends { labelledby: infer V }
-        ? Extract<V, readonly [] | ''> extends never
+        ? Extract<V, '' | undefined | AllEmptyIds> extends never
           ? unknown
           : { readonly 'accessible name must not be empty': L | V }
         : { readonly 'accessible name must not be empty': L }
     : I extends { labelledby: infer V }
-      ? Extract<V, readonly [] | ''> extends never
+      ? Extract<V, '' | undefined | AllEmptyIds> extends never
         ? unknown
         : { readonly 'accessible name must not be empty': V }
       : unknown
@@ -407,15 +418,16 @@ type OutValue<V, O extends A11yOutputMode> = V extends readonly string[]
 /**
  * 空值按「没传」处理：空 idlist 数组 join 出 '' 不是合法 id 列表，label /
  * idlist 键的空串同样不是合法输出，运行时跳过这些空值。类型层把字面量
- * 空元组、以及 label / idlist 键的字面量空串归一成 undefined，输出键和
- * undefined 一样消失或变可选，两边不漂。
+ * 空元组、全空串成员的 idlist 数组（['']、['','']，见 AllEmptyIds）、以及
+ * label / idlist 键的字面量空串归一成 undefined，输出键和 undefined 一样
+ * 消失或变可选，两边不漂。
  *
  * 已知限制：非字面量类型认不出空值——string / string[] 变量持有 '' / []
  * 时，类型层仍承诺输出键，运行时却跳过它；必填的键同理。只有字面量空值
  * 能在两层间对齐（见 createA11y.ts 的运行时跳过）。
  */
 type NoEmpty<K extends PropertyKey, V> = [K] extends ['label' | AriaIdListKey]
-  ? V extends '' | readonly []
+  ? V extends '' | AllEmptyIds
     ? undefined
     : V
   : V;

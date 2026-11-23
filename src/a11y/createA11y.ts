@@ -22,12 +22,13 @@ const IDLIST_KEYS = [
 const IDLIST_SET: ReadonlySet<string> = new Set(IDLIST_KEYS);
 
 /**
- * 运行时跳过空串的键：名字键 label，加全部 idlist 键。空串按「没传」
- * 处理，与空 idlist 数组同一条路径（types.ts 的 NoEmpty 同源）。
+ * 运行时跳过空值的键：名字键 label，加全部 idlist 键。空串按「没传」
+ * 处理；idlist 数组 join 出的值 trim 后为空（空数组、['']、['','']）与
+ * 空串同一条路径（types.ts 的 NoEmpty 同源）。
  */
 const isEmptyValue = (key: string, value: unknown): boolean => {
   if (IDLIST_SET.has(key)) {
-    return (Array.isArray(value) && value.length === 0) || value === '';
+    return Array.isArray(value) ? value.join(' ').trim() === '' : value === '';
   }
   return key === 'label' && value === '';
 };
@@ -107,10 +108,11 @@ export function createA11y(options: A11yOptions): unknown {
     for (const key of Object.keys(props)) {
       if (key === 'focusable') continue;
       const value = props[key];
-      // 空值按没传处理：idlist 空数组 join 出 ''，label / idlist 空串
-      // 同样不是合法输出。
-      // 限制：类型层只认字面量空元组 / 空串（types.ts 的 NoEmpty），
-      // string / string[] 变量持空值时类型仍带键、运行时跳过，两边会漂。
+      // 空值按没传处理：idlist 数组 join 后 trim 为空（空数组、['']、
+      // ['','']），label / idlist 空串同样不是合法输出。
+      // 限制：类型层只认字面量空元组 / 全空串成员数组 / 空串（types.ts
+      // 的 NoEmpty），string / string[] 变量持空值时类型仍带键、运行时
+      // 跳过，两边会漂。
       if (value === undefined || isEmptyValue(key, value)) {
         continue;
       }

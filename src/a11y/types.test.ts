@@ -315,6 +315,16 @@ describe.skip('a11y() input constraints', () => {
     check(a11yBiome('img', { labelledby: nonEmptyIds }));
   });
 
+  test('name-required roles reject all-empty-member idlist arrays', () => {
+    // @ts-expect-error labelledby: [''] 成员类型恰为 ''：join 出 ''，运行时
+    // 按「没传」跳过，等于没给名字（NoEmpty 同源）
+    check(a11yBiome('img', { labelledby: [''] }));
+    // @ts-expect-error 同一条：['',''] join 出 ' '，trim 后为空
+    check(a11yBiome('img', { labelledby: ['', ''] }));
+    // 混入非空成员：join 出 ' a'，运行时照常输出，不拦
+    check(a11yBiome('img', { labelledby: ['', 'a'] }));
+  });
+
   test('name-required roles reject the literal empty string', () => {
     // @ts-expect-error img 名字必填：label 空串运行时按「没传」跳过
     // （NoEmpty 同源），等于没给名字
@@ -330,12 +340,41 @@ describe.skip('a11y() input constraints', () => {
     check(a11yBiome('img', { label: 'x', labelledby: '' }));
   });
 
+  test('name-required roles reject undefined as a provided name', () => {
+    // @ts-expect-error label: undefined 是提供了的名字键，但运行时按
+    // 「没传」跳过——undefined 计入 label 的空值集，配上空串 labelledby
+    // 等于没给名字
+    check(a11yBiome('img', { label: undefined, labelledby: '' }));
+    // @ts-expect-error 镜像：label 空串 + labelledby undefined 同样落空
+    check(a11yBiome('img', { label: '', labelledby: undefined }));
+    // @ts-expect-error 只有 label: undefined：名字必填落空
+    check(a11yBiome('img', { label: undefined }));
+    // 正例：另一边给了非空名，undefined 的这边只是死键，NoEmpty 丢掉它
+    // 不算失约
+    check(a11yBiome('img', { label: 'x', labelledby: undefined }));
+  });
+
   test('required idlist keys reject the literal empty string', () => {
     // @ts-expect-error 必填的 controls 传空串：运行时按「没传」跳过，
     // 「输出过选中的表」的承诺落空
     check(a11yOxlint('combobox', { expanded: true, controls: '', label: 'x' }));
     check(
       a11yOxlint('combobox', { expanded: true, controls: 'm', label: 'x' }),
+    );
+  });
+
+  test('required idlist keys reject all-empty-member arrays', () => {
+    check(
+      // @ts-expect-error 必填的 controls 传 ['']：join 出 ''，运行时按
+      // 「没传」跳过，输出就过不了 oxlint 的表（['',''] join 出 ' ' 同理）
+      a11yOxlint('combobox', { expanded: true, controls: [''], label: 'x' }),
+    );
+    check(
+      a11yOxlint('combobox', {
+        expanded: true,
+        controls: ['', 'a'],
+        label: 'x',
+      }),
     );
   });
 
@@ -443,6 +482,18 @@ describe.skip('a11y() output inference', () => {
     const a: Assert<Eq<Extract<keyof typeof r, 'aria-labelledby'>, never>> =
       true;
     check(a);
+  });
+
+  test('all-empty-member idlist arrays drop the output key', () => {
+    // 成员类型恰为 '' 的数组（['']、['','']）与空元组同一条归一：
+    // join 出 '' / ' '，运行时都按「没传」跳过
+    const r1 = a11yBiome('separator', { labelledby: [''] });
+    const r2 = a11yBiome('separator', { labelledby: ['', ''] });
+    const a: Assert<Eq<Extract<keyof typeof r1, 'aria-labelledby'>, never>> =
+      true;
+    const b: Assert<Eq<Extract<keyof typeof r2, 'aria-labelledby'>, never>> =
+      true;
+    check(a, b);
   });
 
   test('empty string name and idlist values drop the output key', () => {
