@@ -302,6 +302,11 @@ type EmptyValueScope<P extends A11yProfile, R extends A11yRole, I> =
  * `readonly ''[]`——空元组（vacuously）、['']、['',''] 都匹配，join 出的
  * 值 trim 后为空，运行时按「没传」跳过；混入非空成员的 ['', 'a'] 和
  * `string[]` 变量不匹配（非字面量认不出，NoEmpty 已记录的限制）。
+ *
+ * WHY 纯空白成员（[' ']）匹配不上：' ' 不是 ''，类型层只能按字面量判，
+ * 放行；运行时 join 后 trim 判空、按「没传」跳过，两边会漂。类型层没有
+ * 「trim 后为空」的判定可用，不在类型层追——已记录的限制（设计 §12.15），
+ * 不是漏拦。
  */
 type AllEmptyIds = readonly ''[];
 
@@ -424,7 +429,9 @@ type OutValue<V, O extends A11yOutputMode> = V extends readonly string[]
  *
  * 已知限制：非字面量类型认不出空值——string / string[] 变量持有 '' / []
  * 时，类型层仍承诺输出键，运行时却跳过它；必填的键同理。只有字面量空值
- * 能在两层间对齐（见 createA11y.ts 的运行时跳过）。
+ * 能在两层间对齐（见 createA11y.ts 的运行时跳过）。纯空白字面量同理：
+ * ' ' 不是 ''，[' '] 这类数组在类型层认不出，运行时 join 后 trim 判空
+ * 跳过——同一限制（设计 §12.15），不是 bug，不在类型层追。
  */
 type NoEmpty<K extends PropertyKey, V> = [K] extends ['label' | AriaIdListKey]
   ? V extends '' | AllEmptyIds
