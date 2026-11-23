@@ -121,6 +121,8 @@ bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11
                            # 漂移检查：lint 出新版/规则变了会露出 diff
 ```
 
+已知 flake：bunup dist 构建（`build:dist`）在本机偶发 EINVAL（分支前既有，CI/ubuntu 未观察到）。`test:a11y-build` 对 build:dist 直接重试最多 3 次，仍失败才报错退出并打印 bunup 输出；本地挂了先重跑一次再排查。
+
 TS 7 验证（设计 §12.7）等版本错位修复后并入这里。
 
 另查 `dist/bin/meld.js` 装好后可执行：npm / bun 安装会按 package.json 的 `bin` 字段设置可执行位；手动构建、不经安装的产物要自己 `chmod +x`。

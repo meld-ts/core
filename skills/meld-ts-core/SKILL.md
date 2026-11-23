@@ -457,4 +457,4 @@ export const a11y: A11yOf<typeof options> = createA11y(options);
 rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})|\btabIndex\s*=\s*["'\'']|\btabindex\s*=\s*["'\'']' --glob '*.{tsx,jsx}' --glob '!src/a11y.ts'
 ```
 
-`tabIndex={-1}` 是唯一合法的手写例外（规则 4 的脚本聚焦例外）；`tabIndex` 分支花括号和字符串写法都抓（`tabIndex={0}`、`tabIndex="0"`、`tabindex="0"`）。也会误报 `data-role` / `data-aria-label` 这类 data-* 属性（fail-closed：宁可拦下人工排查，不放过真违规），按需加排除。
+`tabIndex={-1}` 是唯一合法的手写例外（规则 4 的脚本聚焦例外）；`tabIndex` 分支花括号和字符串写法都抓（`tabIndex={0}`、`tabIndex="0"`、`tabindex="0"`）。也会误报普通代码里的 `role = ...` 赋值，以及 `data-role` / `data-aria-label` 这类 data-* 属性（fail-closed：宁可拦下人工排查，不放过真违规），按需加排除。

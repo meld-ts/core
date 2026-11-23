@@ -15,6 +15,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -97,10 +98,41 @@ if (switchRequired.length === 0) {
 }
 
 log('building dist');
-runCmd([process.execPath, 'run', 'build:dist'], root);
+// bunup dist 构建本机偶发 EINVAL（分支前既有，CI/ubuntu 未观察到）：直接
+// 重试，3 次都失败才报错退出，bunup 输出带进错误信息。
+let distCode = 0;
+let distOutput = '';
+for (let attempt = 1; attempt <= 3; attempt++) {
+  const r = nodeExec([process.execPath, 'run', 'build:dist'], { cwd: root });
+  distCode = r.code;
+  distOutput = `${r.stdout}${r.stderr}`;
+  if (r.code === 0) break;
+  if (attempt < 3) log(`build:dist attempt ${attempt}/3 failed, retrying`);
+}
+if (distCode !== 0) {
+  throw new Error(
+    `build:dist failed after 3 attempts (exit ${distCode}):\n${distOutput}`,
+  );
+}
 // 入口漏配或打包改名时先报可读错误，不让后面的 tsc 炸出难懂的解析错误
 if (!existsSync(join(root, 'dist/a11y/index.d.ts'))) {
   throw new Error('build:dist did not produce dist/a11y/index.d.ts');
+}
+
+// bunup 默认 clean 会清空 dist/（含 dist/bin/），上面只重建了库产物；bin
+// 不重建的话 npm pack 会静默打出缺 dist/bin/meld.js 的包
+log('building bin');
+runCmd([process.execPath, 'run', 'build:bin'], root);
+const binPath = join(root, 'dist/bin/meld.js');
+if (!existsSync(binPath)) {
+  throw new Error('build:bin did not produce dist/bin/meld.js');
+}
+// shebang 由 bunup.bin.ts 的 banner 注入，丢了它包里就是个普通 js 文件
+const binFirstLine = readFileSync(binPath, 'utf8').split('\n')[0];
+if (binFirstLine !== '#!/usr/bin/env bun') {
+  throw new Error(
+    `dist/bin/meld.js must start with '#!/usr/bin/env bun', got '${binFirstLine}'`,
+  );
 }
 
 log('creating temp project');
