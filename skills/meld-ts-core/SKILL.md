@@ -454,5 +454,7 @@ export const a11y: A11yOf<typeof options> = createA11y(options);
 「不手写」可以 grep 进项目 CI（排除接入文件）：
 
 ```
-rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)' --glob '*.{tsx,jsx}' --glob '!src/a11y.ts'
+rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})' --glob '*.{tsx,jsx}' --glob '!src/a11y.ts'
 ```
+
+`tabIndex={-1}` 是唯一合法的手写例外（规则 4 的脚本聚焦例外）；`tabIndex` 分支只覆盖 JSX 花括号写法。
