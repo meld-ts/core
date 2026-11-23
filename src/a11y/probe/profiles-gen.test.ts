@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { generateProfiles } from './profiles-gen';
+import { generateProfiles, mergeProfilesSnapshot } from './profiles-gen';
 import type { ProfileData } from './serialize';
 
 const profileOf = (lint: string): ProfileData => ({
@@ -32,6 +32,34 @@ const jsonRowsOf = (out: string): Array<readonly [string, string]> =>
       line.slice(2, line.indexOf(':')),
       line.slice(line.indexOf(': ') + 2, -1),
     ]);
+
+describe('mergeProfilesSnapshot', () => {
+  test('empty base keeps only the fresh entries', () => {
+    const fresh = { biome: profileOf('biome') };
+    expect(mergeProfilesSnapshot({}, fresh)).toEqual(fresh);
+  });
+
+  test('partial sync replaces only the synced lint keys', () => {
+    // 只同步 biome：其余三张表必须原样保留，不能被整文件重写成子集
+    const fresh = {
+      biome: { ...profileOf('biome'), version: '2.6.8' },
+    };
+    expect(mergeProfilesSnapshot(profiles, fresh)).toEqual({
+      ...profiles,
+      biome: fresh.biome,
+    });
+  });
+
+  test('full sync replaces every key', () => {
+    const fresh: Record<string, ProfileData> = {
+      biome: { ...profileOf('biome'), version: '2.6.8' },
+      bun: { ...profileOf('bun'), version: '1.4.4' },
+      eslint: { ...profileOf('eslint'), version: '6.10.2' },
+      oxlint: { ...profileOf('oxlint'), version: '1.94.0' },
+    };
+    expect(mergeProfilesSnapshot(profiles, fresh)).toEqual(fresh);
+  });
+});
 
 describe('generateProfiles', () => {
   test('emits a PROFILES snapshot per lint as one JSON line', () => {

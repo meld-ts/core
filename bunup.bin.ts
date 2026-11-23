@@ -1,4 +1,4 @@
-import { defineConfig } from 'bunup';
+import { type DefineConfigItem, defineConfig } from 'bunup';
 
 // 独立于 bunup.config.ts：bunup.exports.ts 会展开主配置生成 exports，
 // bin 不是库子路径，混进主配置会产生 ./bin 导出
@@ -11,4 +11,4 @@ export default defineConfig({
   sourcemap: false,
   dts: false,
   banner: '#!/usr/bin/env bun',
-}) as ReturnType<typeof defineConfig>;
+}) as DefineConfigItem;

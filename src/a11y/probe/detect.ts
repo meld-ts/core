@@ -30,6 +30,10 @@ const bunLintOf = (exec: ExecFn, cwd: string): readonly string[] => {
     [
       process.execPath,
       'lint',
+      // --no-script 与 runBun 的调用前缀一致：不带它时，package.json
+      // 定义了 lint 脚本的项目里 bun 会转去执行脚本（exit 0、无拒绝语），
+      // 插件标志探不出真实模式。
+      '--no-script',
       '--jsx-a11y-plugin',
       '-f',
       'json',
@@ -115,7 +119,11 @@ export const detectLints = ({
   if (want('bun')) {
     // bun 不在 node_modules 里（就是当前运行时），可用性靠探活：
     // `bun lint --help` 退出 0 = 这个 bun 带内置 lint（1.4.4+）。
-    const help = exec([process.execPath, 'lint', '--help'], { cwd });
+    // lint 命令一律带 --no-script（见 bunLintOf）：探活与模式探针都不能
+    // 让带 lint 脚本的项目把命令劫持成脚本执行。
+    const help = exec([process.execPath, 'lint', '--no-script', '--help'], {
+      cwd,
+    });
     if (help.code === 0) {
       out.push({
         name: 'bun',

@@ -28,7 +28,11 @@ import {
 import type { DetectedLint } from '../src/a11y/probe/detect';
 import { detectLints } from '../src/a11y/probe/detect';
 import { nodeExec } from '../src/a11y/probe/exec';
-import { generateProfiles } from '../src/a11y/probe/profiles-gen';
+import {
+  generateProfiles,
+  mergeProfilesSnapshot,
+} from '../src/a11y/probe/profiles-gen';
+import { PROFILES } from '../src/a11y/probe/profiles.generated';
 import { runBiome } from '../src/a11y/probe/runners/biome';
 import { runBun } from '../src/a11y/probe/runners/bun';
 import { runEslint } from '../src/a11y/probe/runners/eslint';
@@ -193,9 +197,11 @@ try {
     });
   }
   // lint 表之后写运行时快照；进 generated 列表即同时进 biome format 的路径列表。
+  // 以现有快照为基底合并本轮结果：--lint 只点名部分 lint 时，未同步的表
+  // 保留原快照，不能整文件重写成只剩本轮的子集。
   generated.push({
     rel: 'src/a11y/probe/profiles.generated.ts',
-    content: generateProfiles(profiles),
+    content: generateProfiles(mergeProfilesSnapshot(PROFILES, profiles)),
   });
 
   console.log('[a11y-sync] writing generated files');

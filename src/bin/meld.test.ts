@@ -82,7 +82,14 @@ const fakeDeps = (opts: FakeDepsOpts = {}): FakeEnv => {
   const deps: ProbeDeps = {
     exec: (cmd) => {
       if (cmd[0] === process.execPath && cmd[1] === 'lint') {
-        if (cmd[2] === '--help') {
+        // lint 探针一律带 --no-script（防 lint 脚本劫持）；不带按未知
+        // 命令直接失败。
+        if (!cmd.includes('--no-script')) {
+          throw new Error(
+            `bun lint probe without --no-script: ${cmd.join(' ')}`,
+          );
+        }
+        if (cmd.includes('--help')) {
           return {
             code: opts.bun === undefined ? 1 : 0,
             stdout: '',

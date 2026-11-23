@@ -467,7 +467,7 @@ meld a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts] [--kee
 4. 以 lab 为 cwd 调 `probe()`，每个 lint 覆盖写 `src/a11y/lints/<lint>.ts`，头部写版本。
 5. 在仓库根对生成的文件跑 `biome format`：格式化由仓库自己的 biome（lockfile 锁定）做，不是 lab 里的最新版，`git diff` 才不随 lab 漂。
 
-`--lint` 只更新指定的 lint，其他文件不动；`aria.generated.ts` 和 `samples.generated.ts` 不在此列，每次仍会重写——这两份只随 aria-query 变，与 lint 版本无关，今天重跑内容不变，aria-query 更新后跑 sync 动的才是它们。
+`--lint` 只更新指定的 lint，其他文件不动；`aria.generated.ts` 和 `samples.generated.ts` 不在此列，每次仍会重写——这两份只随 aria-query 变，与 lint 版本无关，今天重跑内容不变，aria-query 更新后跑 sync 动的才是它们。`profiles.generated.ts` 按 `--lint` 的语义合并：本轮点名的 lint 键换成新探的表，未点名的保留现有快照，部分同步不会丢键。
 
 core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注意 core 自己用来 lint 源码的 biome（devDependencies 里的 `^2.5.0`）和 lab 里探测用的 biome 是两回事，版本可以不同，文档和生成文件头部写版本时别混。
 

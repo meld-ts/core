@@ -26,3 +26,14 @@ ${rows}
 } as const;
 `;
 };
+
+/**
+ * 快照合并：以现有 PROFILES 为基底，只替换本轮同步产出的 lint 键。
+ * `a11y:sync --lint=biome` 只探 biome，整文件重写会把其余 lint 的键丢掉，
+ * 一致性测试读 PROFILES 余键即崩；键级整表替换，不做深合并——一张表
+ * 就是本轮探针的完整产出。
+ */
+export const mergeProfilesSnapshot = (
+  existing: Readonly<Record<string, ProfileData>>,
+  fresh: Readonly<Record<string, ProfileData>>,
+): Record<string, ProfileData> => ({ ...existing, ...fresh });
