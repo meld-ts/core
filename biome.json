@@ -18,6 +18,7 @@
     "includes": [
       "scripts/**/*.{ts,js}",
       "src/**/*.{ts,js}",
+      "test/**/*.{ts,js}",
       "bunup.*.ts",
       "!docs",
       "!dist",

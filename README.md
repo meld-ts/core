@@ -44,6 +44,7 @@ import { createPathUtils } from '@meld-ts/core/path';
 import { implTraits, configurable } from '@meld-ts/core/traits';
 import { createTimer } from '@meld-ts/core/timer';
 import { singleton } from '@meld-ts/core/singleton';
+import { createA11y } from '@meld-ts/core/a11y';
 ```
 
 ### 主入口
@@ -65,6 +66,36 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 | `@meld-ts/core/traits` | Mixin 系统（implTraits / configurable / debuggable） |
 | `@meld-ts/core/events` | 事件发射器（Promise.all 并发 / 委托者 / 链式注册） |
 | `@meld-ts/core/async` | 异步工具（StatefulRpc / pending / retry / timeout / sleep） |
+| `@meld-ts/core/a11y` | 按 lint 规则表约束 aria 属性的构造器（createA11y，含类型与运行时）。内置 eslint / bun / oxlint / biome 四张表，数据由 `bun run a11y:sync` 从真实 lint 探测生成；用户项目可用随包发布的 `meld-ts a11y probe` 按自己装的 lint 版本生成重载表 |
+
+`createA11y` 的 `output`：默认 `react` 给 React JSX 用；`html` 把值字符串化（`50` → `"50"`），给 DOM API 和字符串模板用。不要把 `html` 输出 spread 进有类型的 React JSX——React 把 `aria-valuenow` 等类型成 `number`，过不了 `tsc`。
+
+`createA11y` 的 `lint`：项目里跑几家 jsx-a11y 类 lint，`lint` 就传那几家。没有「最严的一张表」可挑——内置表互不为超集：eslint 要求 `combobox` 带 `controls`，biome 不要求；biome 要求可聚焦 `separator` 带 `valuenow`，eslint 不要求。只绑一家，另一家的必填约束就漏了。跑多家就传数组，`required` 取并集、`supported` 取交集——数组里每家都过：
+
+```ts
+const a11y = createA11y({ lint: ['eslint', 'biome'] });
+```
+
+探针（`meld-ts a11y probe`）只把探测到的 lint 写进 `A11yLintOverrides`，不会替你合并——跑几家就列几家。
+
+## CLI
+
+包内提供 `meld-ts` 命令（需要 Bun）：
+
+```bash
+# 项目里一次性运行
+bunx --package @meld-ts/core meld-ts a11y probe
+
+# 或写进 package.json scripts
+"a11y": "meld-ts a11y probe"
+```
+
+当前命令：
+
+- `meld-ts a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts] [--keep]`：按项目安装的 lint 版本生成重载表。
+- `meld-ts --version`、`meld-ts --help`。
+
+`meld-ts` 是唯一的 CLI 入口。以后新增功能都会以 `meld-ts <group> <command>` 的形式加入，不会新增 bin。
 
 ## 浏览器使用
 
@@ -110,14 +141,18 @@ declare global {
 ## 开发
 
 ```bash
-bun run fmt           # Biome 格式化（src/）
-bun run lint          # Biome lint，warning 视为错误
-bun run ts-check      # tsgo --noEmit，TS 6.x 原生类型检查
+bun run fmt           # Biome 格式化（src + test + scripts + bunup.*.ts）
+bun run lint          # Biome lint，warning 视为错误（src + test + scripts + bunup.*.ts）
+bun run ts-check      # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test          # 运行所有测试 + 覆盖率
+bun run a11y:sync     # 维护者：重建 lab，从最新 lint 重新探测生成 a11y 内置表（慢）
+bun run test:a11y-lint  # a11y 一致性 + 反向测试（lab，慢，发版前）
+bun run test:a11y-build # a11y 构建产物重载测试（发版前）
 bun run build:exports # 基于预期的构建内容，生成 package.json exports 部分内容
 bun run build:browser # 构建 browser （ESM + iife）
 bun run build:dist    # 构建 node （ESM + cjs）
-bun run build         # dist + browser
+bun run build:bin    # 构建 meld-ts CLI（dist/bin/meld-ts.js）
+bun run build         # dist + browser + bin
 bun run doc           # 生成 TypeDoc API 文档
 ```
 
@@ -127,6 +162,7 @@ bun run doc           # 生成 TypeDoc API 文档
 
 - `bunup.config.ts` 用于构建 node 的部分，输出目录在 dist，输出 esm + cjs。也是项目的主构建。
 - `bunup.exports.ts` 基于主构建 `bunup.config.ts` 的内容，来生成 package.json 的 `exports`, `main`, `module`, `types`, `files` 部分。
+- `bunup.bin.ts` 用于构建 meld-ts CLI（`meld-ts a11y probe`），输出 `dist/bin/meld-ts.js`，带 bun shebang；bin 不在 `exports` 里，只应作为命令行工具运行。
 - `bunup.browser.ts` 用于构建 browser 内容，将所有 modules 合并，输出目录在 browser，输出 esm + iife 格式。
   - `browser/index.js` esm 引入文件，注意这个不能放在 exports ，他只应被网页 `<script type="module">` 的方式去引用
   - `browser/index.d.ts` 作为所有源代码统一导出的 d.ts ，只应该被用于注入全局变量类型标注，而不应该直接在源代码中引用。

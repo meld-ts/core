@@ -27,5 +27,28 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Check no handwritten a11y attributes
+        run: |
+          set +e
+          rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})|\btabIndex\s*=\s*["'\'']|\btabindex\s*=\s*["'\'']' \
+            --glob '*.{tsx,jsx}' \
+            --glob '!src/a11y/**' \
+            --glob '!src/a11y.ts'
+          code=$?
+          set -e
+          case $code in
+            0) echo "handwritten a11y attributes found"; exit 1 ;;
+            1) exit 0 ;;
+            2) if git ls-files '*.tsx' '*.jsx' \
+                 | grep -vE '^src/a11y/|^src/a11y\.ts$' | grep -q .; then
+                 echo "rg failed with exit 2"; exit 1
+               fi
+               echo "only excluded tsx/jsx files"; exit 0 ;;
+            *) echo "rg failed with exit $code"; exit 1 ;;
+          esac
+
       - name: Test
         run: bun run test

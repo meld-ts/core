@@ -17,3 +17,4 @@ export * from '../path';
 export * from '../traits';
 export * from '../events';
 export * from '../async';
+export * from '../a11y';

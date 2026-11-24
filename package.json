@@ -10,6 +10,7 @@
   "module": "./dist/index.js",
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
+  "bin": { "meld-ts": "./dist/bin/meld-ts.js" },
   "exports": {
     ".": {
       "import": {
@@ -19,16 +20,6 @@
       "require": {
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
-      }
-    },
-    "./singleton": {
-      "require": {
-        "types": "./dist/singleton.d.cts",
-        "default": "./dist/singleton.cjs"
-      },
-      "import": {
-        "types": "./dist/singleton.d.ts",
-        "default": "./dist/singleton.js"
       }
     },
     "./timer": {
@@ -41,24 +32,44 @@
         "default": "./dist/timer.cjs"
       }
     },
-    "./path": {
-      "require": {
-        "types": "./dist/path.d.cts",
-        "default": "./dist/path.cjs"
+    "./singleton": {
+      "import": {
+        "types": "./dist/singleton.d.ts",
+        "default": "./dist/singleton.js"
       },
+      "require": {
+        "types": "./dist/singleton.d.cts",
+        "default": "./dist/singleton.cjs"
+      }
+    },
+    "./path": {
       "import": {
         "types": "./dist/path.d.ts",
         "default": "./dist/path.js"
+      },
+      "require": {
+        "types": "./dist/path.d.cts",
+        "default": "./dist/path.cjs"
       }
     },
     "./traits": {
-      "require": {
-        "types": "./dist/traits/index.d.cts",
-        "default": "./dist/traits/index.cjs"
-      },
       "import": {
         "types": "./dist/traits/index.d.ts",
         "default": "./dist/traits/index.js"
+      },
+      "require": {
+        "types": "./dist/traits/index.d.cts",
+        "default": "./dist/traits/index.cjs"
+      }
+    },
+    "./events": {
+      "import": {
+        "types": "./dist/events/index.d.ts",
+        "default": "./dist/events/index.js"
+      },
+      "require": {
+        "types": "./dist/events/index.d.cts",
+        "default": "./dist/events/index.cjs"
       }
     },
     "./async": {
@@ -71,14 +82,14 @@
         "default": "./dist/async/index.js"
       }
     },
-    "./events": {
-      "import": {
-        "types": "./dist/events/index.d.ts",
-        "default": "./dist/events/index.js"
-      },
+    "./a11y": {
       "require": {
-        "types": "./dist/events/index.d.cts",
-        "default": "./dist/events/index.cjs"
+        "types": "./dist/a11y/index.d.cts",
+        "default": "./dist/a11y/index.cjs"
+      },
+      "import": {
+        "types": "./dist/a11y/index.d.ts",
+        "default": "./dist/a11y/index.js"
       }
     },
     "./package.json": "./package.json"
@@ -109,14 +120,18 @@
   "license": "MIT",
   "scripts": {
     "prepare": "lefthook install",
-    "fmt": "biome format --write ./src",
-    "lint": "biome lint --error-on-warnings ./src",
+    "fmt": "biome format --write ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
+    "lint": "biome lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ --coverage",
+    "a11y:sync": "bun scripts/a11y-sync.ts",
+    "test:a11y-lint": "bun scripts/a11y-lint-test.ts",
+    "test:a11y-build": "bun scripts/a11y-build-test.ts",
     "build:exports": "bunup --config bunup.exports.ts",
     "build:browser": "bunup --config bunup.browser.ts",
     "build:dist": "bunup",
-    "build": "bun run build:browser && bun run build:dist",
+    "build:bin": "bunup --config bunup.bin.ts",
+    "build": "bun run build:browser && bun run build:dist && bun run build:bin",
     "doc": "bun typedoc --options typedoc.json --cleanOutputDir",
     "doc:watch": "bun typedoc  --options typedoc.json --watch",
     "biome-migrate": "bunx biome migrate --write"
@@ -129,7 +144,8 @@
     "typedoc": "^0.28.19",
     "typedoc-material-theme": "^1.4.1",
     "typedoc-plugin-expand-object-like-types": "^0.1.2",
-    "typedoc-plugin-merge-modules": "^7.0.0"
+    "typedoc-plugin-merge-modules": "^7.0.0",
+    "typescript": "5.9.3"
   },
   "peerDependencies": {
     "typescript": "^7"

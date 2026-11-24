@@ -1,0 +1,1000 @@
+# `@meld-ts/core/a11y` 设计稿
+
+> 状态：草稿，已按审查 01、02 修订（修订内容见 §12）。只写类型模型、API、目录和测试方案，不写实现。
+> §11 的待定项如果没有新的决定，实现时按「建议」一栏执行。
+
+## 1. 要解决的问题
+
+AI 用 devtools 测页面时，靠的是 a11y 树里的 role 和名字；但它写代码时不会主动补 a11y。遇到没名字的节点，它退回用 uid 或脚本点击，测试照样通过，流程里没有任何东西逼它回头修。
+
+能在写代码那一刻就逼住它的只有类型：`a11y(role, props)` 按 role 约束「必须有什么、允许有什么」，输出一个类型精确的属性对象；再配一条 AGENTS 规则：非原生 role 一律走 `a11y()`，不许手写 `role=` / `aria-*`。
+
+还有一个容易忽略的后果：`a11y()` 的输出是用 spread 写进 JSX 的（`<div {...a11y('switch', {...})} />`）。jsx-a11y 这一类规则只读 JSX 里字面写出来的 `role=` 和 `aria-*`，看不到 spread 里的内容。也就是说，改用 `a11y()` 以后，lint 对这些属性就不再检查了，**原来 lint 做的检查，要由类型接过来**。这是 §2 要按 lint 分表的原因。
+
+现有库都没做到「输出类型精确」：
+
+- `aria-attribute-types`：按 role 限定了允许的属性，但全部可选（switch 的 `aria-checked` 不写也不报错），转换函数返回 `Record<string, unknown>`。
+- `@opensourceframework/react-a11y-utils`：工厂函数大多返回同一个宽泛的 `AccessibilityProps`，合并后类型丢失，也不和 role 绑定。
+
+## 2. 为什么按 lint 分表
+
+### 四个 lint 的规则表确实不一样（实测）
+
+用同一份 fixture（aria-query 5.3.2 的 127 个非抽象 role，每个 `<div role="x" tabIndex={0} />`）跑四个 lint 的「必填属性」规则：
+
+| role | eslint-plugin-jsx-a11y | bun lint | oxlint | biome |
+|---|---|---|---|---|
+| combobox | controls, expanded | controls, expanded | controls, expanded | expanded |
+| option | selected | selected | selected | — |
+| treeitem | selected | selected | — | — |
+| separator（可聚焦） | — | — | — | valuenow |
+
+其余 role（checkbox、switch、slider、heading、radio、scrollbar 等）四家一致（没有全量复测）。
+
+版本：eslint-plugin-jsx-a11y 6.10.2、bun 1.4.5 canary、oxlint 1.94.0、biome 2.6.8。eslint、oxlint、biome 这三列审查时复测过，结果一致；bun 那列没复测。
+
+另外几点实测结论：
+
+- **bun lint 的 jsx-a11y 是 eslint 版的移植**，消息文本和结果都一致。但 `bun lint` 目前只在 canary（1.4.5）里有，1.4.4 正式版没有这个命令。（§12.11：此条已被真实同步取代——bun 1.4.4 起 `bun lint` 内嵌的是 oxlint，不是 eslint 移植；上表 bun 列的 treeitem 行与实测不符。）
+- **oxlint 一次报全部缺失属性**：1.94.0 对 combobox 一条消息里同时报 `aria-controls` 和 `aria-expanded`。之前记录的「一次只报一个」没有复现，已删除。探针的 required 发现不读消息里的属性清单：先测出 supported，再逐个去掉一个 supported 属性看哪个 role 报错（§6），不依赖任何一家的报告方式。
+- **biome 的规则看上下文**：separator 只有可聚焦（带 tabIndex）时才要求 `aria-valuenow`。纯按 role 建表会漏掉这类条件。
+- **lint 看不到 spread**：`<div {...p} />` 里没有字面 role，lint 什么都不报。
+
+### 结论
+
+lint 看不到 `a11y()` 的输出，所以类型要替项目的 lint 把关；替谁把关，就按谁的表来。四家的表有实质差异，而且只能从 lint 本身测出来，不能凭规范手写。同一个 lint 换个版本，表也可能变，所以还要能按用户项目里的版本重新测（§6）。
+
+只按 ARIA 规范出一张严格表，会要求一些项目 lint 根本不要求的属性（比如 biome 用户的 combobox 被要求写 `aria-controls`）。要这种严格程度的，可以用多 lint 合并（§4）。
+
+## 3. API
+
+```ts
+// src/a11y.ts：项目里只在这一个文件配置
+import { createA11y } from '@meld-ts/core/a11y';
+
+export const a11y = createA11y({ lint: 'biome' });
+```
+
+```ts
+import { a11y } from '@/a11y';
+
+a11y('switch', { checked: true, label: 'Wi-Fi' });
+// 类型：{ readonly role: 'switch'; readonly 'aria-checked': true; readonly 'aria-label': 'Wi-Fi' }
+
+a11y('switch', { label: 'Wi-Fi' });
+// ✗ 类型错误：缺少 checked
+
+a11y('img', { checked: true, label: '头像' });
+// ✗ 类型错误：img 不支持 checked
+
+a11y('img', { lable: '头像' });
+// ✗ 类型错误：没有 lable 这个属性
+
+a11y('img', {});
+// ✗ 类型错误：img 必须有名字，label / labelledby 至少一个
+
+a11y('separator', { focusable: true, valuenow: 50 });
+// biome 下：可聚焦的 separator 必须有 valuenow
+// 类型：{ readonly role: 'separator'; readonly tabIndex: 0; readonly 'aria-valuenow': 50 }
+
+a11y.aria({ expanded: open, controls: menuId });
+// 给原生元素补状态，不带 role：{ readonly 'aria-expanded': boolean; readonly 'aria-controls': string }
+```
+
+缺名时的报错只显示一个分支：`NameRequirement` 是 `{ label } | { labelledby }` 的 union，TypeScript 对 union 参数报「缺属性」只点名其中一个分支（TS 固有行为），不代表另一个分支不满足。
+
+### `createA11y(options)`
+
+```ts
+createA11y({ lint: 'biome' });                                // output 默认 'react'
+createA11y({ lint: ['biome', 'oxlint'], output: 'html' });    // 多个 lint 合并
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `lint` | `A11yLintName \| readonly A11yLintName[]` | 用哪张规则表。传数组就在类型层合并（§4）。只影响类型，运行时不读 |
+| `output` | `'react' \| 'html'`，默认 `'react'` | 值的输出形式（下表） |
+
+不需要写泛型：`lint` 用 `const` 类型参数推出字面量，`output` 不传时取默认值。
+
+返回值是一个可调用的 `a11y`，名字和 `createA11y` 对得上：
+
+- `a11y(role, props)`：没有原生元素可用、或确实需要自定义 role 时用。
+- `a11y.aria(props)`：原生元素补状态用，不带 role。
+
+### 为什么分两个入口
+
+只给 `a11y()` 一个入口，AI 想给 `<button>` 补 `aria-expanded` 时，很可能写成 `<button {...a11y('button', {...})}>`。多出来的 `role="button"` 是冗余的，而 lint 看不到 spread，`noRedundantRoles` 也拦不住。所以要给原生元素一个不带 role 的入口，再用 AGENTS 规则（§8）说清楚两个入口各管什么。
+
+`a11y()` 的 role 范围不排除有原生元素的 role（button、img、separator……）：`<div role="button">` 在有些场景确实需要，类型挡掉会逼人绕路。
+
+### `a11y.aria()` 允许哪些属性
+
+所有 ARIA 属性都允许，只检查取值类型。原因：一个属性能不能用，取决于元素的隐式 role（`<button aria-expanded>` 合法，`<div aria-expanded>` 不合法），而 `aria()` 不知道元素是什么。这是已知缺口，和 §10「不做元素和 role 的搭配」是同一件事。
+
+### 输入写法
+
+输入 key 是输出形态去掉 `aria-` 前缀的小写形式：`checked`、`valuenow`、`labelledby`。不引入 keyMap——它会让包多出一套需要随 ARIA 规范与 lint 演进的注册机制，且无法做到项目级重载。
+
+ARIA 属性名本身没有内部连字符，所以输出键名就是 `` `aria-${Lowercase<K>}` ``，类型层面不需要查表。
+
+引用 id 的属性分两种，按 aria-query 里的类型（`idlist` / `id`）生成，不手写：
+
+- idlist：`labelledby`、`describedby`、`controls`、`owns`、`flowto`。接受 `string | readonly string[]`，输出时用空格拼接。
+- id：`details`、`errormessage`、`activedescendant`。只接受单个 `string`，拼成 `'a b'` 就是非法值。
+
+`focusable: true` 不是 ARIA 属性：它输出 `tabIndex`（见下表），同时打开这个 role 在可聚焦时的额外必填项（§4）。不要另外手写 `tabIndex`，否则两边会漂。
+
+- `focusable` 只接受 `true`，或可能是 `undefined` 的变量。变量类型里含 `true`，就按可聚焦来要求额外必填项，宁可多要求；这时输出里的 `tabIndex` 是可选键。
+- 不支持 `focusable: false`。不可聚焦就不写 `focusable`。
+- 需要 `tabIndex={-1}`（只能用脚本聚焦、不进 Tab 顺序）时，手写 `tabIndex={-1}`，AGENTS 规则对它放行（§8）。
+
+### output：值的输出形式
+
+| 输入 | `output: 'react'` | `output: 'html'` |
+|---|---|---|
+| `checked: true` | `'aria-checked': true` | `'aria-checked': 'true'` |
+| `checked: false` | `'aria-checked': false` | `'aria-checked': 'false'` |
+| `checked: isOn`（`boolean` 变量） | `boolean` | `'true' \| 'false'` |
+| `checked: 'mixed'` | `'mixed'` | `'mixed'` |
+| `level: 2` | `'aria-level': 2` | `'aria-level': '2'` |
+| `controls: ['a', 'b']` | `'a b'` | `'a b'` |
+| `focusable: true` | `tabIndex: 0` | `tabindex: '0'` |
+| `hidden: undefined` | 键不出现 | 键不出现 |
+| `controls: []` | 键不出现 | 键不出现 |
+
+输出类型跟着 output 走：`html` 下 `true` 变成字面量 `'true'`，`2` 变成 `` `${number}` ``。
+
+可选属性的值类型含 `undefined` 时（比如传进来的是 `boolean | undefined` 变量），输出里这个键是可选的，和运行时「undefined 不输出」一致。空 idlist 数组同理按「没传」处理（join 出的 `''` 不是合法 id 列表）；必填的 idlist 键传字面量空元组是类型错误（§12.5）。
+
+必填属性不接受 `undefined`：变量可能是 `undefined` 时，类型直接报错，要先给默认值（`checked: isOn ?? false`）。AI 常把状态变量直接传进来，这条是有意的。
+
+### 开了 `isolatedDeclarations` 的项目
+
+`isolatedDeclarations` 要求导出的变量有显式类型，`export const a11y = createA11y(...)` 会报 TS9010（core 自己的 tsconfig 就开了）。为此导出类型辅助 `A11yOf<O>`：
+
+```ts
+const options = { lint: 'biome' } as const;   // 不要加 satisfies，会让这一行也报 TS9010
+export const a11y: A11yOf<typeof options> = createA11y(options);
+```
+
+（已用 TypeScript 7.0.2 和 5.9.3、开 `--isolatedDeclarations` 实测通过，见附录 A。）
+
+## 4. 类型模型
+
+### 数据分两类
+
+| 数据 | 来源 | 放在哪 | 分不分 lint |
+|---|---|---|---|
+| 每个 role 的必填属性、允许属性、可聚焦时的额外必填 | lint 探针 | `src/a11y/lints/<lint>.ts` | 分 |
+| 属性取值类型、禁止属性、名字规则、引用 id 的属性 | aria-query | `src/a11y/aria.generated.ts` | 不分 |
+
+lint 只测得出前一类。禁止属性（`prohibitedProps`）和名字规则（`nameFrom`、`accessibleNameRequired`）是 aria-query 里现成的数据，不经过 lint。
+
+生成时，每张 lint 表的「允许属性」会先减去 aria-query 的禁止属性。所以类型里不需要单独的 `prohibited`：不在允许集合里的属性一律报错，禁止属性自然也在其中。
+
+### 一张 lint 规则表
+
+```ts
+/** 一张规则表：某个 lint、某个版本下的规则。由探针生成，不手写。 */
+type A11yProfile = {
+  readonly meta: {
+    readonly lint: A11yLintName;
+    readonly version: string;
+    readonly source: 'builtin' | 'probe' | 'merged';   // core 自带 / 用户项目里探针生成的 / 多 lint 合并的
+    readonly aliasOf?: A11yLintName;                   // 这张表直接沿用另一个 lint 的表（保留字段；当前四张内置表均独立探测，见 §12.11）
+  };
+  readonly roles: {
+    readonly [R in A11yRole]: {
+      readonly required: AriaKey;                // 必填
+      readonly supported: AriaKey;               // 允许（含 required），已减去禁止属性
+      readonly requiredWhenFocusable: AriaKey;   // 可聚焦时额外必填；没有就是 never
+    };
+  };
+};
+```
+
+`meta` 不参与约束，只为鼠标悬停时能看出当前生效的是哪一份、哪个版本。
+
+`EslintA11yProfile`、`BunA11yProfile`、`OxlintA11yProfile`、`BiomeA11yProfile` 就是四个生成出来的 `A11yProfile` 字面量类型。
+
+### aria-query 生成的数据
+
+```ts
+/** 输出形态去掉 aria- 前缀的小写 ARIA 属性名，如 'checked' | 'labelledby' | 'valuenow' ……（输入用的名字） */
+type AriaKey = /* 生成 */;
+
+/** 每个属性的取值类型，如 AriaValue<'checked'> = boolean | 'mixed' */
+type AriaValue<K extends AriaKey> = /* 生成 */;
+
+/** 引用多个 id 的属性：值是 string | readonly string[]，输出时空格拼接（aria-query 类型为 idlist） */
+type AriaIdListKey = 'labelledby' | 'describedby' | 'controls' | 'owns' | 'flowto';
+
+/** 引用单个 id 的属性：值只能是 string（aria-query 类型为 id） */
+type AriaIdKey = 'details' | 'errormessage' | 'activedescendant';
+
+/** 每个 role 的名字规则 */
+type A11yNameRule = { readonly [R in A11yRole]: 'required' | 'optional' | 'prohibited' };
+```
+
+名字规则从 aria-query 推出：
+
+- `required`：`accessibleNameRequired` 为 true，且 `nameFrom` 不含 `contents`（名字只能由作者给，比如 img）。
+- `prohibited`：`nameFrom` 含 `prohibited`（比如 generic）。label / labelledby 不能用：生成 lint 表时，这类 role 的 supported 里一并减掉 `label` 和 `labelledby`。
+- 其余是 `optional`。`nameFrom` 含 `contents` 的 role，名字可能来自子元素，类型看不到子元素，所以不强制。
+
+注意 aria-query 里 `nameFrom` 是数组（127 个 role 里：88 个 `['author']`、24 个 `['author','contents']`、14 个 `['prohibited']`、1 个 `['none']`），按上面的规则归成三类，不要直接搬成单值。
+
+### 注册表：内置 + 重载
+
+core 自带四个 lint 的表；用户项目里的 lint 版本不一样时，用探针生成的表盖掉对应那一份。
+
+TypeScript 的接口合并不允许改已有属性的类型：core 里写了 `biome: BiomeA11yProfile`，用户再声明一个类型不同的 `biome` 会直接报错。所以拆成两个接口，再合成一份生效的：
+
+```ts
+/** core 内置：发版时用 core 锁定的 lint 版本探测生成（src/a11y/lints/） */
+export interface A11yBuiltinLints {
+  eslint: EslintA11yProfile;
+  bun: BunA11yProfile;
+  oxlint: OxlintA11yProfile;
+  biome: BiomeA11yProfile;
+}
+
+/** 留给使用方重载。core 里永远是空的，用户项目里探针生成的文件往这里登记 */
+// biome-ignore lint/suspicious/noEmptyInterface: 留给使用方用 declaration merging 重载
+export interface A11yLintOverrides {}
+
+export type A11yLintName = keyof A11yBuiltinLints;
+
+/** 实际生效的表：有重载、且结构对，用重载；否则用内置 */
+export type A11yLints = { [K in A11yLintName]: CheckOverride<K> };
+```
+
+- 生效的名字只有 `A11yBuiltinLints` 里的四个。
+- 两个接口都必须是 interface，type 别名不能合并。
+- **重载写错了要报得出来。** 两种错：键名不是四个内置名之一（比如拼成 `biom`），或者值的结构不是 `A11yProfile`。这两种情况都在 `createA11y(...)` 的参数上报错，错误信息里直接写原因（`Unknown lint name in A11yLintOverrides`、`Invalid A11yLintOverrides shape, rerun meld-ts a11y probe`）。不能让它静默退回内置表，也不能让错误炸在 `a11y()` 调用处的深层索引上。结构不对时，`A11yLints` 内部仍退回内置表，保证库自己的类型不跟着崩。定义见附录 A，两种错都实测过。错误信息用英文：中文属性名在 tsc 的报错里会被转成 `\uXXXX`，没法读。
+
+用户项目里探针生成的文件长这样：
+
+```ts
+// 由 meld-ts a11y probe 生成，勿手改。biome 2.4.0
+export {};
+
+declare module '@meld-ts/core/a11y' {
+  interface A11yLintOverrides {
+    biome: { meta: { lint: 'biome'; version: '2.4.0'; source: 'probe' }; roles: { /* ... */ } };
+  }
+}
+```
+
+**第一行的 `export {};` 不能省。** 没有它，这个文件是脚本，里面的 `declare module` 是在声明一个新模块，会把真正的 `@meld-ts/core/a11y` 整个盖掉，`createA11y` 等导出全部消失（审查实测）。有了它才是重载。
+
+重载对打包后的 d.ts 也成立：bunup 可能把接口放进 chunk 文件，入口再用 `export { A as A11yLintOverrides } from './chunk-xxx.js'` 重命名转出。这种形状用 TypeScript 7.0.2 和 5.9.3 都实测过，重载照样生效。仍然要加一个针对构建产物的测试（§7）。
+
+### 多个 lint 合并
+
+`lint` 传数组时，在类型层把几张表合成一张：
+
+| 字段 | 合并方式 |
+|---|---|
+| `required` | 并集 |
+| `supported` | 交集 |
+| `requiredWhenFocusable` | 并集 |
+
+名字规则来自 aria-query，不分 lint，不需要合并。
+
+合并后的 `meta`：`lint` 和 `version` 是参与合并的各表取值的联合，`source` 是 `'merged'`。类型操作是 `MergeProfiles` 和 `ResolveProfile`（原型见附录 A，union / 混合形状以 §12.6 为准）：`lint` 传单个名字时 `ResolveProfile` 直接取那张表，传数组时走 `MergeProfiles`；名字是 union（变量 / 条件表达式的类型）或名字与数组混合的形状时，先展平再同样走 `MergeProfiles`（`supported` 取交集），不拆成几张表的并集。
+
+合并后的输出保证数组里每个 lint 都过。要四家都过，就写 `lint: ['eslint', 'bun', 'oxlint', 'biome']`。
+
+合并有一个前提：合并后 `required` 仍然是 `supported` 的子集。如果某个 lint 要求属性 X，另一个 lint 却不允许 X，合并后这个 role 就无法满足（X 既必填又是 never）。这种冲突要在内置表的类型测试里断言不存在（§7 第 1 层：任意两张内置表合并后，三条不变量都成立，见 §6）。
+
+### 输入和输出
+
+完整定义见附录 A。附录 A 是一份能跑的原型（规则表缩小到 4 个 role、2 个 lint），配一组断言，在 TypeScript 7.0.2 和 5.9.3 下都通过。实现时以它为准，这里只讲要点。
+
+**输入**（`A11yInput` + 调用签名）：
+
+- 必填属性 `-?`，值不接受 `undefined`；允许属性可选，值接受 `undefined`；`focusable?: true | undefined`；名字规则为 `required` 的 role，`label` / `labelledby` 至少一个。
+- 调用签名把三样交在 `props` 上：`I & Exact<I, 允许的键 | 'focusable'> & FocusRequirement<P, R, I>`。
+- **为什么要 `Exact`**：`I` 是推导出来的泛型，TypeScript 对它不做多余属性检查。只写 `A11yInput` 的话，`a11y('img', { checked: true, label: 'x' })` 不会报错，拼错的 `lable` 也不会报错。名字被禁止的 role，`label` 也靠它挡：生成时已从 `supported` 里减掉。
+- **`FocusRequirement` 的条件写成 `true extends I['focusable']`**：只要类型里含 `true` 就打开额外必填项，`true | undefined` 变量也算。不能写成 `I extends { focusable: true }`，那样含 `undefined` 的变量会判不中，额外必填整个失效（审查 02 实测）。也不能用 `infer` 从可选属性里取类型：TypeScript 会去掉其中的 `undefined`。
+
+**输出**（`A11yAttrs`）：
+
+- `role` 原样；`focusable` 变成 `tabIndex` / `tabindex`（`focusable` 可能为 `undefined` 时这个键可选）；其余键映射成 `` `aria-${Lowercase<K>}` ``。
+- 值的类型含 `undefined` 的键变成可选键，值为字面量 `undefined` 的键去掉。
+- `OutValue`：`react` 原样；`html` 下 `boolean` / `number` 转成模板字面量（`true` → `'true'`，`boolean` → `'true' | 'false'`，`2` → `'2'`）；idlist 数组一律是 `string`。
+
+**`createA11y` 和 `A11yOf`**：
+
+```ts
+type A11yOptions = { readonly lint: A11yLintName | readonly A11yLintName[]; readonly output?: A11yOutputMode };
+
+/** output 没写时取 'react'：Options['output'] 可能是 undefined，不能直接当 O 传 */
+type OutputOf<Opt extends A11yOptions> = Opt['output'] extends A11yOutputMode ? Opt['output'] : 'react';
+
+type A11yOf<Opt extends A11yOptions> = A11y<AsProfile<ResolveProfile<Opt['lint']>>, OutputOf<Opt>>;
+
+declare function createA11y<const Opt extends A11yOptions>(options: Opt & OverrideKeyCheck): A11yOf<Opt>;
+```
+
+「不需要写泛型」靠的是 `const Opt`：`lint` 推成字面量或只读元组，`output` 不写时 `OutputOf` 取 `'react'`。`OverrideKeyCheck` 就是上面「重载写错了要报得出来」的那道检查；`AsProfile` 只是让合并结果满足 `A11yProfile` 约束。`output` 要么不写（键缺失，默认 react），要么类型恰好是单个模式：确定字面量，或收窄成单模式的表达式（`out` 已收窄为 `'html' | undefined` 时，`out ?? 'html'` 就是 `'html'`）。同时含两个模式的类型（`A11yOutputMode` 变量、跨模式默认值 `out ?? 'react'`）会让输出类型同时要求 `tabIndex` 和 `tabindex` 两个键、运行时只发一个——这种漂移连同含 `undefined` 的变量、收着整个 `A11yOptions` 的非泛型包装，都在调用点被 `OutputDefiniteCheck` 拦下——类型层承诺不了 react 还是 html，宁可报错（§12.4）。
+
+## 5. 目录规划
+
+```
+src/a11y/
+  index.ts                 子路径 @meld-ts/core/a11y 的入口：createA11y、类型、内置表。不导出 probe
+  createA11y.ts            运行时：值转换、id 数组拼接、跳过 undefined、focusable → tabIndex
+  createA11y.test.ts
+  types.ts                 A11yProfile、A11yInput、A11yAttrs、AriaAttrs、OutValue、注册表接口和重载检查、
+                           MergeProfiles、ResolveProfile、A11yOptions、A11yOf
+  types.test.ts            类型测试（§7 第 1 层）
+  aria.generated.ts        AriaKey、AriaValue、A11yRole、A11yNameRule、AriaIdListKey、AriaIdKey（从 aria-query 生成）
+  lints/                   内置规则表，一个 lint 一个文件，整文件覆盖更新
+    index.ts               汇总导出，声明 A11yBuiltinLints
+    eslint.ts
+    bun.ts
+    oxlint.ts
+    biome.ts
+  probe/                   探针。只在 node 里跑，不进 a11y 入口和 browser 包
+    index.ts               probe({ cwd, lints, exec? }) → 各 lint 的规则表数据
+    detect.ts              从 cwd 找出装了哪些 lint、解析二进制和版本
+    fixtures.ts            生成 fixture：required、supported、可聚焦差异、自检
+    samples.generated.ts   每个 AriaKey 的合法样例值（从 aria-query 生成），探针和 §7 第 2 层共用
+    exec.ts                启动子进程的那一层，可注入，方便测试打桩
+    runners/               一个 lint 一个文件：写配置、跑 lint、按规则 id 解析 JSON 输出
+      eslint.ts
+      bun.ts
+      oxlint.ts
+      biome.ts
+    serialize.ts           规则表数据 → TS 类型字面量（两种模式共用）
+    emit-override.ts       用户模式：写重载文件（第一行固定 export {};）。Plan C 交付
+    *.test.ts              解析器、fixture、序列化、模板的单测
+src/bin/
+  meld.ts                  bin 入口，子命令路由。a11y probe 走用户模式。Plan C 交付
+
+scripts/
+  a11y-sync.ts             维护者模式：建 lab、装 lint、调 probe、写 src/a11y/lints/ 和 aria.generated.ts
+  a11y-lint-test.ts        §7 第 2、3 层：在 lab 里跑一致性测试和反向测试。Plan C 交付
+
+bunup.bin.ts               bin 单独一份打包配置（见 §9）
+
+.cache/a11y-lab/           a11y-sync 建的空项目（.cache 已在 .gitignore 里）
+```
+
+几点说明：
+
+- **生成文件只含类型。** `aria.generated.ts` 和 `lints/*.ts` 里只有 `type` / `interface`，没有运行时值。`src/browser/index.ts` 会 `export *` 所有子路径，有运行时值就会被打进 iife。运行时只需要 `createA11y.ts` 里一张很小的表：`AriaIdListKey` 那 5 个键，用来判断哪些值要空格拼接。
+- `lints/*.ts` 文件名不带 `.generated`，但头部写明「生成文件，勿手改」和 lint 版本。更新一个 lint 就整文件覆盖，diff 只落在这一个文件里。
+- `probe/` 放在 `src/a11y/` 下面，但 `src/a11y/index.ts` 不导入它，所以 `@meld-ts/core/a11y` 和 browser 包里都没有 node 依赖。
+- 维护者模式的输出（每个 lint 写一个 `.ts`）放在 `scripts/a11y-sync.ts`，不随包发布；它和用户模式共用 `serialize.ts`。
+- **样例值只有一个来源。** 探测 supported 时要给每个属性造一个合法值，§7 第 2 层写 fixture 时也要。这份数据和 `aria.generated.ts` 一样从 aria-query 生成（`probe/samples.generated.ts`），不手写，免得类型更新了样例没跟上。它是运行时值，只被 probe 和 scripts 引用，不进 a11y 入口。
+
+## 6. 探针：两种模式
+
+探针核心只有一个：`probe({ cwd, lints })`，在 `cwd` 这个项目里用它自己装的 lint 跑 fixture，返回规则表数据。两种模式的区别在于 cwd 是谁、结果写到哪。
+
+| | 用户模式 | 维护者模式 |
+|---|---|---|
+| 谁用 | 用 core 的项目 | core 自己 |
+| 怎么跑 | `meld-ts a11y probe`（随包发布的 bin） | `bun run a11y:sync`（仓库脚本，不发布） |
+| cwd | 用户项目根目录 | `.cache/a11y-lab/`，脚本临时建的空项目 |
+| lint 版本 | 用户项目装的什么就是什么，可能是旧版 | 最新版 |
+| 输出 | 一个重载文件 | `src/a11y/lints/<lint>.ts`，一个 lint 一个 |
+
+### 工作目录
+
+探针在 `<cwd>/.meld-a11y-probe/` 下工作，跑完删掉（`--keep` 保留，用来排查）：
+
+```
+.meld-a11y-probe/
+  config/
+    eslint/eslint.config.mjs
+    oxlint/.oxlintrc.json
+    biome/biome.json
+  fixtures/
+    *.jsx
+```
+
+为什么这样放（都实测过）：
+
+- **不能放 `node_modules/.cache/`**：biome 和 eslint 默认忽略 node_modules，显式传路径也不检查，结果是一张静默的空表。
+- **不能放系统临时目录**：eslint 配置要 `import` 项目里的 eslint-plugin-jsx-a11y，配置文件得在项目目录里，模块解析才找得到。
+- **配置和 fixture 分开放**：biome 的配置文件如果在 fixture 的上级目录，会被当成嵌套的 root 配置，和项目自己的 biome.json 冲突报错。分开放、用 `--config-path` 显式指定，项目自己的 biome.json（哪怕 `files.includes` 只包含 `src/**`）也不影响。
+- 每个 lint 都用 `-c` / `--config-path` 显式指定探针自己的配置，不读项目配置。
+
+### 每个 lint 怎么跑
+
+| lint | 启用的规则 | 命令 | 解析 |
+|---|---|---|---|
+| eslint | `jsx-a11y/role-has-required-aria-props`、`jsx-a11y/role-supports-aria-props` | `eslint -c config/eslint/eslint.config.mjs -f json fixtures/` | `messages[].ruleId` |
+| oxlint | `plugins: ["jsx-a11y"]`，规则同上 | `oxlint -c config/oxlint/.oxlintrc.json -f json <显式文件>` | `code` 形如 `jsx-a11y(role-has-required-aria-props)` |
+| biome | `lint/a11y/useAriaPropsForRole`、`lint/a11y/useAriaPropsSupportedByRole`，其余规则关掉 | `biome lint --config-path=config/biome --reporter=json fixtures/` | `category` |
+| bun | 同 oxlint 两条规则；`--jsx-a11y-plugin` 打开插件，规则走 CLI `--rule`，不写配置文件 | `bun lint --no-script --jsx-a11y-plugin -f json --rule jsx_a11y/…: error <显式文件>` | JSON 是 oxlint 形状，`code` 形如 `jsx-a11y(role-has-required-aria-props)` |
+
+- **只按规则 id 白名单取数**，不能按「有没有报错」判断。同一份 fixture 会触发很多无关规则：oxlint 开了 jsx-a11y 插件后，`control-has-associated-label`、`prefer-tag-over-role` 默认也会报。
+- **oxlint 和 bun 必须传显式文件参数**：两者的目录遍历会应用沿途 `.gitignore`，lab 建在仓库 `.cache/` 下、被根 `.gitignore` 整体忽略，传目录必然扫不到文件；显式文件不受 ignore 影响（lab 实测）。eslint 和 biome 传 fixtures 目录即可。
+- 各 lint 的配置写法跟着版本走：biome 2.6.8 里 `recommended: false` 已标为 deprecated，runner 按检测到的版本选写法。
+- 消息文本只在需要取属性名时解析（比如「缺哪些属性」），解析器针对每个 lint 单独写，用录好的真实输出做单测。
+
+### 每个 lint 测三张表，再自检一次
+
+1. **supported**：role × 每个 aria 属性，读「不支持」的报错，从属性全集里减掉报了不支持的，再减掉名字规则为 prohibited 的 role 的 label / labelledby。127 个 role × 约 50 个属性，约 6000 个元素，分批放进几个文件，一次跑完。
+2. **required**：先跑一遍全 supported 属性在身的基线（报错说明 supported 测漏了，直接失败），然后分批 fixture 逐个去掉一个 supported 属性再跑：某轮去掉 K 后 role 仍报缺失，K 就是它的必填。只看「哪个 role 报了错」，不解析消息里的属性名，biome 的消息只含 role 也成立。这比条件必填（「有 B 才要求 A」）保守：去掉 K 时其余属性都在身，条件成立也会把 K 记成无条件必填；现有四条数据驱动的必填规则没有这种条件，两种算法结果一致。
+3. **可聚焦差异**：同一 role 加 / 不加 `tabIndex={0}` 各测一遍，差出来的就是 `requiredWhenFocusable`。
+
+**自检**：表生成后，挑几个已知有必填项的 role（如 checkbox、switch、slider），故意少写一个必填属性，确认 lint 确实报错。不报错说明这个 lint 根本没跑起来规则（配置没生效、文件被忽略、解析失败），探针直接失败，不写文件。这一步在用户模式和维护者模式都跑。
+
+**不变量**：写文件前，对每张表的每个 role 断言三条，任何一条不成立就失败，不写文件：
+
+1. `required` ⊆ `supported`；
+2. `requiredWhenFocusable` ⊆ `supported`；
+3. 名字规则为 `required` 的 role，`label` 和 `labelledby` 都在 `supported` 里。
+
+不成立的典型原因是探针部分解析失败，或者减禁止属性减过头。后果是这个 role 的所有合法写法都会同时报「缺必填」和「never」，所以必须在生成时挡住。上面的自检只能证明 lint 跑起来了，证明不了这三条。
+
+**bun 的表**：bun 1.4.4 起 `bun lint` 内嵌 oxlint——JSON 是 oxlint 形状（`diagnostics[].code = jsx-a11y(...)`），消息文本与 oxlint 同源，不是 eslint 的移植。CLI 要 `--jsx-a11y-plugin` 打开插件（没有它 `--rule` 静默无效）、`--no-script` 防止 bun 转去执行项目自己的 lint 脚本。runner 直接探测，表不 aliasOf eslint；解析与 lab oxlint 的 `parseOxlint` 平铺两份，两边内嵌/安装的 oxlint 各自漂移，互不连带。§12.11 记录了首次真实同步的结果。还有一个配置边界：插件模式下 bun 会读项目的 `.oxlintrc.json`——但它只当模式标记用，「不读项目配置」指的是规则设置、不含这个标记；规则走 CLI `--rule`，该文件里设为 off 的规则照样被打开成 error（bun 1.4.4 实测）。
+
+### 用户模式
+
+已实现（Plan C，`src/bin/meld-ts.ts`）。下面是它的行为。
+
+```
+meld-ts a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts] [--keep]
+```
+
+- `--lint`：不传就读项目的 package.json，装了哪些 lint 就探哪些。用户只用 biome，就只生成 biome 一份。bun 不在 package.json 里（是当前运行时），不算「装了的 lint」——要探 bun 得 `--lint=bun` 点名。
+- `--out`：不传就生成到项目根目录的 `a11y-lints.generated.d.ts`。
+- lint 从项目目录解析：biome、oxlint、eslint 和 eslint-plugin-jsx-a11y 都用项目 node_modules 里的；bun 用项目当前的 bun。
+- 生成后检查输出文件在不在 tsconfig 的 `include` 里，不在就提示。不然重载不生效，用户还以为生效了。
+
+规则配置用探针自带的，不读项目配置。这是取舍：测出来的是这个 lint 版本的默认规则，不是用户项目里实际开着的规则。
+
+- 用户关掉了某条规则：类型照样按开着的来，只会多要求。
+- 用户比默认多开了规则，或调严了参数：类型会比 lint 要求得少，这部分不覆盖。
+
+所以准确的说法是：相对这个 lint 版本的默认规则，不会漏检。
+
+生成文件不进 git 也不会出事：刚 clone 下来没跑探针，用的是 core 内置表，类型照样能用，只是版本可能对不上。要准确的话，用户把探针挂在 `prepare` 上，或者在 CI 的 `ts-check` 之前跑一次。
+
+### 维护者模式
+
+`bun run a11y:sync [--lint biome]` 做这几步：
+
+1. 清空 `.cache/a11y-lab/`，在里面 `bun init -y`。
+2. `bun add -d` 装最新的 eslint、eslint-plugin-jsx-a11y、@biomejs/biome、oxlint、aria-query。bun 不装在 lab 里：表用执行 sync 的那个 bun 探测，版本就是它的版本。
+3. 从 lab 里的 aria-query 生成 `src/a11y/aria.generated.ts` 和 `src/a11y/probe/samples.generated.ts`。
+4. 以 lab 为 cwd 调 `probe()`，每个 lint 覆盖写 `src/a11y/lints/<lint>.ts`，头部写版本。
+5. 在仓库根对生成的文件跑 `biome format`：格式化由仓库自己的 biome（lockfile 锁定）做，不是 lab 里的最新版，`git diff` 才不随 lab 漂。
+
+`--lint` 只更新指定的 lint，其他文件不动；`aria.generated.ts` 和 `samples.generated.ts` 不在此列，每次仍会重写——这两份只随 aria-query 变，与 lint 版本无关，今天重跑内容不变，aria-query 更新后跑 sync 动的才是它们。`profiles.generated.ts` 按 `--lint` 的语义合并：本轮点名的 lint 键换成新探的表，未点名的保留现有快照，部分同步不会丢键。
+
+core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注意 core 自己用来 lint 源码的 biome（devDependencies 里的 `^2.5.0`）和 lab 里探测用的 biome 是两回事，版本可以不同，文档和生成文件头部写版本时别混。
+
+## 7. 测试
+
+费心思的地方在这里。分五层：
+
+1. **类型测试**（`types.test.ts`）：附录 A 的断言是起点，扩到全部内置表。每张表抽一组代表 role（switch、combobox、option、treeitem、separator、img、heading、slider、generic），用 `@ts-expect-error` 断言这些都报错：缺必填、不支持的属性、拼错的键、禁止属性、缺名字、可聚焦时缺额外必填（`focusable` 传 `true` 和传 `true | undefined` 变量都要测）、必填键传 `boolean | undefined` 变量、id 类属性传数组。用类型相等断言检查输出精确：键集合、字面量值、output 差异（含 `false` 和 `boolean` 变量在 html 下的输出）、`focusable` → `tabIndex`、含 undefined 的键可选。另外测：
+   - 注册表：在测试里重载 `A11yLintOverrides`，断言生效的是重载后的表；键名拼错、结构不对，`createA11y` 报错；
+   - 多 lint 合并的结果，以及任意两张内置表合并后三条不变量都成立（§6）；
+   - `A11yOf` 在 `isolatedDeclarations` 下可用。
+
+   这一层靠 `tsc` 检查，`bun test` 单跑不会报类型错误。要确认 tsconfig 覆盖了测试文件，并且 pre-push / CI 里 `ts-check` 和 `test` 都跑。类型测试要在 core 声明的 TypeScript 版本（`^7`）下跑；附录 A 在 7.0.2 和 5.9.3 下结果一致。
+2. **lint 一致性测试**（核心）：对每张表、每个 role，用 `a11y()` 生成三种输出：「只带必填」「带全部允许属性」，以及有 `requiredWhenFocusable` 的 role 再加一种「`focusable: true` + 全部允许属性」（biome 的 separator + valuenow 就靠这一种验）。属性值来自 `samples.generated.ts`。输出**展开成字面属性**写进 JSX fixture（`<div role="switch" aria-checked="true" ...>`），交给对应 lint 跑，要求相关规则零报错。不能用 spread 写 fixture：lint 看不到 spread，测试会永远全绿。四家合并的结果要四个 lint 都跑一遍。
+3. **反向测试**：对每个 role 故意去掉一个必填属性，确认对应 lint 确实报错。防止探针解析失败时生成了一张「什么都不要求」的空表，第 2 层还照样全绿。
+4. **构建产物的重载测试**：`bun run build:dist` 之后，在临时项目里通过包名引用构建产物，写一个带 `export {};` 的重载文件，跑 `tsc`，断言重载生效；再去掉 `export {};` 跑一次，断言失败。防止打包方式变了以后重载悄悄失效。
+5. **运行时单测**：output 转换、id 数组拼接、undefined 跳过、focusable → tabIndex；探针的解析器、fixture 生成、序列化、重载模板（断言第一行是 `export {};`）用录好的 lint 输出做单测。`exec.ts` 可注入，runner 和 detect 的子进程、读文件部分用桩替换。保持仓库的 100% 覆盖率。
+
+第 2、3、4 层不进 `bun test src/`：第 2、3 层在 lab 里跑（`bun run test:a11y-lint`），跑之前按 `PROFILES.<lint>.version` 重建 lab（快照与 `lints/*.ts` 表头由同一次 sync 写出），保证测的就是提交进仓库的那几个版本；第 4 层依赖构建，放在发版前的检查里。
+
+漂移检查：定时跑一次 `a11y:sync`，`git diff src/a11y/lints/` 有变化就说明 lint 出了新版、规则变了，提示更新。
+
+## 8. AGENTS 规则（草案）
+
+```
+- 能用原生元素就用原生元素（button、a、input、select、dialog…）。
+- 原生元素补状态用 a11y.aria({...})，不手写 aria-*，也不要对原生元素用 a11y(role, ...)。
+- 自定义 role 一律用 a11y(role, {...})，不手写 role= 和 aria-*。
+- 需要可聚焦就传 focusable: true，不另外手写 tabIndex。唯一例外：只能用脚本聚焦的元素手写 tabIndex={-1}。
+- 项目统一从 src/a11y.ts 导入 a11y，createA11y 只在这个文件里调，绑定本项目的 lint 和 output。
+```
+
+lint 看不到 spread，这几条规则就是主要防线。「不手写」由 CI 的 grep 检查把关（`.github/workflows/pr-check.yml`，在 Test 前跑），排除库自身的 `src/a11y/**` 和接入文件 `src/a11y.ts`：
+
+```
+rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})|\btabIndex\s*=\s*["'\'']|\btabindex\s*=\s*["'\'']' \
+  --glob '*.{tsx,jsx}' \
+  --glob '!src/a11y/**' \
+  --glob '!src/a11y.ts'
+```
+
+它能抓到 `role="x"`、`role = "x"`、`role={var}`、模板串等写法；`tabIndex` 一并抓（`tabIndex={0}`、`tabIndex={var}`，以及字符串形式 `tabIndex="0"` / `tabindex="0"`），唯一例外是手写的字面 `tabIndex={-1}`（§8 规则 4 的脚本聚焦例外）。也会误报普通代码里的 `role = ...` 赋值和 `data-role` / `data-aria-label` 这类 data-* 属性（fail-closed，宁可拦下人工排查），按需加排除。脚本按 rg 的退出码分流：0（有命中）失败、1（无命中）通过；rg 自身出错（正则坏、缺 PCRE2、命令不在，exit 2）不放行——用 `git ls-files` 清点仓库的 tsx/jsx，滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有文件才失败；全部在排除路径里、或根本没有 tsx/jsx 则放行。`.cache/a11y-lab` 的一致性 fixture 故意写字面属性，但它在 gitignore 里，不进这个检查。抓不全的变形（比如先拼对象再 spread）靠 AGENTS 规则兜。
+
+## 9. 和 core 的配合
+
+- 子路径 `@meld-ts/core/a11y`，同步改 `bunup.config.ts`、`src/browser/index.ts`、`build:exports`、CLAUDE.md、README、SKILL.md。
+- `src/browser/index.ts` 会把所有子路径合并进一个命名空间，所以导出名（含类型）不能和现有的撞：统一用 `A11y` 前缀，如 `A11yRole`、`A11yProfile`，不用 `Role`。`AriaKey`、`AriaValue`、`AriaInput` 这类 `Aria` 前缀的也要查一遍不撞名。
+- bin 已实现（Plan C），**单独一份 `bunup.bin.ts`**：入口 `src/bin/meld-ts.ts`，只出 esm，shebang 由 bunup 的 banner 注入 `#!/usr/bin/env bun`（源文件自己不写，写两遍会打包出两行 `#!`）。不进 `bunup.config.ts`：那里导出的是单个对象，`bunup.exports.ts` 用 `{ ...config, exports: true }` 展开它；改成数组会让 `build:exports` 坏掉。`package.json` 的 `"bin": { "meld-ts": "./dist/bin/meld-ts.js" }` 不在 `exports` 里；`build` 脚本串上 `build:bin` 且放在最后——`build:dist` / `build:exports` 会清空 `dist/`（连带 `dist/bin`），完整构建后 bin 一定在。
+- bin 和 probe 只用 node 内置模块和 Bun 内建（如 `Bun.spawnSync`），无第三方运行时依赖，但要求 Bun——bin 的 shebang 是 `env bun`，Node 跑不起来。
+- 新增脚本：`build:bin`、`a11y:sync`、`test:a11y-lint`、`test:a11y-build`。
+- `tsconfig.json` 的 `exclude` 加上 `.cache`：`.gitignore` 只挡 git，不挡 tsc，lab 里 `bun init` 生成的 `.ts` 会被拉进类型检查。`scripts/` 下的两个脚本要进 `ts-check`（tsconfig 没写 `include`，默认就会包含，不要排除）。
+- 不依赖 React：输出是普通对象，`output` 只决定值的形式。
+
+## 10. 不做的事
+
+- 元素和 role 的搭配（`prefer-tag-over-role`、`no-noninteractive-element-to-interactive-role`），以及 `a11y.aria()` 的属性和元素是否搭配：要知道元素标签，`a11y()` 不知道。以后可以考虑 `a11y.on('div', 'switch', {...})`。
+- 键盘交互、焦点管理：那是行为层（React Aria 那一类）的事。
+- 文本内容能不能当名字（`nameFrom` 含 `contents` 的 role，名字可能来自子元素）：类型看不到子元素，这类 role 不强制 label。
+- 读项目的 lint 配置：探针只测 lint 版本的默认规则（§6）。
+
+## 11. 待定
+
+| # | 问题 | 建议 |
+|---|---|---|
+| 1 | 命令名：`meld-ts a11y probe`，还是单独叫 `meld-a11y`？ | `meld-ts a11y probe`：唯一 bin 加子命令，以后别的功能也能挂上来（原拟 `meld`，§12.13 改为 `meld-ts` 避免与 npm 包和系统 GUI 撞名） |
+| 2 | 输入用 camelCase（`checked`），还是直接写 `aria-checked`？ | 已被取代（§12.10）：输入 key 定为输出形态去掉 `aria-` 前缀的小写形式（`valuenow`、`labelledby`），不是 camelCase |
+| 3 | 要不要导出一个默认的 `a11y`（如四家合并 + `react`），让不想配置的人直接 `import { a11y }`？ | 先不导出，项目里写一行 `createA11y` 不费事，也逼着项目明确自己用哪个 lint |
+| 4 | bun lint 目前只在 canary 里有：内置表现在就用 canary 生成 `bun.ts`，还是等正式版？ | 已被取代（§12.11）：bun 1.4.4 起 `bun lint` 内嵌 oxlint，runner 直接探测，`lints/bun.ts` 是独立生成的表，不沿用 eslint |
+
+## 12. 修订记录
+
+### 12.1 审查 01
+
+审查 01 一共 15 条（Critical 2、Important 3、Medium 6、Minor 4），处理如下：
+
+| 条目 | 结论 | 改在哪 |
+|---|---|---|
+| A1 不支持的属性不报错 | 采纳。加 `Exact`，同时挡住拼错的键 | §4 输入 |
+| A2 重载文件缺 `export {}` 会盖掉子路径 | 采纳。模板第一行固定 `export {};`，加构建产物测试；chunk 重导出的形状已实测可重载 | §4 注册表、§7 第 4 层 |
+| A3 lint 看不到 spread | 采纳事实，保留按 lint 分表：类型替 lint 把关，所以按项目 lint 的表来。重写两个入口的理由；一致性测试改成展开字面属性 | §1、§2、§3、§7 第 2 层 |
+| A4 prohibited / nameFrom 没有探针来源 | 采纳。这两项来自 aria-query；`prohibited` 字段删掉，生成时从 supported 里减掉；名字规则归成三类 | §4 数据分两类 |
+| A5 `aria()` 例子用了非全局属性 | 采纳。`aria()` 允许全部 ARIA 属性，写明已知缺口 | §3、§10 |
+| B1 `isolatedDeclarations` 下编译不过 | 采纳。导出 `A11yOf`，已实测写法 | §3 |
+| B2 `focusable` 没闭环 | 采纳。`focusable: true` 输出 `tabIndex`，可聚焦必填项进表，合并规则补上 | §3、§4 |
+| B3 临时文件放 node_modules 会被忽略 | 采纳，并实测了新位置。改到 `<cwd>/.meld-a11y-probe/`，配置和 fixture 分开；加自检 | §6 |
+| B4 规则清单没写、oxlint 行为没复现 | 采纳。补每个 lint 的规则 id 和命令；复测确认 oxlint 一次报全部，删掉旧说法；按规则 id 白名单解析 | §2、§6 |
+| B5 bin 会破坏 `bunup.exports.ts` | 采纳。单独 `bunup.bin.ts` | §9 |
+| B6 生成文件进 browser 包 | 采纳。生成文件只含类型 | §5 |
+| C1 `a11y('button')` 没被挡住 | 不改类型，role 范围不收窄；理由写进 §3，靠 AGENTS 规则 | §3、§8 |
+| C2 undefined 处理和表格不一致 | 采纳。含 undefined 的键可选 | §3、§4 输出 |
+| C3 几个类型没定义 | 采纳。补上定义 | §4 |
+| C4 测试和版本细节 | 采纳：类型测试靠 ts-check、`exec.ts` 可注入、biome 版本别混。旧版文件已删 | §6、§7 |
+
+### 12.2 审查 02
+
+审查 02 一共 17 条（Critical 2、Important 9、Minor 6），全部采纳。类型相关的改法都写进了附录 A 的原型，在 TypeScript 7.0.2 和 5.9.3 下跑过。
+
+| 条目 | 改法 | 改在哪 |
+|---|---|---|
+| C1 options → P/O 的解析层缺失 | 补 `A11yOptions`、`OutputOf`、`ResolveProfile`、`createA11y` 签名；不写 output 时的 TS2344 已修 | §4 输入和输出、附录 A |
+| C2 `focusable` 是 `true \| undefined` 变量时额外必填失效 | 条件改成 `true extends I['focusable']`；输出的 `tabIndex` 跟着变可选 | §3、§4、附录 A |
+| I1 多 lint 合并没有类型操作 | 补 `MergeProfiles`，写明合并后的 `meta`；补合并冲突的不变量 | §4 多个 lint 合并、附录 A |
+| I2 `FocusAttr` / `AriaAttrs` / `OutValue` 未定义 | 补定义；§3 表格补 `false` 和 `boolean` 变量 | §3、§4、附录 A |
+| I3 undefined 规则和必填冲突 | undefined 规则收窄到可选属性；必填属性不接受 undefined | §3、§7 |
+| I4 生成表缺不变量自检 | 生成时断言三条子集关系，不成立就不写文件 | §6 |
+| I5 第 2 层测不到 `requiredWhenFocusable` | 加第三种 fixture | §7 |
+| I6 样例值工厂没有位置 | 从 aria-query 生成 `probe/samples.generated.ts` | §5、§6 |
+| I7 重载没有结构约束 | 键名和结构都在 `createA11y` 参数上报错，实测过 | §4 注册表、附录 A |
+| I8 tsconfig 没排除 `.cache` | `exclude` 加 `.cache`；`scripts/` 进 ts-check | §9 |
+| I9 实测版本和 peer `^7` 不一致 | 原型在 TypeScript 7.0.2 下复跑，chunk 重导出的重载也复跑了，结果和 5.9.3 一致 | §3、§4、§7 |
+| M1 `focusable: false` / `tabIndex={-1}` | 不支持 `false`；`tabIndex={-1}` 手写，AGENTS 放行 | §3、§8 |
+| M2 grep 漏网 | 换正则，加 `.jsx`，写明误报和漏网 | §8 |
+| M3 bun 三处没对齐 | 第一版 `bun.ts` 沿用 eslint 表（`aliasOf`），§6 runner 和 lab 步骤同步改 | §4、§6 |
+| M4 `details`、`errorMessage` 是单个 id | 拆成 idlist / id 两类，按 aria-query 生成；补上 `activeDescendant` | §3、§4、§5 |
+| M5 示例注释和 const 推导不符 | `'aria-label': 'Wi-Fi'` | §3 |
+| M6 「只会多要求」说满了 | 收窄到「相对默认规则」 | §6 |
+
+审查 02 之外顺带发现的一点：core 的 `package.json` 写的是 `typescript: ^7`，但 `bun.lock` 里锁的是 5.9.3（typedoc 0.28 的 peer 只到 6.0.x），所以仓库现在跑 `ts-check` 用的其实是 5.9.3。这不是 a11y 的问题，单独处理。
+
+### 12.3 附录 A 修订：r4 断言
+
+round 4 曾把附录 A r4 的断言从 `Eq<(typeof r4)['aria-expanded'], true | undefined>` 改成 `boolean | undefined`，理由是「react 模式下 `boolean | undefined` 输入的字面量 `true` 不会凭空出现」——那是实现测试的结论，不是附录的。两边的语境不同：
+
+- 附录里 `onOpt` 是**带初始化器的 `const`**（`const onOpt: boolean | undefined = ... ? true : undefined`），控制流分析先把它收窄成 `true | undefined`，`a11y.aria({ expanded: onOpt, ... })` 推出的就是 `true | undefined`——原断言本来就是对的。round 5 把该行改回 `true | undefined`，并抽出附录两个文件按头部注明的 tsconfig 用仓库锁定的 tsc 5.9.3 复测 `tsc -p .`，退出码 0；round 4「已用 tsc 5.9.3 复测」的说法对附录不成立，当时测的是实现。
+- 实现测试（`types.test.ts`）里 `maybeBool` 是 **`declare const`**（无初始化器），不发生收窄，react 模式对 `boolean | undefined` 输入的推导就是 `boolean | undefined`，实现侧断言对它自己的语境正确，不动（见 `docs/reviews/20261121-a11y-plan-a.md` 决定三）。
+
+### 12.4 审查（round 4）
+
+round 4 复审两条 Important 的裁定（其余条目为注释、死分支清理与文档计数，不涉及设计决定）：
+
+| 条目 | 结论 | 改在哪 |
+|---|---|---|
+| `OutputOf` 是非分布判定：`output` 的类型是 `'html' \| undefined`（`output: out` 变量、直接收整个 `A11yOptions` 的非泛型包装）时静默取 `'react'`，运行时却按值走，类型承诺和实际输出会漂 | fail-closed：调用点新增 `OutputDefiniteCheck`（同 `OptionsKeyCheck` / `LintSelectionCheck`，挂在 `createA11y` 参数上），`output` 键存在时类型必须**恰好是一个模式**（`'react'` 或 `'html'`，非分布判定，union 不拆开）——要么不写（键缺失不拦，默认 react），要么确定字面量，要么收窄成单模式的表达式（`out` 已收窄为 `'html' \| undefined` 时 `out ?? 'html'` 就是 `'html'`）。同时含 `undefined` 的类型和同时含两个模式的 union（`A11yOutputMode` 变量、跨模式默认值 `out ?? 'react'`——round 4 记的「可用」是错的，它推成 `'html' \| 'react'`）都报错：双模式 union 的输出会同时要求 `tabIndex` 和 `tabindex`，运行时只发一个。附录 A 的 `OutputOf` 不动，继续服务确定字面量的场景 | §4 输入和输出 |
+| 附录 A 的 `A11yProfile` meta 写 `lint: string`、无 `aliasOf`，§4 和实现都是 `A11yLintName` | §4 胜：附录 A 自声明只是验证类型写法的缩小原型，不是字段类型的出处。附录 A 的 meta 两行改为 `A11yLintName`（含 `aliasOf?: A11yLintName`），「实现时以它为准」对这个字段不再误导 | 附录 A |
+
+### 12.5 round 5 补记：round 1–4 新增检查
+
+round 1–4 给实现加了几组检查，此前没入档，此处补记（定义都在 `src/a11y/types.ts`，挂在 `createA11y` 或 `a11y()` 的参数上）：
+
+| 检查 | 语义 |
+|---|---|
+| `NoEmpty` / `NoEmptyRequired` | 空 idlist（字面量空元组）按「没传」处理：join 出的 `''` 不是合法 id 列表，类型层把空元组归一成 `undefined`，输出键随之省略或变可选（§3 输出表的 `controls: []` 一行）；必填 idlist 键传空元组（round 13 起含空元组的 union 同拦，见 §12.9）在 `a11y()` 调用点报错——否则输出键被丢掉，「输出过选中的表」的承诺落空。已知限制：非元组（`string[]` 变量持有 `[]`）认不出空数组 |
+| `LintSelectionCheck` | `lint` 传空数组 / `never[]` 在 `createA11y` 调用点报错：空选择归约成 never 表，带 aria 属性的 `a11y()` 调用虽会在各自调用点报错，但信息不可读（"not assignable to never"）；这个检查把错误前移到 `createA11y`，换成一条可读的消息。数组类型的变量（`A11yLintName[]`）不拦 |
+| `OptionsKeyCheck` | 拼错的选项键（如 `outpt`）在 `createA11y` 调用点报错，不静默退回默认值 |
+
+round 11 补记：`NameEmptyCheck`（挂 `a11y()` 的 `props` 参数上，同
+`NoEmptyRequired`）——名字必填的 role，`labelledBy` 传字面量空元组（round 13
+起含空元组的 union 同拦，见 §12.9）在调用点
+报错：空 idlist 按「没传」处理（`NoEmpty`），对名字必填的 role 等于没给名字，
+§4 的「label / labelledBy 至少一个」落空。非元组数组（`string[]` 变量持有
+`[]`）认不出，仍是 `NoEmpty` 已记录的限制；名字规则非 required 的 role（如
+separator）不受影响，`labelledBy: []` 按可选 idlist 的既定行为输出键消失。
+
+### 12.6 round 7：union 选择的 fail-closed 语义
+
+round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者的洞同源：分布式条件类型把 union 拆开逐个成员处理，几张表并起来，约束就松了。
+
+| 选择 | 语义 |
+|---|---|
+| lint 名是 union（`'biome' \| 'oxlint'` 变量 / 条件表达式）或名字与数组混合的形状（`'biome' \| readonly ['oxlint']`） | 走 `MergeProfiles`（`supported` 取交集），不拆成几张表的并集。`FlattenLint` 先把混合形状展平成名字并集，`ResolveProfileImpl` 用非分布的 `IsUnion` 判定是 union 就合并。单名字直接取表；数组（含单元素数组）一律走 `MergeProfiles`（§4 的既定行为，round 8 修复：单元素数组此前被展平成单名字而直接取表，只有 `meta.source` 与 §4 不符，约束结果不受影响） |
+| role 是 union（`'switch' \| 'img'` 变量、整个 `A11yRole` 的包装） | 在 `a11y()` 调用点报错：`RoleDefiniteCheck` 挂在 `props` 参数上（机制同 `OutputDefiniteCheck`），role 类型是 union 就报错，让调用方收窄成单个 role。never 类型的 role 同样触发：`IsUnion<never>` 是 `never`，而 `never extends true` 取 true 分支，`RoleDefiniteCheck<never>` 就是错误对象（round 12 更正 round 7 的说法——记的「不触发」是错的）；实际露出的报错是 `NameRequirement<never>` 把 props 类型塌成 never 后那句难读的「not assignable to parameter of type 'never'」，行为 fail-closed，接受。**不取交集**：一个 role 的必填可能不在另一个的 supported 里（switch 必填 `checked`、img 的 supported 不含 `checked`），交集会把合法组合变成不可满足 |
+
+为什么必须拦：`Rule<P, R> = P['roles'][R]` 和 `ResolveProfile` 的分布式定义对 union 都是把几张表并起来——`supported` 变并集，只有部分成员支持的属性静默通过；role 并集还让 `A11yNameRule[R]` 变成 `'required' | 'optional'`，`NameRequirement` 分布出一个 `Record<never, never>` 分支，名字必填被空对象满足。lint 侧违反 §2「替谁把关就按谁的表」，role 侧是同一漏洞的镜像。
+
+测试证据：`test/a11y/lint-union/`（两张重载表的 supported 不同，union / 混合形状下只被一张表支持的 `hidden` 在调用点报错）；`src/a11y/types.test.ts` 的 `ResolveProfile` 断言（名字并集 / 混合形状解析成同一张合并表）和 role union 断言（`'switch' | 'img'`、`A11yRole` 变量在调用点报错，单字面量不受影响）。
+
+附录 A 的 `ResolveProfile` 是分布式定义，对 union / 混合形状的选择已被本节取代（单名字 / 数组两分支与实现一致），代码块里已加注。
+
+命名例外（round 9 记）：`MergeProfiles` / `ResolveProfile` 保留 §4/§5 的原名，不按前缀约定加 `A11y`/`Aria`——已核对兄弟模块（types/guards/base/timer/singleton/path/traits/events/async）的导出，无撞名，前缀约定的目的（browser `export *` 命名空间不撞名）已满足。
+
+### 12.7 round 10：TypeScript 7 验证推迟（ND 裁定）
+
+§7 第 1 层要求类型测试在 core 声明的 TypeScript 版本（`^7`）下跑。仓库今天跑不了 ^7：`bun.lock` 锁的是 5.9.3，typedoc 0.28 的 peer 只到 6.0.x（§12.2 已记录）。控制器裁定（ND）：等 lockfile / peer 的版本错位修好后再补一次 TS 7.0.2 的验证；附录 A 已在 7.0.2 和 5.9.3 双测过（§12.2）。验证项记入 [a11y-roadmap.md](./a11y-roadmap.md) Plan C 的发版前检查。
+
+### 12.8 round 12：focusable 门改为键存在，union props 拒收
+
+round 12 修三个同源的漏网（定义都在 `src/a11y/types.ts`，tsc 5.9.3 实测）：
+
+| 漏网 | 修法 |
+|---|---|
+| 条件展开 `...(cond ? { focusable: true } : {})` 把 focusable 推成**可选键**（`focusable?: true`），`FocusRequirement` / `FocusAttr` 的形状匹配门（`I extends { focusable: unknown }`）判不中：valueNow 不被要求，输出类型没有 `tabIndex`，运行时却发 `tabIndex`——biome 的 requiredWhenFocusable 被违反，类型承诺和实际输出漂移 | 门改成键存在判定：`'focusable' extends keyof I` 先于 `true extends I['focusable']`（值含 true）。可选键也算可聚焦（§3「宁可多要求」），`FocusAttr` 照 `undefined extends I['focusable']` 决定 `tabIndex` 可选。`EmptyTupleScope` 的激活门同步改（与 FocusRequirement 同源） |
+| props 是 union（`cond ? { focusable: true } : { label: 'x' }` 整个当 props 传）时，对 I 分布的检查把「某成员的要求」和其余成员的 unknown 并起来，`{ valueNow } \| unknown` 吸收成 unknown，逐成员的强制全部失效（focusable 额外必填、img 名字必填都静默漏过）；键存在门对 union 取公共键，同样判不出 | 调用点新增 `PropsDefiniteCheck`（机制同 `RoleDefiniteCheck`，非分布 `IsUnion` 判定，挂在 `a11y()` 的 `props` 参数上），props 是 union 就报错，让调用方把分支写进对象（条件展开推可选键）或拆成两次调用 |
+| `NameEmptyCheck` 误报 `a11y('img', { label: 'x', labelledBy: [] })`：label 已给名，空 labelledBy 只是死键（NoEmpty 丢掉它），§4 的「label / labelledBy 至少一个」已满足 | label 在 I 里（`I extends { label: string }`）就跳过空元组检查 |
+
+顺带更正 §12.6 的 never role 说法（见该节），以及 `FocusRequirement` 旧注释里「外层条件对 I 分布即可逐成员强制」的说法：分布的产物是「某成员要求 \| 其余 unknown」，吸收后强制整个消失，正是第二个漏网的机制；union 现在在调用点被 `PropsDefiniteCheck` 拦下，键存在门（被检类型是字面量）也不再分布。
+
+### 12.9 round 13–14：空元组 union 值与 aria 的 union props
+
+round 13 起，值是**含空元组的 union**（`readonly [] | readonly ['a']`）和字面量空元组同样拦截（定义在 `src/a11y/types.ts`，tsc 5.9.3 实测）：
+
+| 检查 | 语义 |
+|---|---|
+| `EmptyTupleKeys` / `NoEmptyRequired` | required / requiredWhenFocusable 的 idlist 键，值含 `readonly []` 就在 `a11y()` 调用点报错：`NoEmpty` 分布归一后输出键可能整个丢掉，「输出过选中的表」的承诺落空。判据用分布的 `Extract<I[K], readonly []>`——非分布的 `I[K] extends readonly []` 对 union 判不中 |
+| `NameEmptyCheck` | 名字必填的 role，`labelledBy` 值含 `readonly []` 同样报错（等于可能没给名字）；判据同样用 `Extract<V, readonly []>`——分布判的 `V extends readonly []` 会把错误对象和 unknown 并起来吸收成 unknown。label 在 I 里（已给名）不触发 |
+
+非空元组的 union（`readonly ['a'] | readonly ['a', 'b']`）不触发；`string[]` 变量不受影响——非元组认不出空数组，仍是 `NoEmpty` 已记录的限制（§12.5）。
+
+round 14 起，`a11y.aria()` 的 props 也挂 `PropsDefiniteCheck`（与 `a11y(role, props)` 一致，机制见 §12.8）：union props 下 `AriaAttrs` 分布成各分支输出的并集，`keyof` 取公共键是 `never`，调用方拿到一个键都读不出的输出类型，运行时却发其中一个分支的属性——类型承诺和实际输出漂移，宁可在调用点报错，让调用方把分支写进一个对象或拆成两次调用。
+
+测试证据：`src/a11y/types.test.ts`（required idlist / 名字必填的 `labelledBy` 传含空元组 union 报错，非空 union 与 `string[]` 变量通过；aria 的 union props 报错、单分支调用通过）。
+
+### 12.10 Plan B 裁决：输入 key 定为输出形态（小写无前缀）
+
+`AriaKey` 的输入 key 从可读 camelCase（`valueNow`、`labelledBy`）改为
+最终输出形态去掉 `aria-` 前缀的小写形式（`valuenow`、`labelledby`）。
+规则只有一条：输入 key = 输出键去掉 `aria-` 前缀。输出键仍是
+`` `aria-${Lowercase<K>}` ``（`Lowercase` 对已是小写的 key 是恒等），
+运行时行为不变，生成器不再需要任何拼写规则。
+
+不引入 keyMap（输入名 → 输出名的注册表）：它会让包多出一套需要随
+ARIA 规范与 lint 演进的注册机制，且无法做到项目级重载。§11 问题 2
+选 camelCase 的理由（补全友好）不敌这条——`labelledBy` 这类大小写
+拼写错误面正是要消灭的。该条裁决取代 §11 问题 2 的结论。
+
+附录 A 原型与 §12.1–12.9 修订记录里的旧拼写保留原样：它们是当时的
+实测记录，改写等于伪造证据；本条之后以小写形式为准。
+
+### 12.11 Plan B：首次真实同步记录（2026-11-22）
+
+四张内置表已由探针生成（`5fdc608`，整文件替换 Plan A 的手写缩小版），
+`bun run a11y:sync` 可重复生成。事实如下：
+
+- **版本**：eslint 6.10.2（表版本取 eslint-plugin-jsx-a11y 插件的版本，不是
+  eslint 自身）、bun 1.4.4、oxlint 1.94.0、biome 2.6.8。bun 用执行 sync 的
+  那个 bun 探测，版本就是它的版本。
+- **bun 内嵌 oxlint**：bun 1.4.4 起 `bun lint` 的 jsx-a11y 来自内嵌的
+  oxlint——JSON 是 oxlint 形状（`diagnostics[].code = jsx-a11y(...)`），消息
+  文本同源，不是 eslint 的移植（§2 首测表 bun 列因此作废：其 treeitem 行
+  记 `selected`，实测 bun 表是 `never`，与 oxlint 一致）。CLI 需要
+  `--jsx-a11y-plugin` 打开插件（缺它 `--rule` 静默无效），`--no-script`
+  防止 bun 转去执行项目自己的 lint 脚本。bun 表独立探测生成，不 aliasOf
+  eslint；本次同步里 bun 与 oxlint 两表的 role 数据恰好逐项相同，但两者
+  独立漂移，不做 alias。
+- **显式文件参数**：oxlint 和 bun 的目录遍历会应用沿途 `.gitignore`，lab
+  建在仓库 `.cache/` 下、被根 `.gitignore` 整体忽略，传目录必然扫不到文件
+  （lab 实测）；这两个 runner 传显式文件。eslint 和 biome 传目录即可。
+- **数据规模**：127 个非抽象 role × 51 个 AriaKey；idlist 键 5 个
+  （controls / describedby / flowto / labelledby / owns），运行时
+  `IDLIST_KEYS` 同步补齐。
+- **`switch` 名字规则是 `optional`**：aria-query 里 switch 的 `nameFrom` 含
+  `contents`，按 §4 的分类规则（`accessibleNameRequired` 且不含 `contents`
+  才 required）归 `optional`。Plan A 手写缩小版曾写 `required`；以本实现
+  的规则为准，不回改。
+- **生成文件格式化由仓库根的 biome 做**（lockfile 锁定，当前 2.5.0），不是
+  lab 里的 biome（2.6.8）：根 biome 升级只会改排版，不会改数据，`git diff`
+  不随 lab 漂。
+- **bun 的 lint 未 stable**：内嵌 oxlint 升级若改消息文本或 JSON 形状，
+  runner 会失败（fail-closed），重跑 sync 修复。
+
+### 12.12 Plan C 收官记录（2026-11-22）
+
+Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设计 §6 用户模式、
+§7 第 2/3/4 层、§8 AGENTS/CI、§9 bin 全部落地。事实如下：
+
+- **bin 打包与命令**：`bunup.bin.ts` 单独打包（esm、`target: node`、`dts: false`），
+  banner 注入 `#!/usr/bin/env bun`——源文件 `src/bin/meld-ts.ts` 不写 shebang，写两遍会
+  打包出两行 `#!`。`package.json` 的 `bin` 指向 `./dist/bin/meld-ts.js`，不在 `exports`
+  里。命令：`meld-ts a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts]
+  [--keep]`，参数严格解析，未知参数直接失败（§6 的取舍：宁可失败，不静默忽略）。
+- **用户模式输出文件**：默认写到项目根 `a11y-lints.generated.d.ts`，首行固定
+  `export {};`（没有它 `declare module` 会整个盖掉子路径，§4）。写出后用
+  `checkTsconfigIncludes` 检查它在不在 tsconfig 的 include/files 里，不在只警告不
+  失败——探测已成功，收尾检查不作废整轮；tsconfig 缺失或不可解析同样降级为警告。
+  已知局限：不跟随 extends（上游收窄过 include 时拦不住「实际不生效」）；`./` 前缀
+  的模式匹配不上（误报未包含）；`?` 按字面量不通配；exclude 先于显式 files 条目判定
+  （tsc 里显式列进 files 的文件不受 exclude 影响，这里更保守，宁可误告警）。
+- **第 2/3/4 层测试的运行方式**：第 2/3 层（一致性 + 反向）跑 `bun run
+  test:a11y-lint`，lab 按 `PROFILES.<lint>.version` 精确重建（与 `lints/*.ts` 表头由同
+  一次 sync 写出），`--keep` 保留现场；第
+  4 层（构建产物重载）跑 `bun run test:a11y-build`，在系统临时目录建最小项目、
+  node_modules 用符号链接指向仓库根（不走 bun add，无网络副作用），tsc 按包名解析
+  dist 产物，断言重载在场编译过、去掉首行 `export {};` 编译失败。两个脚本都慢，不进
+  CI，进发版前检查（roadmap）。
+- **AGENTS / CI**：规则原文进仓库根 `AGENTS.md`（§8）；PR 检查在 Test 前跑一次
+  grep（`pr-check.yml`），按 rg 退出码分流，空仓库（没有 tsx/jsx）通过、rg 自身出错
+  时滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有 tsx/jsx 才失败（§8）。`bun run
+  lint` 覆盖 `./src ./test ./scripts` 与 `bunup.*.ts`（`biome
+  lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts
+  ./bunup.browser.ts ./bunup.bin.ts`），`test/a11y` 的编译 fixture 与维护脚本一起进
+  CI 的 lint。
+- **bun 1.4.4 的两种 lint 模式**：项目带 oxlint 标记（依赖或 `.oxlintrc.json`）时
+  `bun lint` 走内嵌 oxlint 的插件体系，要 `--jsx-a11y-plugin` 先开插件；无标记时走
+  bun 自己的默认规则集，jsx_a11y 插件默认开，传该标志直接报错。JSON 信封也不同
+  （前者 `diagnostics[]`，后者 eslint 兼容数组）。detect 用一个不存在的路径探「这个
+  cwd 是否接受 `--jsx-a11y-plugin`」来定模式，不复刻 bun 的标记判定——探活跟着 bun
+  的实际行为走；两种信封 `parseBun` 都解。
+- **Plan B 遗留清理**：`probe/runners/biome.ts` 头注释里旧的「循环补属性」算法
+  描述、`biome.test.ts` 头部的「Task 7 必须复核」过期提示已删。required 的实际发现
+  方式是「逐个去掉一个 supported 属性再跑」（§6 第 2 步），不读消息清单；biome 的
+  消息样例录自真实 2.5.0 / 2.6.8。
+
+### 12.13 bin 改名 `meld-ts`
+
+命令名从原拟的 `meld` 改为 `meld-ts`，源码 `src/bin/meld-ts.ts`、产物
+`dist/bin/meld-ts.js`、`package.json` 的 `"bin": { "meld-ts": ... }` 同步。
+
+- **为什么不叫 `meld`**：npm 上已有无关的 `meld` 包，`npx meld` / `bunx meld` 会解析到
+  它；Linux 上 `meld` 还是常见的 GUI diff 工具命令，全局安装会撞名。
+- **扩展约定**：`meld-ts` 是唯一 CLI 入口，以后新增命令行能力一律以
+  `meld-ts <group> <command>` 挂进来，不新增 bin。约定写进了 `AGENTS.md`（CLI 扩展
+  约定）和 `README.md`（CLI 一节）。
+- `meld-ts --version` 读取包根 `package.json` 的 version；`--help` 打印用法。
+- 旧的 `meld a11y probe` 表述只保留在历史审查记录里；现行文档、类型错误文案
+  （`rerun meld-ts a11y probe`）和生成文件注释均已更新。
+
+### 12.14 rfi round 1：tokenlist 映射成 string（ND 裁定）
+
+审查 ND 项：aria-query 的 `tokenlist`（`aria-relevant`）此前按 `token` 同路生成
+单 token 并集（`'additions' | 'all' | 'removals' | 'text'`），但 ARIA 的
+tokenlist 合法值是空格分隔的组合（`aria-relevant="additions text"`），单 token
+并集把合法组合挡在类型外。裁定：`aria-gen.ts` 里 `tokenlist` 映射成 `string`
+（`token` 仍生成值并集、仍过滤 `undefined` 成员；`tokenlist` 的样例仍取排序后的
+首成员，满足 `string`）。代价是丢掉 token 层面的拼写检查——这是数据粒度的取舍：
+tokenlist 的组合语义（顺序无关、可多选）在 TS 类型层表达不了完整值域，宁可放开
+到 `string`，也不把合法组合挡在外面。
+
+- 同轮修订（本条外的 1 / 2 项）：空串与空元组同一条空值语义——`label` /
+  `labelledby` 的 `''`、idlist 键的 `''` 运行时按「没传」跳过（与空元组、
+  `undefined` 一致）；类型层 `NoEmpty` 对 label / idlist 键把字面量 `''` 归一成
+  `undefined`，`NameEmptyCheck` 拦名字必填 role 的字面量空名字，`NoEmptyRequired`
+  拦必填 idlist 键的字面量空值（`EmptyTupleScope` / `EmptyTupleKeys` 随之更名
+  `EmptyValueScope` / `EmptyValueKeys`，报错文案同步改「空值」）。非字面量
+  （`string` / `string[]` 变量持空值）认不出，是 NoEmpty 已记录的同一限制。
+
+### 12.15 rfi round 3：空值语义入档（出货记录）
+
+§12.5 / §12.9 分轮记了空值检查的演进（§12.14 把 `''` 并入同一条路径），本条把出货的语义合成一份准绳（定义在 `src/a11y/types.ts` 的 `NoEmpty` / `AllEmptyIds`，运行时在 `createA11y.ts` 的 `isEmptyValue`）：
+
+- **空值集**（label / labelledby 名字键与全部 idlist 键通用）：`''`、`undefined`、空元组 `readonly []`、元素类型恰为 `''` 的数组（`['']`、`['','']`，见 `AllEmptyIds`）。三层一致：输出侧 `NoEmpty` 把字面量空值归一成 `undefined`（输出键消失或变可选）、运行时 `isEmptyValue` 跳过；对必填的键，按「没传」处理就意味着必填承诺落空——`NoEmptyRequired` / `NameEmptyCheck` 在调用点报错，不是另一套语义。
+- **死键不报错**：名字必填的 role，`label` / `labelledby` 一边给了非空名就成立，另一边的空值只是死键（`label: 'x', labelledby: undefined` 合法）；两边都空才报错。
+- **混合非空数组合法**：`['', 'a']` 的元素类型不是恰为 `''`，不在空值集里，照常输出 `join(' ')` = `' a'`。ARIA 的 IDREF 列表按空白切分，`' a'` 与 `'a'` 引用同一组 id，等价，不另作处理。
+- **已知限制（不追）**：纯空白成员的字面量（`[' ']`）类型层表达不出来——`' '` 不是 `''`，匹配不上 `AllEmptyIds`，类型层承诺输出键；运行时 join 后 trim 判空、按「没传」跳过，两边会漂。类型层没有「trim 后为空」的字面量判定可用，不在类型层追空白语义，与非字面量限制（§12.5 已记录）同一路径处置。
+
+### 12.16 上游数据缺口与 html 输出边界（rfi round 1，ND 裁定）
+
+两条 ND 裁定都是文档收尾，不改代码，细化 §12.10（键集取自 aria-query 生成、不设手写注册表）与 §12.14（上游数据粒度不够时的取舍）这两条先例。
+
+- **ARIA 键缺口**：React 19 的 `AriaAttributes` 有 `aria-colindextext` / `aria-rowindextext`，aria-query@5.3.2 没有（51 个键里无此二者，有 `colindex` / `rowindex`），jsx-a11y 6.10.2 的 `aria-props` 把它们当无效属性报错（真实 eslint 跑过）。`AriaKey` 定 51 个键是有意为之：类型收了这两个键，就是允许 lint 拒绝的写法，类型和 lint 打架。这是上游缺口，不是本包缺陷——aria-query 补上后 `bun run a11y:sync` 重新生成 `aria.generated.ts` 会自动带进来（§12.11 的同步链路）。任何地方都不要手工加这两个键。
+- **逃生口**：上游补齐之前，确实要这两个属性的消费者可以 spread 一个普通对象字面量——CI 的 grep 只匹配 JSX 里字面写出的 `aria-*=` / `role=`，匹配不到对象键（键后面是冒号不是等号，已对着真实 CI 守卫验证，rg 不命中）。role 仍走 `a11y()`（§8 规则 3），不要写成字面 `role="gridcell"`：
+
+  ```tsx
+  const extra = { 'aria-colindextext': 'Total', 'aria-rowindextext': 'Q3' };
+
+  <div {...a11y('gridcell', { colindex: 3 })} {...extra} />;
+  ```
+
+  代价：这两个键的取值不经过 `AriaValue` 检查，仅此两个键失去类型约束。上游落地、`a11y:sync` 开始产出这两个键后，删掉 workaround，换成 `colindextext` / `rowindextext` 输入键。
+- **`output: 'html'` 的边界**：html 模式的值定义为 HTML 属性字符串，`boolean` / `number` 一律字符串化（§3 输出表：`checked: true` → `'true'`，`aria-valuenow: 50` → `"50"`）。它面向 DOM API（`setAttribute`）和字符串模板拼接。React 的 `AriaAttributes` 把 `aria-valuenow` / `aria-level` / `aria-posinset` 等类型成 `number`，把 html 输出 spread 进有类型的 React JSX 过不了 `tsc`（TS2322）。给 React JSX 用默认的 `output: 'react'`。
+
+### 12.17 rfi round 4：多 lint 选择与两个已知边界（ND 裁定）
+
+round 4 的 ND 项裁定为文档收尾：多 lint 项目怎么选表——README（`lint` 段）、`skills/meld-ts-core/SKILL.md`（数组写法作为多 lint 项目的推荐默认）、`AGENTS.md` 规则 5（全部列出的分句）同轮补写。同轮把两个已知边界入档。三条都不改代码。
+
+- **多 lint 无「最严表」**：biome 和 eslint 互不为超集（§2 实测表：eslint 要求 `combobox` 带 `controls`、`option` 带 `selected`，biome 都不要求；biome 对可聚焦 `separator` 要求 `valuenow`，eslint 不要求；biome 的 `supported` 还多收 `braillelabel` 这类键）。没有一张「选它就最严」的表。正确做法是 `lint` 传数组（§4「多个 lint 合并」：`required` / `requiredWhenFocusable` 取并集、`supported` 取交集，数组里每家都过），只绑一家就漏掉另一家的必填约束——jsx-a11y 类 lint 看不见 spread，等于没人拦。探针只把探测到的 lint 写进 `A11yLintOverrides`，不替用户合并：跑几家就列几家。
+- **非有限数不做运行时校验**：`AriaValue<'valuenow'>` 是 `number`（`aria.generated.ts` 按 aria-query 生成），类型层表达不出「有限数」这一层；运行时 `createA11y` 是转换器、不是校验器，`NaN` / `±Infinity` 会原样出现在属性值里，属于调用方的计算错误。本轮不加拦截；将来要拦，单独设计。
+- **生成文件不是原子写**：user mode 在全部探针成功后才写一份 `.d.ts`（`nodeDeps.write`），写入本身是直接 `writeFileSync`（`'w'`），不是 tmp+rename。暂不改：`kill -9` 恰好落在单次 write 窗口的概率极小，且 rename 会把「`--out` 指向符号链接」从写入链接目标变成替换链接本体，是行为回退。记录为已知边界。
+
+## 附录 A：类型原型（已实测）
+
+规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。
+
+验证方式：下面两个文件加一份 tsconfig（`strict`、`isolatedDeclarations`、`noUncheckedIndexedAccess`、`verbatimModuleSyntax`、`allowImportingTsExtensions`），用 TypeScript 7.0.2 和 5.9.3 跑 `tsc -p .`，都是 0 错误（round 5 起对 5.9.3 每轮复测；7.0.2 是初版记录）。注意这份 tsconfig 清单不完整：`isolatedDeclarations` 还要配 `declaration: true`，`allowImportingTsExtensions` 还要配 `noEmit: true`（或 `emitDeclarationOnly`），缺了 tsc 会直接拒绝启动。`use.ts` 里每个 `@ts-expect-error` 都确实报了错（否则会报「未使用的 @ts-expect-error」）。另外两个错误场景（重载键名拼错、重载结构不对）各用一个临时项目验证过，都在 `createA11y` 处报出可读的错误。
+
+### a11y.ts
+
+```ts
+// ---- aria-query 生成部分（缩小版） ----
+export type AriaKey = 'checked' | 'expanded' | 'controls' | 'label' | 'labelledBy' | 'valueNow' | 'selected' | 'details' | 'hidden';
+type AriaIdListKey = 'controls' | 'labelledBy';
+type AriaIdKey = 'details';
+export type AriaValue<K extends AriaKey> =
+  K extends 'checked' ? boolean | 'mixed' :
+  K extends 'expanded' | 'selected' | 'hidden' ? boolean :
+  K extends 'valueNow' ? number :
+  K extends AriaIdListKey ? string | readonly string[] :
+  K extends AriaIdKey ? string : string;
+export type A11yRole = 'switch' | 'img' | 'separator' | 'combobox';
+type A11yNameRule = { switch: 'required'; img: 'required'; separator: 'optional'; combobox: 'required' };
+
+// ---- 规则表 ----
+type RoleRule = { readonly required: AriaKey; readonly supported: AriaKey; readonly requiredWhenFocusable: AriaKey };
+export type A11yProfile = { readonly meta: { readonly lint: A11yLintName; readonly version: string; readonly source: 'builtin' | 'probe' | 'merged'; readonly aliasOf?: A11yLintName }; readonly roles: { readonly [R in A11yRole]: RoleRule } };
+type Biome = { meta: { lint: 'biome'; version: '2.6.8'; source: 'builtin' }; roles: {
+  switch: { required: 'checked'; supported: 'checked' | 'label' | 'labelledBy'; requiredWhenFocusable: never };
+  img: { required: never; supported: 'label' | 'labelledBy' | 'details'; requiredWhenFocusable: never };
+  separator: { required: never; supported: 'valueNow' | 'label' | 'labelledBy'; requiredWhenFocusable: 'valueNow' };
+  combobox: { required: 'expanded'; supported: 'expanded' | 'controls' | 'label' | 'labelledBy'; requiredWhenFocusable: never };
+} };
+type Oxlint = { meta: { lint: 'oxlint'; version: '1.94.0'; source: 'builtin' }; roles: {
+  switch: { required: 'checked'; supported: 'checked' | 'label' | 'labelledBy'; requiredWhenFocusable: never };
+  img: { required: never; supported: 'label' | 'labelledBy' | 'details'; requiredWhenFocusable: never };
+  separator: { required: never; supported: 'valueNow' | 'label' | 'labelledBy'; requiredWhenFocusable: never };
+  combobox: { required: 'expanded' | 'controls'; supported: 'expanded' | 'controls' | 'label' | 'labelledBy'; requiredWhenFocusable: never };
+} };
+export interface A11yBuiltinLints { biome: Biome; oxlint: Oxlint }
+// biome-ignore lint: 留给重载
+export interface A11yLintOverrides {}
+export type A11yLintName = keyof A11yBuiltinLints;
+type CheckOverride<K extends A11yLintName> = A11yLintOverrides extends Record<K, infer O> ? (O extends A11yProfile ? O : A11yBuiltinLints[K]) : A11yBuiltinLints[K];
+type UnknownOverrideKeys = Exclude<keyof A11yLintOverrides, A11yLintName>;
+type BadShapeKeys = { [K in keyof A11yLintOverrides]: A11yLintOverrides[K] extends A11yProfile ? never : K }[keyof A11yLintOverrides];
+type OverrideKeyCheck =
+  & ([UnknownOverrideKeys] extends [never] ? unknown : { readonly 'Unknown lint name in A11yLintOverrides': UnknownOverrideKeys })
+  & ([BadShapeKeys] extends [never] ? unknown : { readonly 'Invalid A11yLintOverrides shape, rerun meld-ts a11y probe': BadShapeKeys });
+export type A11yLints = { [K in A11yLintName]: CheckOverride<K> };
+
+// ---- 多 lint 合并 ----
+type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
+type MergeProfiles<Ps extends A11yProfile> = {
+  meta: { lint: Ps['meta']['lint']; version: Ps['meta']['version']; source: 'merged' };
+  roles: { [R in A11yRole]: {
+    required: Ps['roles'][R]['required'];                                   // 分布式并集
+    supported: Intersect<Ps, R>;
+    requiredWhenFocusable: Ps['roles'][R]['requiredWhenFocusable'];
+  } };
+};
+type Intersect<Ps extends A11yProfile, R extends A11yRole> = Extract<AriaKey, UnionToIntersection<Ps extends unknown ? (k: Ps['roles'][R]['supported']) => void : never> extends infer F ? F extends (k: infer K) => void ? K : never : never>;
+// §12.6：名字 union / 混合形状已被实现取代（FlattenLint 展平 + IsUnion
+// 判定后走 MergeProfiles，supported 取交集）；这里的分布式定义只覆盖单名字和数组。
+export type ResolveProfile<L> = L extends A11yLintName ? A11yLints[L] : L extends readonly A11yLintName[] ? MergeProfiles<A11yLints[L[number]]> : never;
+
+// ---- 输入 ----
+type Rule<P extends A11yProfile, R extends A11yRole> = P['roles'][R];
+type NameRequirement<N> = N extends 'required' ? { label: string } | { labelledBy: string | readonly string[] } : {};
+export type A11yInput<P extends A11yProfile, R extends A11yRole> =
+  & { [K in Rule<P, R>['required']]-?: AriaValue<K> }
+  & { [K in Exclude<Rule<P, R>['supported'], Rule<P, R>['required']>]?: AriaValue<K> | undefined }
+  & { focusable?: true | undefined }
+  & NameRequirement<A11yNameRule[R]>;
+type Exact<I, Allowed extends PropertyKey> = { [K in Exclude<keyof I, Allowed>]: never };
+// §12.8：这道形状匹配门（I extends { focusable: unknown }）已被实现取代——
+// 键存在判定（'focusable' extends keyof I 先于 true extends I['focusable']），
+// 形状匹配判不中条件展开推出的可选键；原型还缺 PropsDefiniteCheck /
+// NameEmptyCheck / NoEmptyRequired（rounds 3–14 新增）。
+type FocusRequirement<P extends A11yProfile, R extends A11yRole, I> =
+  I extends { focusable: unknown } ? (true extends I['focusable'] ? { [K in Rule<P, R>['requiredWhenFocusable']]-?: AriaValue<K> } : unknown) : unknown;
+
+// ---- 输出 ----
+export type A11yOutputMode = 'react' | 'html';
+type Str<V> = V extends readonly string[] ? string : V extends boolean | number ? `${V}` : V;
+type OutValue<V, O extends A11yOutputMode> = V extends readonly string[] ? string : O extends 'html' ? Str<V> : V;
+type AriaAttrs<I, O extends A11yOutputMode> = {
+  readonly [K in keyof I as K extends string ? (undefined extends I[K] ? never : `aria-${Lowercase<K>}`) : never]: OutValue<I[K], O>;
+} & {
+  readonly [K in keyof I as K extends string ? (undefined extends I[K] ? ([I[K]] extends [undefined] ? never : `aria-${Lowercase<K>}`) : never) : never]?: OutValue<Exclude<I[K], undefined>, O>;
+};
+type TabKey<O extends A11yOutputMode> = O extends 'html' ? 'tabindex' : 'tabIndex';
+type TabVal<O extends A11yOutputMode> = O extends 'html' ? '0' : 0;
+// §12.8：同 FocusRequirement 的门——已被键存在判定取代（'focusable'
+// extends keyof I 先于 true extends I['focusable']）；原型还缺
+// PropsDefiniteCheck / NameEmptyCheck / NoEmptyRequired（rounds 3–14 新增）。
+type FocusAttr<I, O extends A11yOutputMode> = I extends { focusable: unknown }
+  ? true extends I['focusable']
+    ? undefined extends I['focusable']
+      ? { readonly [K in TabKey<O>]?: TabVal<O> }
+      : { readonly [K in TabKey<O>]: TabVal<O> }
+    : {}
+  : {};
+export type A11yAttrs<R, I, O extends A11yOutputMode> = { readonly role: R } & FocusAttr<I, O> & AriaAttrs<Omit<I, 'focusable'>, O>;
+
+export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
+  <R extends A11yRole, const I extends A11yInput<P, R>>(role: R, props: I & Exact<I, Rule<P, R>['supported'] | 'focusable'> & FocusRequirement<P, R, I>): A11yAttrs<R, I, O>;
+  // §12.9：aria 的 props 实现里还挂 PropsDefiniteCheck（union props 报错，
+  // 输出 keyof 才不会退化成 never）——原型没带这道检查，是实现后补的。
+  aria<const I extends { [K in AriaKey]?: AriaValue<K> | undefined }>(props: I & Exact<I, AriaKey>): AriaAttrs<I, O>;
+};
+export type A11yOptions = { readonly lint: A11yLintName | readonly A11yLintName[]; readonly output?: A11yOutputMode };
+type OutputOf<Opt extends A11yOptions> = Opt['output'] extends A11yOutputMode ? Opt['output'] : 'react';
+type AsProfile<P> = P extends A11yProfile ? P : never;
+export type A11yOf<Opt extends A11yOptions> = A11y<AsProfile<ResolveProfile<Opt['lint']>>, OutputOf<Opt>>;
+export declare function createA11y<const Opt extends A11yOptions>(options: Opt & OverrideKeyCheck): A11yOf<Opt>;
+```
+
+### use.ts
+
+```ts
+import { createA11y, type A11yOf } from './a11y.ts';
+type Eq<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+const assert = <T extends true>(_?: T) => {};
+
+const options = { lint: 'biome' } as const;
+export const a11y: A11yOf<typeof options> = createA11y(options);
+const both = createA11y({ lint: ['biome', 'oxlint'], output: 'html' });
+const maybe: true | undefined = Math.random() > 0.5 ? true : undefined;
+const on: boolean = Math.random() > 0.5;
+const onOpt: boolean | undefined = Math.random() > 0.5 ? true : undefined;
+
+const r1 = a11y('switch', { checked: true, label: 'Wi-Fi' });
+assert<Eq<(typeof r1)['aria-checked'], true>>();
+assert<Eq<(typeof r1)['aria-label'], 'Wi-Fi'>>();
+assert<Eq<(typeof r1)['role'], 'switch'>>();
+assert<Eq<Exclude<keyof typeof r1, 'role'>, 'aria-checked' | 'aria-label'>>();
+// @ts-expect-error 缺 checked
+a11y('switch', { label: 'x' });
+// @ts-expect-error 不支持
+a11y('img', { checked: true, label: 'x' });
+// @ts-expect-error 拼错
+a11y('img', { lable: 'x', label: 'y' });
+// @ts-expect-error 缺名字
+a11y('img', {});
+// @ts-expect-error 可聚焦缺 valueNow
+a11y('separator', { focusable: true });
+// @ts-expect-error C2：focusable 是 true | undefined 变量，也要求 valueNow
+a11y('separator', { focusable: maybe });
+a11y('separator', { focusable: maybe, valueNow: 1 });
+// @ts-expect-error I3：required 键不接受 undefined
+a11y('switch', { checked: onOpt, label: 'x' });
+a11y('switch', { checked: on, label: 'x' });
+const r2 = a11y('img', { label: 'x', details: 'd' });
+// @ts-expect-error M4：details 只收单个 id
+a11y('img', { label: 'x', details: ['a', 'b'] });
+const r3 = both('switch', { checked: true, label: 'x' });
+assert<Eq<(typeof r3)['aria-checked'], 'true'>>();
+// @ts-expect-error 合并：oxlint 要 controls
+both('combobox', { expanded: true, label: 'x' });
+both('combobox', { expanded: true, controls: 'm', label: 'x' });
+// 合并：biome 要可聚焦 separator 的 valueNow
+// @ts-expect-error
+both('separator', { focusable: true });
+const r4 = a11y.aria({ expanded: onOpt, controls: ['a', 'b'] });
+assert<Eq<(typeof r4)['aria-controls'], string>>();
+assert<Eq<keyof typeof r4, 'aria-expanded' | 'aria-controls'>>();
+assert<Eq<(typeof r4)['aria-expanded'], true | undefined>>();
+const r5 = a11y('separator', { focusable: maybe, valueNow: 2 });
+assert<Eq<(typeof r5)['tabIndex'], 0 | undefined>>();
+void r2;
+```
+
