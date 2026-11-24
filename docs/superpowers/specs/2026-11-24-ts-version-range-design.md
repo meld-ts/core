@@ -98,6 +98,7 @@ TS 7 是 Go 原生实现，npm 包只暴露 AST 层 API（`unstable/ast` 等）�
 - `bunx -p` 临时拉指定版本，不写 lockfile、不改 `node_modules`，三档互不污染。
 - `fail-fast: false`：三档都要报结果，别因为一档挂了看不到其余。
 - **不引入 `bun check`**：它不能锁定 TS 版本，且换检查器会让诊断口径与本地 `ts-check` 不一致。矩阵的目的就是「同一检查器、不同版本」。
+- 合并保护应要求 `ts-matrix-ok`（上面三个矩阵实例的聚合结果），不要直接要求 `ts-matrix (5.9.3)` 这类实例名——版本列表一变，实例名就变，required check 会失效。
 
 `tsc -p tsconfig.json` 已包含 `src/a11y/types.test.ts` 里的类型断言（该文件在 `src/` 下，不在 `exclude` 里）。`test/a11y/*/tsconfig.json` 这些集成 fixture 由层 4 构建测试用 devDep 覆盖，不进矩阵。
 

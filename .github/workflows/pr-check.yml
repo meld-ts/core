@@ -72,3 +72,15 @@ jobs:
 
       - name: Type check with TypeScript ${{ matrix.ts }}
         run: bunx -p typescript@${{ matrix.ts }} tsc -p tsconfig.json --noEmit
+
+  ts-matrix-ok:
+    needs: ts-matrix
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: All TypeScript versions passed
+        run: |
+          if [ "${{ needs.ts-matrix.result }}" != "success" ]; then
+            echo "ts-matrix failed: ${{ needs.ts-matrix.result }}"
+            exit 1
+          fi
