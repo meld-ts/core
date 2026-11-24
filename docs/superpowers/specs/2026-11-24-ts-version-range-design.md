@@ -110,12 +110,12 @@ peer 彻底移除，而不是保留 optional：只要 peer 还在——哪怕标
 | # | 验证 | 命令 | 期望 |
 |---|------|------|------|
 | 1 | 三档类型检查 | `bunx -p typescript@5.9.3 tsc -p tsconfig.json --noEmit`（6.0.3、7.0.2 同理） | 三条都 exit 0 |
-| 2 | 消费者 peer 不再报错 | 打包后在两个 scratch 项目 `npm i --strict-peer-deps <tarball> typescript@5.9.3`（另一个 7.0.2） | 两次都成功 |
+| 2 | 无 peer、安装期无版本门 | 打包后检查 tarball 的 `package.json` 不含 `peerDependencies`；在无 TypeScript 的 scratch 项目里 `npm i <tarball>` 与 pnpm（`strict-peer-dependencies=true`、`auto-install-peers=false`）都成功，且 `node_modules` 里没有 `typescript`；`npm i --strict-peer-deps <tarball> typescript@5.8.3` 也成功 | 四条都成立 |
 | 3 | 现有测试 | `bun run test` | 628 pass / 49 skip / 0 fail，与改动前一致 |
 | 4 | 构建 | `bun run build` | 成功；产物不变 |
 | 5 | 文档不受影响 | `bun run doc` | 正常生成 HTML |
 
-第 2 项是这次改动的直接目的：`npm i --strict-peer-deps` 对不满足的 peer 范围会以 `ERESOLVE` 失败，能真实复现用户侧问题。
+第 2 项对应最终决策：peer 整条删除，所以安装阶段不存在版本门——范围内、范围外、甚至不装 TypeScript 都能安装成功；纯 JS 消费者不会被带入任何 TypeScript 版本。类型兼容由第 1 项的三档类型检查保证。
 
 ## 8. 风险
 

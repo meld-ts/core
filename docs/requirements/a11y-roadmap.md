@@ -105,7 +105,7 @@ grep -A4 '"./a11y"' package.json
 
 **遗留**：
 
-- ~~TS 7 验证~~：已完成。peer 改为 `>=5.9 <8`，CI `ts-matrix` 对 5.9.3 / 6.0.3 / 7.0.2 三档做类型检查（设计 §12.7）
+- ~~TS 7 验证~~：已完成。`peerDependencies.typescript` 整条删除——运行时不依赖 TypeScript，类型支持范围 `>=5.9 <8` 只写在 `README.md` 与 `AGENTS.md`，由 CI `ts-matrix` 对 5.9.3 / 6.0.3 / 7.0.2 三档验证（设计 §12.7）
 - 空 idlist 非元组（`string[]` 变量持有 `[]`）的类型层对齐：未动，维持已知限制（设计 §12.5）；运行时语义已定（`IDLIST_KEYS` 把空数组丢键）
 
 ---
