@@ -819,6 +819,14 @@ tokenlist 的组合语义（顺序无关、可多选）在 TS 类型层表达不
   代价：这两个键的取值不经过 `AriaValue` 检查，仅此两个键失去类型约束。上游落地、`a11y:sync` 开始产出这两个键后，删掉 workaround，换成 `colindextext` / `rowindextext` 输入键。
 - **`output: 'html'` 的边界**：html 模式的值定义为 HTML 属性字符串，`boolean` / `number` 一律字符串化（§3 输出表：`checked: true` → `'true'`，`aria-valuenow: 50` → `"50"`）。它面向 DOM API（`setAttribute`）和字符串模板拼接。React 的 `AriaAttributes` 把 `aria-valuenow` / `aria-level` / `aria-posinset` 等类型成 `number`，把 html 输出 spread 进有类型的 React JSX 过不了 `tsc`（TS2322）。给 React JSX 用默认的 `output: 'react'`。
 
+### 12.17 rfi round 4：多 lint 选择与两个已知边界（ND 裁定）
+
+round 4 的 ND 项裁定为文档收尾：多 lint 项目怎么选表——README（`lint` 段）、`skills/meld-ts-core/SKILL.md`（数组写法作为多 lint 项目的推荐默认）、`AGENTS.md` 规则 5（全部列出的分句）同轮补写。同轮把两个已知边界入档。三条都不改代码。
+
+- **多 lint 无「最严表」**：biome 和 eslint 互不为超集（§2 实测表：eslint 要求 `combobox` 带 `controls`、`option` 带 `selected`，biome 都不要求；biome 对可聚焦 `separator` 要求 `valuenow`，eslint 不要求；biome 的 `supported` 还多收 `braillelabel` 这类键）。没有一张「选它就最严」的表。正确做法是 `lint` 传数组（§4「多个 lint 合并」：`required` / `requiredWhenFocusable` 取并集、`supported` 取交集，数组里每家都过），只绑一家就漏掉另一家的必填约束——jsx-a11y 类 lint 看不见 spread，等于没人拦。探针只把探测到的 lint 写进 `A11yLintOverrides`，不替用户合并：跑几家就列几家。
+- **非有限数不做运行时校验**：`AriaValue<'valuenow'>` 是 `number`（`aria.generated.ts` 按 aria-query 生成），类型层表达不出「有限数」这一层；运行时 `createA11y` 是转换器、不是校验器，`NaN` / `±Infinity` 会原样出现在属性值里，属于调用方的计算错误。本轮不加拦截；将来要拦，单独设计。
+- **生成文件不是原子写**：user mode 在全部探针成功后才写一份 `.d.ts`（`nodeDeps.write`），写入本身是直接 `writeFileSync`（`'w'`），不是 tmp+rename。暂不改：`kill -9` 恰好落在单次 write 窗口的概率极小，且 rename 会把「`--out` 指向符号链接」从写入链接目标变成替换链接本体，是行为回退。记录为已知边界。
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。

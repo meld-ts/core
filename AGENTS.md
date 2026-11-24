@@ -8,7 +8,7 @@ JSX 里的 a11y 属性（`role`、`aria-*`、`tabIndex`）不允许手写，只�
 2. 原生元素补状态用 `a11y.aria({...})`，不手写 `aria-*`，也不要对原生元素用 `a11y(role, ...)`。
 3. 自定义 role 一律用 `a11y(role, {...})`，不手写 `role=` 和 `aria-*`。
 4. 需要可聚焦就传 `focusable: true`，不另外手写 `tabIndex`。唯一例外：只能用脚本聚焦的元素手写 `tabIndex={-1}`。
-5. 项目统一从 `src/a11y.ts` 导入 `a11y`，`createA11y` 只在这个文件里调，绑定本项目的 lint 和 output。
+5. 项目统一从 `src/a11y.ts` 导入 `a11y`，`createA11y` 只在这个文件里调，绑定本项目的 lint 和 output。项目若同时跑多种 lint，`createA11y({ lint: [...] })` 要把它们**全部列出**，只绑一种会漏掉另一种的必填约束。
 
 两个入口各管一半：
 

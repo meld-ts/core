@@ -407,6 +407,14 @@ import { createA11y } from '@meld-ts/core/a11y';
 export const a11y = createA11y({ lint: 'biome' });
 ```
 
+**More than one linter installed → pass all of them as an array** (the recommended default in that case). No single table is the "strictest": biome and eslint are not supersets of each other — eslint requires `controls` on `combobox` (and `selected` on `option`), biome does not; biome requires `valuenow` on focusable `separator`, eslint does not. Binding only one lets the other's required props through, and jsx-a11y-class lints cannot see spreads — nothing catches it. The array merges tables (required = union, supported = intersection), so the output passes every listed linter:
+
+```ts
+export const a11y = createA11y({ lint: ['eslint', 'biome'] });
+```
+
+The probe (`meld-ts a11y probe`) only writes detected lints into `A11yLintOverrides`; it never merges them for you — run N linters, list all N.
+
 Two entries on the returned callable:
 
 | Entry | Use | Output |
@@ -427,7 +435,7 @@ Type behavior — all enforced at compile time:
 
 | Option | Type | Notes |
 |--------|------|-------|
-| `lint` | `'eslint' \| 'bun' \| 'oxlint' \| 'biome'` or readonly array | Which rule table to enforce. Array merges tables: required = union, supported = intersection |
+| `lint` | `'eslint' \| 'bun' \| 'oxlint' \| 'biome'` or readonly array | Which rule table to enforce. More than one linter installed → pass **all** of them (recommended default; no single table is the strictest). Array merges tables: required = union, supported = intersection |
 | `output` | `'react' \| 'html'` | Default `'react'`. html stringifies booleans/numbers (`aria-checked="true"`, `tabindex="0"`); react keeps native types |
 
 `isolatedDeclarations` projects need the `A11yOf` type helper:
@@ -449,7 +457,7 @@ export const a11y: A11yOf<typeof options> = createA11y(options);
 2. 原生元素补状态用 `a11y.aria({...})`，不手写 `aria-*`，也不对原生元素用 `a11y(role, ...)`。
 3. 自定义 role 一律 `a11y(role, {...})`，不手写 `role=` 和 `aria-*`。
 4. 要可聚焦就传 `focusable: true`，不手写 `tabIndex`。例外：只能用脚本聚焦的元素手写 `tabIndex={-1}`。
-5. 统一从 `src/a11y.ts` 导入 `a11y`，`createA11y` 只在这一处调，绑定本项目的 lint 和 output。
+5. 统一从 `src/a11y.ts` 导入 `a11y`，`createA11y` 只在这一处调，绑定本项目的 lint 和 output；同时跑多种 lint，就把它们全部列进 `lint` 数组。
 
 「不手写」可以 grep 进项目 CI（排除接入文件）：
 

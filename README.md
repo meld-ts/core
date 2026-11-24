@@ -70,6 +70,14 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 
 `createA11y` 的 `output`：默认 `react` 给 React JSX 用；`html` 把值字符串化（`50` → `"50"`），给 DOM API 和字符串模板用。不要把 `html` 输出 spread 进有类型的 React JSX——React 把 `aria-valuenow` 等类型成 `number`，过不了 `tsc`。
 
+`createA11y` 的 `lint`：项目里跑几家 jsx-a11y 类 lint，`lint` 就传那几家。没有「最严的一张表」可挑——内置表互不为超集：eslint 要求 `combobox` 带 `controls`，biome 不要求；biome 要求可聚焦 `separator` 带 `valuenow`，eslint 不要求。只绑一家，另一家的必填约束就漏了。跑多家就传数组，`required` 取并集、`supported` 取交集——数组里每家都过：
+
+```ts
+const a11y = createA11y({ lint: ['eslint', 'biome'] });
+```
+
+探针（`meld-ts a11y probe`）只把探测到的 lint 写进 `A11yLintOverrides`，不会替你合并——跑几家就列几家。
+
 ## CLI
 
 包内提供 `meld-ts` 命令（需要 Bun）：
