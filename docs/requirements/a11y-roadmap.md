@@ -112,7 +112,7 @@ grep -A4 '"./a11y"' package.json
 
 ## 发版前检查（a11y）
 
-CI（`pr-check.yml`）覆盖 lint / ts-check / build / AGENTS grep / test。a11y 的三层专项慢，不进 CI，发版前跑：
+CI（`pr-check.yml`）覆盖 lint / ts-check / build / AGENTS grep / test，以及 `ts-matrix`（TypeScript 5.9.3 / 6.0.3 / 7.0.2 三档）。a11y 的三层专项慢，不进 CI，发版前跑：
 
 ```bash
 bun run test:a11y-lint    # §7 第 2/3 层：一致性 + 反向（lab，慢）

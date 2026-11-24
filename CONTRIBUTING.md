@@ -5,7 +5,7 @@ Thank you for your interest in contributing!
 ## Prerequisites
 
 - [Bun](https://bun.sh/) >= 1.x
-- TypeScript 5.9.3（仓库锁定版本；消费者支持 `>=5.9 <8`）
+- TypeScript 5.9.3 (repo pin; consumers: `>=5.9 <8`)
 
 ## Setup
 
