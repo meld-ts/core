@@ -407,7 +407,7 @@ import { createA11y } from '@meld-ts/core/a11y';
 export const a11y = createA11y({ lint: 'biome' });
 ```
 
-**More than one linter installed → pass all of them as an array** (the recommended default in that case). No single table is the "strictest": biome and eslint are not supersets of each other — eslint requires `controls` on `combobox` (and `selected` on `option`), biome does not; biome requires `valuenow` on focusable `separator`, eslint does not. Binding only one lets the other's required props through, and jsx-a11y-class lints cannot see spreads — nothing catches it. The array merges tables (required = union, supported = intersection), so the output passes every listed linter:
+**More than one linter in use → pass all of them as an array** (the recommended default in that case). No single table is the "strictest": biome and eslint are not supersets of each other — eslint requires `controls` on `combobox` (and `selected` on `option`), biome does not; biome requires `valuenow` on focusable `separator`, eslint does not. Binding only one lets the other's required props through, and jsx-a11y-class lints cannot see spreads — nothing catches it. The array merges tables (required = union, supported = intersection), so the output passes every listed linter:
 
 ```ts
 export const a11y = createA11y({ lint: ['eslint', 'biome'] });
@@ -435,7 +435,7 @@ Type behavior — all enforced at compile time:
 
 | Option | Type | Notes |
 |--------|------|-------|
-| `lint` | `'eslint' \| 'bun' \| 'oxlint' \| 'biome'` or readonly array | Which rule table to enforce. More than one linter installed → pass **all** of them (recommended default; no single table is the strictest). Array merges tables: required = union, supported = intersection |
+| `lint` | `'eslint' \| 'bun' \| 'oxlint' \| 'biome'` or readonly array | Which rule table to enforce. More than one linter in use → pass **all** of them (recommended default; no single table is the strictest). Array merges tables: required = union, supported = intersection |
 | `output` | `'react' \| 'html'` | Default `'react'`. html stringifies booleans/numbers (`aria-checked="true"`, `tabindex="0"`); react keeps native types |
 
 `isolatedDeclarations` projects need the `A11yOf` type helper:
