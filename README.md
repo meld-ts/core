@@ -68,6 +68,8 @@ import { isString, isNumber, cloneObjectByJson } from '@meld-ts/core';
 | `@meld-ts/core/async` | 异步工具（StatefulRpc / pending / retry / timeout / sleep） |
 | `@meld-ts/core/a11y` | 按 lint 规则表约束 aria 属性的构造器（createA11y，含类型与运行时）。内置 eslint / bun / oxlint / biome 四张表，数据由 `bun run a11y:sync` 从真实 lint 探测生成；用户项目可用随包发布的 `meld-ts a11y probe` 按自己装的 lint 版本生成重载表 |
 
+`createA11y` 的 `output`：默认 `react` 给 React JSX 用；`html` 把值字符串化（`50` → `"50"`），给 DOM API 和字符串模板用。不要把 `html` 输出 spread 进有类型的 React JSX——React 把 `aria-valuenow` 等类型成 `number`，过不了 `tsc`。
+
 ## CLI
 
 包内提供 `meld-ts` 命令（需要 Bun）：

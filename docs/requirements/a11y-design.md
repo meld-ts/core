@@ -803,6 +803,22 @@ tokenlist 的组合语义（顺序无关、可多选）在 TS 类型层表达不
 - **混合非空数组合法**：`['', 'a']` 的元素类型不是恰为 `''`，不在空值集里，照常输出 `join(' ')` = `' a'`。ARIA 的 IDREF 列表按空白切分，`' a'` 与 `'a'` 引用同一组 id，等价，不另作处理。
 - **已知限制（不追）**：纯空白成员的字面量（`[' ']`）类型层表达不出来——`' '` 不是 `''`，匹配不上 `AllEmptyIds`，类型层承诺输出键；运行时 join 后 trim 判空、按「没传」跳过，两边会漂。类型层没有「trim 后为空」的字面量判定可用，不在类型层追空白语义，与非字面量限制（§12.5 已记录）同一路径处置。
 
+### 12.16 上游数据缺口与 html 输出边界（rfi round 1，ND 裁定）
+
+两条 ND 裁定都是文档收尾，不改代码，细化 §12.10（键集取自 aria-query 生成、不设手写注册表）与 §12.14（上游数据粒度不够时的取舍）这两条先例。
+
+- **ARIA 键缺口**：React 19 的 `AriaAttributes` 有 `aria-colindextext` / `aria-rowindextext`，aria-query@5.3.2 没有（51 个键里无此二者，有 `colindex` / `rowindex`），jsx-a11y 6.10.2 的 `aria-props` 把它们当无效属性报错（真实 eslint 跑过）。`AriaKey` 定 51 个键是有意为之：类型收了这两个键，就是允许 lint 拒绝的写法，类型和 lint 打架。这是上游缺口，不是本包缺陷——aria-query 补上后 `bun run a11y:sync` 重新生成 `aria.generated.ts` 会自动带进来（§12.11 的同步链路）。任何地方都不要手工加这两个键。
+- **逃生口**：上游补齐之前，确实要这两个属性的消费者可以 spread 一个普通对象字面量——CI 的 grep 只匹配 JSX 里字面写出的 `aria-*=` / `role=`，匹配不到对象键（键后面是冒号不是等号，已对着真实 CI 守卫验证，rg 不命中）。role 仍走 `a11y()`（§8 规则 3），不要写成字面 `role="gridcell"`：
+
+  ```tsx
+  const extra = { 'aria-colindextext': 'Total', 'aria-rowindextext': 'Q3' };
+
+  <div {...a11y('gridcell', { colindex: 3 })} {...extra} />;
+  ```
+
+  代价：这两个键的取值不经过 `AriaValue` 检查，仅此两个键失去类型约束。上游落地、`a11y:sync` 开始产出这两个键后，删掉 workaround，换成 `colindextext` / `rowindextext` 输入键。
+- **`output: 'html'` 的边界**：html 模式的值定义为 HTML 属性字符串，`boolean` / `number` 一律字符串化（§3 输出表：`checked: true` → `'true'`，`aria-valuenow: 50` → `"50"`）。它面向 DOM API（`setAttribute`）和字符串模板拼接。React 的 `AriaAttributes` 把 `aria-valuenow` / `aria-level` / `aria-posinset` 等类型成 `number`，把 html 输出 spread 进有类型的 React JSX 过不了 `tsc`（TS2322）。给 React JSX 用默认的 `output: 'react'`。
+
 ## 附录 A：类型原型（已实测）
 
 规则表缩小到 4 个 role（switch、img、separator、combobox）、2 个 lint（biome、oxlint），aria 数据也是缩小版，只为验证类型写法。实现时把缩小的部分换成生成的数据。

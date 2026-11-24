@@ -17,6 +17,20 @@ JSX 里的 a11y 属性（`role`、`aria-*`、`tabIndex`）不允许手写，只�
 | `a11y(role, {...})` | 自定义 role（switch、img…） | `{ role, ...aria-* }`，带 `focusable` 时加 `tabIndex` |
 | `a11y.aria({...})` | 原生元素补 aria 状态 | `{ ...aria-* }`，不带 `role` 键 |
 
+## 已知上游缺口
+
+`aria-colindextext` / `aria-rowindextext` 在 React 19 的 `AriaAttributes` 里有，但 aria-query@5.3.2 没收录，jsx-a11y 6.10.2 的 `aria-props` 把它们当无效属性。所以 `AriaKey` 有意只有 51 个键、不含这两个——等 aria-query 补上，`a11y:sync` 会自动带进来，任何地方都不要手工加键。
+
+确实需要这两个属性时，spread 一个普通对象字面量（CI 的 grep 只匹配 JSX 里字面的 `aria-*=` / `role=`，匹配不到对象键）；role 仍走 `a11y()`，不要写成字面：
+
+```tsx
+const extra = { 'aria-colindextext': 'Total', 'aria-rowindextext': 'Q3' };
+
+<div {...a11y('gridcell', { colindex: 3 })} {...extra} />;
+```
+
+`a11y:sync` 开始产出这两个键后，删掉这个 workaround，换成 `colindextext` / `rowindextext` 输入键。
+
 ## CLI 扩展约定
 
 目前唯一的 bin 是 `meld-ts`（`package.json` 的 `"bin"` 只登记这一个）。以后新增任何命令行能力，都作为子命令挂进这个入口，**不新增 bin**：

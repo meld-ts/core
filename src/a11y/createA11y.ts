@@ -72,7 +72,10 @@ interface A11yCallable {
  *
  * @param options lint 用哪张（或哪几张）规则表；output 是值的输出形式，
  * 须为单个模式——确定的 'react' / 'html' 字面量（含 undefined 或同时含
- * 两个模式的类型会被拦下）
+ * 两个模式的类型会被拦下）。'html' 面向 DOM API 和字符串模板，
+ * boolean / number 会字符串化；不要把它 spread 进有类型的 React JSX
+ * （React 把 aria-valuenow / aria-level 等类型成 number，过不了 tsc），
+ * React 用默认的 'react'
  * @returns 可调用的 a11y，附带 a11y.aria 入口
  *
  * @example
