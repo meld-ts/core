@@ -482,7 +482,7 @@ core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注
    - 多 lint 合并的结果，以及任意两张内置表合并后三条不变量都成立（§6）；
    - `A11yOf` 在 `isolatedDeclarations` 下可用。
 
-   这一层靠 `tsc` 检查，`bun test` 单跑不会报类型错误。要确认 tsconfig 覆盖了测试文件，并且 pre-push / CI 里 `ts-check` 和 `test` 都跑。类型测试要在 core 声明的 TypeScript 版本（`^7`）下跑；附录 A 在 7.0.2 和 5.9.3 下结果一致。
+   这一层靠 `tsc` 检查，`bun test` 单跑不会报类型错误。要确认 tsconfig 覆盖了测试文件，并且 pre-push / CI 里 `ts-check` 和 `test` 都跑。类型测试要在 core 声明的 TypeScript 支持范围（`>=5.9 <8`，CI `ts-matrix` 三档）下跑；附录 A 在 7.0.2 和 5.9.3 下结果一致。
 2. **lint 一致性测试**（核心）：对每张表、每个 role，用 `a11y()` 生成三种输出：「只带必填」「带全部允许属性」，以及有 `requiredWhenFocusable` 的 role 再加一种「`focusable: true` + 全部允许属性」（biome 的 separator + valuenow 就靠这一种验）。属性值来自 `samples.generated.ts`。输出**展开成字面属性**写进 JSX fixture（`<div role="switch" aria-checked="true" ...>`），交给对应 lint 跑，要求相关规则零报错。不能用 spread 写 fixture：lint 看不到 spread，测试会永远全绿。四家合并的结果要四个 lint 都跑一遍。
 3. **反向测试**：对每个 role 故意去掉一个必填属性，确认对应 lint 确实报错。防止探针解析失败时生成了一张「什么都不要求」的空表，第 2 层还照样全绿。
 4. **构建产物的重载测试**：`bun run build:dist` 之后，在临时项目里通过包名引用构建产物，写一个带 `export {};` 的重载文件，跑 `tsc`，断言重载生效；再去掉 `export {};` 跑一次，断言失败。防止打包方式变了以后重载悄悄失效。
