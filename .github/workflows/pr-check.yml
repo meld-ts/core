@@ -71,4 +71,4 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Type check with TypeScript ${{ matrix.ts }}
-        run: bunx -p typescript@${{ matrix.ts }} tsc -p tsconfig.json
+        run: bunx -p typescript@${{ matrix.ts }} tsc -p tsconfig.json --noEmit
