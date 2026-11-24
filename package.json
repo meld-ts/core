@@ -1,7 +1,7 @@
 {
   "name": "@meld-ts/core",
   "description": "A collection of utility functions for TypeScript",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "files": [
     "./dist",
@@ -10,7 +10,9 @@
   "module": "./dist/index.js",
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
-  "bin": { "meld-ts": "./dist/bin/meld-ts.js" },
+  "bin": {
+    "meld-ts": "./dist/bin/meld-ts.js"
+  },
   "exports": {
     ".": {
       "import": {
