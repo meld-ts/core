@@ -1,5 +1,10 @@
 # TypeScript 支持范围实现计划
 
+> **Historical（已实现，勿按本文重做）** — 本计划记录 2026-11-24 的实施过程。最终形态以
+> `docs/superpowers/specs/2026-11-24-ts-version-range-design.md` 为准，与本文的差异有：
+> `peerDependencies.typescript` **整条删除**（本文写的「改成 `>=5.9 <8`」在执行中被推翻）、
+> CI 最终包含 `ts-matrix-ok` 聚合 job、矩阵命令带 `--noEmit`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 把 `peerDependencies.typescript` 从 `^7` 改成实测过的 `>=5.9 <8`，并用 CI 三档类型检查持续证明这条声明。

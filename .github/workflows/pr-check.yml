@@ -75,6 +75,10 @@ jobs:
 
   ts-matrix-ok:
     needs: ts-matrix
+    # fail-closed：success 之外的结论（failure / cancelled / skipped）一律失败。
+    # GitHub 把 required check 的 skipped 视为通过；这里若放行 skipped，矩阵
+    # 没跑就等于合并被放行。将来若想给本 workflow 加 paths 过滤，先确认
+    # ts-matrix 仍然每次都跑，否则这个 required check 会永久 pending。
     if: always()
     runs-on: ubuntu-latest
     steps:
