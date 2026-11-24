@@ -644,6 +644,8 @@ round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者
 
 §7 第 1 层要求类型测试在 core 声明的 TypeScript 版本（`^7`）下跑。仓库今天跑不了 ^7：`bun.lock` 锁的是 5.9.3，typedoc 0.28 的 peer 只到 6.0.x（§12.2 已记录）。控制器裁定（ND）：等 lockfile / peer 的版本错位修好后再补一次 TS 7.0.2 的验证；附录 A 已在 7.0.2 和 5.9.3 双测过（§12.2）。验证项记入 [a11y-roadmap.md](./a11y-roadmap.md) Plan C 的发版前检查。
 
+**已于 2026-11-24 解决。** peer 声明改为 `>=5.9 <8`，`devDependencies` 保持 5.9.3，CI 新增 `ts-matrix` 对 5.9.3 / 6.0.3 / 7.0.2 三档做类型检查。7.0.2 下 `tsc -p tsconfig.json` 实测 exit 0。详见 [spec](../superpowers/specs/2026-11-24-ts-version-range-design.md)。
+
 ### 12.8 round 12：focusable 门改为键存在，union props 拒收
 
 round 12 修三个同源的漏网（定义都在 `src/a11y/types.ts`，tsc 5.9.3 实测）：

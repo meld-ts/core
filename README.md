@@ -156,6 +156,13 @@ bun run build         # dist + browser + bin
 bun run doc           # 生成 TypeDoc API 文档
 ```
 
+## TypeScript 版本
+
+- **支持的消费者版本**：`>=5.9 <8`（见 `peerDependencies`）。CI 用 5.9.3 / 6.0.3 / 7.0.2 三档分别做类型检查。
+- **仓库工具链版本**：固定在 `5.9.3`。`bun run doc` 使用的 typedoc 依赖 TypeScript 的编译器 API，而 TS 7 只提供 AST 层 API（`unstable/ast`），因此文档工具链不能升到 7。
+
+两者是不同的东西：前者是给使用者的版本承诺，后者是构建和文档工具需要的版本。
+
 ## 构建说明
 
 目前项目构建，使用 bunup 。

@@ -105,7 +105,7 @@ grep -A4 '"./a11y"' package.json
 
 **遗留**：
 
-- TS 7 验证：等 lockfile / peer 的 TypeScript 版本错位修复（devDependencies 锁 5.9.3，peer 声明 `^7`）后，在 `^7` 下复跑一次 `ts-check`（设计 §12.7）
+- ~~TS 7 验证~~：已完成。peer 改为 `>=5.9 <8`，CI `ts-matrix` 对 5.9.3 / 6.0.3 / 7.0.2 三档做类型检查（设计 §12.7）
 - 空 idlist 非元组（`string[]` 变量持有 `[]`）的类型层对齐：未动，维持已知限制（设计 §12.5）；运行时语义已定（`IDLIST_KEYS` 把空数组丢键）
 
 ---
@@ -123,7 +123,7 @@ bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11
 
 已知 flake：bunup dist 构建（`build:dist`）在本机偶发 EINVAL（分支前既有，CI/ubuntu 未观察到）。`test:a11y-build` 对 build:dist 直接重试最多 3 次，仍失败才报错退出并打印 bunup 输出；本地挂了先重跑一次再排查。
 
-TS 7 验证（设计 §12.7）等版本错位修复后并入这里。
+TS 7 验证（设计 §12.7）已并入 CI 的 `ts-matrix` job，不再需要单独的手工检查。
 
 另查 `dist/bin/meld-ts.js` 装好后可执行：npm / bun 安装会按 package.json 的 `bin` 字段设置可执行位；手动构建、不经安装的产物要自己 `chmod +x`。
 
