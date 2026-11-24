@@ -76,7 +76,7 @@ a11y 发版前检查：`test:a11y-lint`、`test:a11y-build`，外加 `a11y:sync`
 规则：
 
 1. **不声明 `peerDependencies.typescript`**。本包发布 ESM + CJS，运行时不依赖 TypeScript。一旦声明，npm / bun / pnpm 会自动安装一个 TypeScript（2026-11 实测会装入 `7.0.2` 这个 Go 原生包），纯 JS 消费者被迫承担；pnpm 严格模式下还会因缺 peer 安装失败。
-2. **支持范围只作类型承诺**，写在 README 与本文件。消费者版本越界不会在安装阶段被拦，而是在编译 `.d.ts` 时暴露；这是有意为之。
+2. **支持范围只作类型承诺**，写在 `README.md`、`CONTRIBUTING.md` 与本文件。消费者版本越界不会在安装阶段被拦，而是在编译 `.d.ts` 时暴露；这是有意为之。
 3. **只声明实测过的范围**。`>=5.9` 是实测下界，不是语言特性下界；`<8` 排除未验证的大版本。
 4. **工具链与承诺分离**。TS 7 只导出 `./lib/version.cjs` + `./unstable/*`，没有编译器 API，typedoc、api-extractor 这类工具跑不了 7。`devDependencies` 必须留在工具链支持的版本（当前 5.9.x / 6.0.x）。
 5. **升级 TypeScript 的清单**，六处缺一处就会再次漂移：
