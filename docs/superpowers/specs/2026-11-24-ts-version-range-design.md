@@ -92,7 +92,7 @@ TS 7 是 Go 原生实现，npm 包只暴露 AST 层 API（`unstable/ast` 等）�
         run: bun install --frozen-lockfile
 
       - name: Type check with TypeScript ${{ matrix.ts }}
-        run: bunx -p typescript@${{ matrix.ts }} tsc -p tsconfig.json
+        run: bunx -p typescript@${{ matrix.ts }} tsc -p tsconfig.json --noEmit
 ```
 
 - `bunx -p` 临时拉指定版本，不写 lockfile、不改 `node_modules`，三档互不污染。
@@ -106,7 +106,7 @@ TS 7 是 Go 原生实现，npm 包只暴露 AST 层 API（`unstable/ast` 等）�
 
 | # | 验证 | 命令 | 期望 |
 |---|------|------|------|
-| 1 | 三档类型检查 | `bunx -p typescript@5.9.3 tsc -p tsconfig.json`（6.0.3、7.0.2 同理） | 三条都 exit 0 |
+| 1 | 三档类型检查 | `bunx -p typescript@5.9.3 tsc -p tsconfig.json --noEmit`（6.0.3、7.0.2 同理） | 三条都 exit 0 |
 | 2 | 消费者 peer 不再报错 | 打包后在两个 scratch 项目 `npm i --strict-peer-deps <tarball> typescript@5.9.3`（另一个 7.0.2） | 两次都成功 |
 | 3 | 现有测试 | `bun run test` | 628 pass / 49 skip / 0 fail，与改动前一致 |
 | 4 | 构建 | `bun run build` | 成功；产物不变 |
