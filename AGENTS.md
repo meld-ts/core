@@ -69,7 +69,7 @@ a11y 发版前检查：`test:a11y-lint`、`test:a11y-build`，外加 `a11y:sync`
 
 | 角色 | 位置 | 当前取值 | 约束 |
 |------|------|----------|------|
-| 类型支持范围 | `README.md`（不写进 `package.json`） | `>=5.9 <8` | 只写实测过的版本 |
+| 类型支持范围 | `README.md`、`CONTRIBUTING.md`、本文件（不写进 `package.json`） | `>=5.9 <8` | 只写实测过的版本 |
 | 仓库工具链 | `devDependencies.typescript` | `5.9.3` | 受 typedoc 限制，不能升到没有编译器 API 的版本 |
 | CI 验证矩阵 | `.github/workflows/pr-check.yml` 的 `ts-matrix` | `5.9.3` / `6.0.3` / `7.0.2` | 范围一变就跟着改 |
 
@@ -79,12 +79,13 @@ a11y 发版前检查：`test:a11y-lint`、`test:a11y-build`，外加 `a11y:sync`
 2. **支持范围只作类型承诺**，写在 README 与本文件。消费者版本越界不会在安装阶段被拦，而是在编译 `.d.ts` 时暴露；这是有意为之。
 3. **只声明实测过的范围**。`>=5.9` 是实测下界，不是语言特性下界；`<8` 排除未验证的大版本。
 4. **工具链与承诺分离**。TS 7 只导出 `./lib/version.cjs` + `./unstable/*`，没有编译器 API，typedoc、api-extractor 这类工具跑不了 7。`devDependencies` 必须留在工具链支持的版本（当前 5.9.x / 6.0.x）。
-5. **升级 TypeScript 的清单**，五处缺一处就会再次漂移：
+5. **升级 TypeScript 的清单**，六处缺一处就会再次漂移：
    1. `devDependencies.typescript`
    2. CI 的 `ts-matrix` 矩阵
    3. `README.md` 的「TypeScript 版本」一节
-   4. 本文件的「TypeScript 版本策略」表
-   5. 在每一档上跑 `bunx -p typescript@<v> tsc -p tsconfig.json --noEmit`，再跑 `bun run doc` 确认工具链没崩
+   4. `CONTRIBUTING.md` 的前置要求行（也写着消费者的支持范围）
+   5. 本文件的「TypeScript 版本策略」表
+   6. 在每一档上跑 `bunx -p typescript@<v> tsc -p tsconfig.json --noEmit`，再跑 `bun run doc` 确认工具链没崩
 6. **矩阵必须能挡合并**：main 的 required checks 里要有 `ts-matrix-ok`（三档的聚合 job）。矩阵实例名（`ts-matrix (7.0.2)`）不能作为 required check——版本表一变名字就变。
 
 ## a11y 属性规则
