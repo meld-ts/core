@@ -15,12 +15,6 @@
         "typedoc-plugin-merge-modules": "^7.0.0",
         "typescript": "5.9.3",
       },
-      "peerDependencies": {
-        "typescript": ">=5.9 <8",
-      },
-      "optionalPeers": [
-        "typescript",
-      ],
     },
   },
   "packages": {
