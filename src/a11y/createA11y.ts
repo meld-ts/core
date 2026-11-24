@@ -70,6 +70,40 @@ interface A11yCallable {
  * 这是有意的 fail-closed，不放宽检查。要复用请直接在这里实例化，或用
  * `A11yOf<typeof options>` 注解（isolatedDeclarations 的写法，见设计 §3）。
  *
+ * ## 覆盖内置规则表（override）
+ *
+ * 内置表按发布时的 lint 版本探测生成。项目里的 lint 版本不同、或规则有本地
+ * 差异时，用 `meld-ts a11y probe` 按项目实际安装的 lint 重新生成一张表：
+ *
+ * ```bash
+ * meld-ts a11y probe --lint=biome   # 默认写出 a11y-lints.generated.d.ts
+ * ```
+ *
+ * 生成文件通过声明合并把表挂进 `A11yLintOverrides`，`createA11y` 会自动使用：
+ *
+ * ```ts
+ * // a11y-lints.generated.d.ts（探针生成，勿手改）
+ * export {};
+ * declare module '@meld-ts/core/a11y' {
+ *   interface A11yLintOverrides {
+ *     biome: { meta: { lint: 'biome'; version: '2.6.8'; source: 'probe' }; roles: { ... } };
+ *   }
+ * }
+ * ```
+ *
+ * 约束：
+ * - 值必须是**完整的** `A11yProfile`（`meta` + 全部 127 个 role），不是局部
+ *   补丁。只改个别 role 时，在完整表上用 `Omit` 改，写法见
+ *   `test/a11y/override-good/index.ts`。
+ * - 不能是 union（`ProfileA | ProfileB`）：会在 `createA11y` 调用点报
+ *   `Invalid A11yLintOverrides shape, rerun meld-ts a11y probe`。负例见
+ *   `test/a11y/override-union/index.ts`。
+ * - 未注册的 lint 名会报 `Unknown lint name in A11yLintOverrides`。
+ * - 覆盖是**整表替换**，不与内置表合并；漏掉的 role 等于没有这张表。
+ *
+ * override 只作用于类型层，运行时不受影响。放宽表就是放宽与实际 lint 的对齐
+ * ——手写放宽会对真实 lint fail-open，改动请以探针输出为准。
+ *
  * @param options lint 用哪张（或哪几张）规则表；output 是值的输出形式，
  * 须为单个模式——确定的 'react' / 'html' 字面量（含 undefined 或同时含
  * 两个模式的类型会被拦下）。'html' 面向 DOM API 和字符串模板，
