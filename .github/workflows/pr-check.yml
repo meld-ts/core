@@ -52,3 +52,39 @@ jobs:
 
       - name: Test
         run: bun run test
+
+  ts-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ts: ['5.9.3', '6.0.3', '7.0.2']
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Type check with TypeScript ${{ matrix.ts }}
+        run: bunx -p typescript@${{ matrix.ts }} tsc -p tsconfig.json --noEmit
+
+  ts-matrix-ok:
+    needs: ts-matrix
+    # fail-closed：success 之外的结论（failure / cancelled / skipped）一律失败。
+    # GitHub 把 required check 的 skipped 视为通过；这里若放行 skipped，矩阵
+    # 没跑就等于合并被放行。将来若想给本 workflow 加 paths 过滤，先确认
+    # ts-matrix 仍然每次都跑，否则这个 required check 会永久 pending。
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: All TypeScript versions passed
+        run: |
+          if [ "${{ needs.ts-matrix.result }}" != "success" ]; then
+            echo "ts-matrix failed: ${{ needs.ts-matrix.result }}"
+            exit 1
+          fi

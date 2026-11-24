@@ -5,7 +5,7 @@ Thank you for your interest in contributing!
 ## Prerequisites
 
 - [Bun](https://bun.sh/) >= 1.x
-- TypeScript 6.x (via `@typescript/native-preview`)
+- TypeScript 5.9.3 (repo pin; consumers: `>=5.9 <8`)
 
 ## Setup
 
@@ -20,7 +20,7 @@ bun install
 ```bash
 bun run fmt        # format with Biome
 bun run lint       # lint (warnings treated as errors)
-bun run ts-check   # type-check with tsgo
+bun run ts-check   # tsc --noEmit
 bun run test       # run tests + coverage
 bun run build      # build dist/ and browser/
 ```

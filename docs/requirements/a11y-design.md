@@ -482,7 +482,7 @@ core 的 devDependencies 不用装这四个 lint：它们只装在 lab 里。注
    - 多 lint 合并的结果，以及任意两张内置表合并后三条不变量都成立（§6）；
    - `A11yOf` 在 `isolatedDeclarations` 下可用。
 
-   这一层靠 `tsc` 检查，`bun test` 单跑不会报类型错误。要确认 tsconfig 覆盖了测试文件，并且 pre-push / CI 里 `ts-check` 和 `test` 都跑。类型测试要在 core 声明的 TypeScript 版本（`^7`）下跑；附录 A 在 7.0.2 和 5.9.3 下结果一致。
+   这一层靠 `tsc` 检查，`bun test` 单跑不会报类型错误。要确认 tsconfig 覆盖了测试文件，并且 pre-push / CI 里 `ts-check` 和 `test` 都跑。类型测试要在 core 声明的 TypeScript 支持范围（`>=5.9 <8`，CI `ts-matrix` 三档）下跑；附录 A 在 7.0.2 和 5.9.3 下结果一致。
 2. **lint 一致性测试**（核心）：对每张表、每个 role，用 `a11y()` 生成三种输出：「只带必填」「带全部允许属性」，以及有 `requiredWhenFocusable` 的 role 再加一种「`focusable: true` + 全部允许属性」（biome 的 separator + valuenow 就靠这一种验）。属性值来自 `samples.generated.ts`。输出**展开成字面属性**写进 JSX fixture（`<div role="switch" aria-checked="true" ...>`），交给对应 lint 跑，要求相关规则零报错。不能用 spread 写 fixture：lint 看不到 spread，测试会永远全绿。四家合并的结果要四个 lint 都跑一遍。
 3. **反向测试**：对每个 role 故意去掉一个必填属性，确认对应 lint 确实报错。防止探针解析失败时生成了一张「什么都不要求」的空表，第 2 层还照样全绿。
 4. **构建产物的重载测试**：`bun run build:dist` 之后，在临时项目里通过包名引用构建产物，写一个带 `export {};` 的重载文件，跑 `tsc`，断言重载生效；再去掉 `export {};` 跑一次，断言失败。防止打包方式变了以后重载悄悄失效。
@@ -643,6 +643,8 @@ round 7 记录两个 union 语义（定义都在 `src/a11y/types.ts`）。两者
 ### 12.7 round 10：TypeScript 7 验证推迟（ND 裁定）
 
 §7 第 1 层要求类型测试在 core 声明的 TypeScript 版本（`^7`）下跑。仓库今天跑不了 ^7：`bun.lock` 锁的是 5.9.3，typedoc 0.28 的 peer 只到 6.0.x（§12.2 已记录）。控制器裁定（ND）：等 lockfile / peer 的版本错位修好后再补一次 TS 7.0.2 的验证；附录 A 已在 7.0.2 和 5.9.3 双测过（§12.2）。验证项记入 [a11y-roadmap.md](./a11y-roadmap.md) Plan C 的发版前检查。
+
+**已于 2026-11-24 解决。** `peerDependencies.typescript` 整条删除（运行时不需要 TypeScript），类型支持范围 `>=5.9 <8` 只写在 `README.md` 与 `AGENTS.md`；`devDependencies` 保持 5.9.3，CI 新增 `ts-matrix` 对 5.9.3 / 6.0.3 / 7.0.2 三档做类型检查。7.0.2 下 `tsc -p tsconfig.json --noEmit` 实测 exit 0。详见 [spec](../superpowers/specs/2026-11-24-ts-version-range-design.md)。
 
 ### 12.8 round 12：focusable 门改为键存在，union props 拒收
 

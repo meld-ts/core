@@ -1,3 +1,10 @@
+/**
+ * 负向 fixture（预期 tsc 报错）：
+ * `A11yLintOverrides` 的值是 union（`ProfileA | ProfileB`）而不是单张表时，
+ * `createA11y` 必须在调用点报 `Invalid A11yLintOverrides shape, rerun meld-ts a11y probe`。
+ * 断言见 `src/a11y/override.test.ts`「union-typed override value errors…」。
+ */
+
 import { type BiomeA11yProfile, createA11y } from '../../../src/a11y/index.ts';
 
 type BiomeMeta = { lint: 'biome'; version: '9.9.9'; source: 'probe' };
