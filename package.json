@@ -149,5 +149,10 @@
   },
   "peerDependencies": {
     "typescript": ">=5.9 <8"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
   }
 }

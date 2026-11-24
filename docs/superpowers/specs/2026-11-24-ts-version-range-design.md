@@ -60,10 +60,12 @@ TS 7 是 Go 原生实现，npm 包只暴露 AST 层 API（`unstable/ast` 等）�
 
 | 项 | 取值 | 理由 |
 |----|------|------|
-| `peerDependencies.typescript` | `>=5.9 <8` | 下界 = 唯一在本地验证过的低版本；上界排除 8 的 breaking。5.9 以下未实测，不声明 |
+| `peerDependencies.typescript` | `>=5.9 <8` | 下界 = 唯一在本地验证过的低版本；上界排除 8 的 breaking。5.9 以下未实测，不声明。该 peer 是 **optional**（`peerDependenciesMeta`），运行时不需要 TypeScript |
 | `devDependencies.typescript` | 保持 `5.9.3` | typedoc 需要 JS API；最小改动，不重验 lockfile 与构建产物 |
 | CI | 新增 `ts-matrix` job，三档 `5.9.3` / `6.0.3` / `7.0.2` | 下界、JS-bridge 最新、原生最新，各有证据 |
 | 文档生成 | typedoc 不变，跑在 devDep 的 5.9.3 | 与 TS 7 支持互不影响 |
+
+`typescript` 设为 optional：本包发布 ESM + CJS，运行时不依赖 TypeScript，纯 JS 消费者不应被强制安装 TS（否则 npm/bun/pnpm 默认会自动装入 `typescript@7.0.2` 这个 Go 原生包，pnpm 严格模式下甚至会因缺 peer 失败）。`>=5.9 <8` 描述的是 `.d.ts` 的支持范围。
 
 不做 `^7`：会挡掉 5.x/6.x 用户，而 7 并非唯一可用版本。
 

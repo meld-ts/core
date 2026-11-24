@@ -18,6 +18,9 @@
       "peerDependencies": {
         "typescript": ">=5.9 <8",
       },
+      "optionalPeers": [
+        "typescript",
+      ],
     },
   },
   "packages": {
