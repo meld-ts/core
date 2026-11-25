@@ -114,6 +114,24 @@ describe('createEmitter', () => {
       expect(b).toBe(1);
     });
 
+    test('off during emit does not affect the current snapshot', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      const ran: string[] = [];
+      const b = () => {
+        ran.push('b');
+      };
+      emitter.on('tick', () => {
+        ran.push('a');
+        emitter.off('tick', b); // b 已经在本次 emit 的快照里
+      });
+      emitter.on('tick', b);
+      await emitter.emit('tick', undefined as undefined);
+      expect(ran).toEqual(['a', 'b']);
+      ran.length = 0;
+      await emitter.emit('tick', undefined as undefined);
+      expect(ran).toEqual(['a']);
+    });
+
     test('emit should not the error', async () => {
       const errors: unknown[] = [];
       const emitter = createEmitter<{ boom: undefined }>({
@@ -268,6 +286,22 @@ describe('createEmitter', () => {
       });
       await emitter.emit('tick', undefined as undefined);
       expect(fired).toBe(1);
+    });
+
+    test('off during emit still runs an already-cleared once listener once', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let onceFired = 0;
+      const fn = () => {
+        onceFired++;
+      };
+      emitter.once('tick', () => {
+        emitter.off('tick', fn); // 摘除先于执行，快照里仍有 fn
+      });
+      emitter.once('tick', fn);
+      await emitter.emit('tick', undefined as undefined);
+      expect(onceFired).toBe(1);
+      await emitter.emit('tick', undefined as undefined);
+      expect(onceFired).toBe(1);
     });
   });
 });
