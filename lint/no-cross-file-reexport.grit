@@ -1,0 +1,6 @@
+language js
+
+or { JsExportNamedFromClause(), JsExportFromClause() } as $e where {
+  $filename <: not r".*/index\.ts",
+  register_diagnostic(span=$e, message="只有 index.ts 能转发。使用方直接从源文件 import，这里不要再导出。")
+}

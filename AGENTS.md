@@ -107,6 +107,34 @@ export * from './builtin';
 
 - 单文件模块（`src/timer.ts` 这类）本身就是入口，整份都是公开面。有内部符号，就挪到 `src/_internal/`。
 
+#### 只有 index.ts 能转发
+
+除了 index.ts，任何文件都不能导出别的文件里定义的符号，类型和值都一样。一个符号只从定义它的文件导出，再加上 index.ts 的转发，没有第三条路。
+
+下面这些写法，出现在 index.ts 以外的文件里，一律禁止：
+
+```ts
+import { RpcAbortError } from './errors';
+export { RpcAbortError };                     // import 进来再导出
+export { TimeoutError } from './errors';      // 直接转发
+export type { RetryOptions } from './retry';  // 类型也一样
+export { retry as retryFn } from './retry';   // 改个名转发
+export * from './pending';                    // 星号转发
+export * as errors from './errors';           // 命名空间转发
+export const TE = TimeoutError;               // 换个名字再导出一遍
+export type RO = RetryOptions;
+```
+
+- 用到别的文件的符号，import 进来自己用。调用方也要用它，就让调用方自己去 import：同模块从源文件 import，跨模块从对方入口 import。
+- 在别的类型基础上定义新类型，是允许的，比如 `export type UseAgentChatOptions = Omit<SessionOptions, 'runtime'> & { blankEpoch?: number }`。判断方法：等号右边只是别处的一个名字、什么都没改，就算转发，禁止。
+
+**搬文件、改名：改所有引用，不留旧路径。**
+
+- 文件换了路径，就把所有 import 改到新路径，删掉旧文件。不要在旧位置留一个转发新文件的空壳。
+- 符号改名同理：改掉所有用到它的地方，不留 `export const oldName = newName`。
+- 改完用 `rg` 搜旧路径和旧名字，测试、README、`skills/` 下的 SKILL.md 里的路径都要改。再跑 `bun run ts-check` 和 `bun run lint`。
+- 唯一要停下来问的情况：搬的是公开入口（package.json `exports` 里的子路径），或者改的是公开符号的名字。这是破坏性改动，先问，不要自己留兼容转发。
+
 **import 规则（防环形引用）：**
 
 - 同一模块内：import 具体文件（`./retry`、`./_internal`），不 import `./index` 或 `.`。
