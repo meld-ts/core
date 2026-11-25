@@ -1,6 +1,44 @@
 language js
 
-or { JsExportNamedFromClause(), JsExportFromClause() } as $e where {
+// 只有 index.ts 能转发：非入口文件里，把别的文件定义的符号再导出（含改别名）一律禁止。
+// - export { X } from / export * from / export * as：JsExportFromClause / JsExportNamedFromClause
+// - export const/let/var X = Y / export type X = Y：Y 是同文件 import 进来的标识符。
+//   用 $program 跨语句关联，对 import 说明符的 local_name 匹配——多说明符、
+//   别名导入（A as B）、默认导入、import type 都覆盖。
+// - import 进来再 export { X }：biome 内置 noExportedImports 负责。
+// 误报防护：本地值的别名（export const c = localConfig）不命中——import 关联不到就不报。
+or {
+  JsExportNamedFromClause(),
+  JsExportFromClause(),
+  `export const $name = $value;` where {
+    $program <: contains or {
+      JsShorthandNamedImportSpecifier(local_name = $value),
+      JsNamedImportSpecifier(local_name = $value),
+      JsDefaultImportSpecifier(local_name = $value),
+    },
+  },
+  `export let $name = $value;` where {
+    $program <: contains or {
+      JsShorthandNamedImportSpecifier(local_name = $value),
+      JsNamedImportSpecifier(local_name = $value),
+      JsDefaultImportSpecifier(local_name = $value),
+    },
+  },
+  `export var $name = $value;` where {
+    $program <: contains or {
+      JsShorthandNamedImportSpecifier(local_name = $value),
+      JsNamedImportSpecifier(local_name = $value),
+      JsDefaultImportSpecifier(local_name = $value),
+    },
+  },
+  `export type $name = $value;` where {
+    $program <: contains or {
+      JsShorthandNamedImportSpecifier(local_name = $value),
+      JsNamedImportSpecifier(local_name = $value),
+      JsDefaultImportSpecifier(local_name = $value),
+    },
+  },
+} as $e where {
   $filename <: not r".*/index\.ts",
   register_diagnostic(span=$e, message="只有 index.ts 能转发。使用方直接从源文件 import，这里不要再导出。")
 }

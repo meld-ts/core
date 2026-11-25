@@ -43,6 +43,7 @@
         "noThenProperty": "off",
         "noImportCycles": "error"
       },
+      "complexity": { "noVoid": "error" },
       "style": { "noExportedImports": "error" }
     }
   },
