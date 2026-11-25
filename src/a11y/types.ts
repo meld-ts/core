@@ -1,4 +1,3 @@
-import type { Exact, IsUnion } from './_internal';
 import type {
   A11yNameRule,
   A11yRole,
@@ -112,6 +111,16 @@ export type MergeProfiles<Ps extends A11yProfile> = {
 };
 
 /**
+ * 非分布的 union 判定：lint 是变量 / 条件表达式（类型为几个名字的 union）
+ * 时为 true。分布写法会对 union 的每个成员各判一次，永远得到 false。
+ */
+type IsUnion<T, U = T> = T extends unknown
+  ? [U] extends [T]
+    ? false
+    : true
+  : never;
+
+/**
  * lint 名是 union 时必须走 MergeProfiles（supported 取交集）：
  * 分布式条件类型会把 union 拆成几张表的并集，supported 变成并集，
  * 只有部分 lint 支持的属性会静默通过，违反「按项目的 lint 分表」。
@@ -159,6 +168,14 @@ export type A11yInput<P extends A11yProfile, R extends A11yRole> = {
     | AriaValue<K>
     | undefined;
 } & { focusable?: true | undefined } & NameRequirement<A11yNameRule[R]>;
+
+/**
+ * 多余键检查：I 是推导出的泛型，TypeScript 对它不做多余属性检查，
+ * 必须显式把允许集合外的键映射成 never。
+ */
+type Exact<I, Allowed extends PropertyKey> = {
+  [K in Exclude<keyof I, Allowed>]: never;
+};
 
 /**
  * 可聚焦时的额外必填。

@@ -2,58 +2,49 @@ import type { AriaIdListKey } from './aria.generated';
 import type {
   A11yLintOverrides,
   A11yLintName,
+  A11yLints,
   A11yOptions,
   A11yProfile,
 } from './types';
 
 /**
- * a11y 模块的内部实现细节。
+ * a11y 模块的内部实现细节：idlist 运行时表，以及 `createA11y` 调用点的
+ * 类型检查。
  *
- * 不在 `@meld-ts/core/a11y` 的入口里：`index.ts` 只做星号导出
- * （`export * from './types'` 之类），这里不被任何一份入口文件
- * 星号带上，所以放在这个文件就等于「私有」。要新增内部符号，
- * 放这里或同目录其它 `_` 开头的文件，不要去入口里逐个列举。
+ * 依赖方向是单向的：这里 `import type` 公开类型，公开类型不知道这个文件
+ * 存在。所以 `types.ts` 的 `IsUnion` / `Exact` 留在原地私有，不搬到这里，
+ * 也不往 `types.ts` 反向导入——那样会绕出类型层的环。
+ *
+ * 入口 `index.ts` 只星号导出公开文件，本文件不在其中，等于私有。
  */
 
 // ============================================================================
-// 类型工具
-// ============================================================================
-
-/**
- * 非分布的 union 判定：lint 是变量 / 条件表达式（类型为几个名字的 union）
- * 时为 true。分布写法会对 union 的每个成员各判一次，永远得到 false。
- */
-export type IsUnion<T, U = T> = T extends unknown
-  ? [U] extends [T]
-    ? false
-    : true
-  : never;
-
-/**
- * 多余键检查：I 是推导出的泛型，TypeScript 对它不做多余属性检查，
- * 必须显式把允许集合外的键映射成 never。
- */
-export type Exact<I, Allowed extends PropertyKey> = {
-  [K in Exclude<keyof I, Allowed>]: never;
-};
-
-// ============================================================================
-// createA11y 调用点的检查
+// 调用点检查
 // ============================================================================
 
 type UnknownOverrideKeys = Exclude<keyof A11yLintOverrides, A11yLintName>;
 
 /**
- * 结构不对的键：值不是 A11yProfile，或是 union——探针只生成单张表，
- * union 值会让 Rule<P, R> 对 union 分布式取表，supported 变并集，
- * 只有单侧支持的属性静默通过（lint 名 union 漏洞的同型），两种都算
- * 结构不对，用同一条错误信息在 createA11y 调用点报错。
+ * 同一类型判定：互相可赋值才算同一。
+ *
+ * 用来判断「登记的覆盖表有没有真正生效」——`CheckOverride` 对 union
+ * 值会退回内置表（union 会让 `Rule<P, R>` 分布式取表，supported 变并集），
+ * 生效表与登记值不再相等。比单独再判一次 union 少一处重复逻辑：
+ * 判定标准只有 `A11yLints` 这一个来源。
+ */
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/**
+ * 没生效的登记键：值不是 A11yProfile，或是 union 被退回了内置表。
+ * 两种都用同一条错误信息在 createA11y 调用点报错。
  */
 type BadShapeKeys = {
-  [K in keyof A11yLintOverrides]: A11yLintOverrides[K] extends A11yProfile
-    ? IsUnion<A11yLintOverrides[K]> extends true
-      ? K
-      : never
+  [K in keyof A11yLintOverrides]: K extends A11yLintName
+    ? A11yLintOverrides[K] extends A11yProfile
+      ? Same<A11yLints[K], A11yLintOverrides[K]> extends true
+        ? never
+        : K
+      : K
     : K;
 }[keyof A11yLintOverrides];
 
@@ -74,14 +65,13 @@ export type OverrideKeyCheck = ([UnknownOverrideKeys] extends [never]
 
 /**
  * 空 lint 表检查：lint 传空数组字面量时，选择归约成 never 表（不是
- * 「没有任何必填的表」）：Exact 把所有 aria 键映射成 never，每个带
- * aria 属性的 a11y() 调用都报错——没有静默漏网，只是错误散落在每个
- * 调用点上且不可读（"not assignable to never"）。这个检查把错误前移
- * 到 createA11y 调用点，换成一条可读的消息。判据是选中的字面量类型
- * 可赋给 `readonly []`（空元组）或 `readonly never[]`（never 数组同样
- * 归约成 never 表）：`A11yLintName[]` / `readonly A11yLintName[]` 变量
- * 两个都不可赋，不受影响。和 OverrideKeyCheck 同一机制，挂到
- * createA11y 参数上在调用点报错。
+ * 「没有任何必填的表」）：所有 aria 键都映射成 never，每个带 aria 属性
+ * 的 a11y() 调用都报错——没有静默漏网，只是错误散落在每个调用点上且
+ * 不可读（"not assignable to never"）。这个检查把错误前移到 createA11y
+ * 调用点，换成一条可读的消息。判据是选中的字面量类型可赋给 `readonly []`
+ * （空元组）或 `readonly never[]`（never 数组同样归约成 never 表）：
+ * `A11yLintName[]` / `readonly A11yLintName[]` 变量两个都不可赋，不受影响。
+ * 和 OverrideKeyCheck 同一机制，挂到 createA11y 参数上在调用点报错。
  */
 export type LintSelectionCheck<Opt extends A11yOptions> = [
   Opt['lint'],
@@ -114,12 +104,12 @@ export type OutputDefiniteCheck<Opt extends A11yOptions> =
 
 /**
  * 选项键检查：lint / output 之外的键（拼错的 outpt 之类）映射成 never，
- * 在 createA11y 调用点报错，不静默退回默认值。机制同 Exact 拦拼错属性。
+ * 在 createA11y 调用点报错，不静默退回默认值。机制同 `types.ts` 的
+ * `Exact` 拦拼错属性。
  */
-export type OptionsKeyCheck<Opt extends A11yOptions> = Exact<
-  Opt,
-  'lint' | 'output'
->;
+export type OptionsKeyCheck<Opt extends A11yOptions> = {
+  [K in Exclude<keyof Opt, 'lint' | 'output'>]: never;
+};
 
 // ============================================================================
 // idlist 运行时表
@@ -163,8 +153,7 @@ type Assert<T extends true> = T;
 
 /**
  * 生成数据更新而此处忘记同步时，编译期报错。
- * 导出只为让 noUnusedLocals 认可这条声明；index.ts 用星号导出，
- * 本文件不参与入口，所以它不会进公共 API。
+ * 导出只为让 noUnusedLocals 认可这条声明；本文件不参与入口，不会进公共 API。
  */
 export type IdListInSync = Assert<
   Eq<(typeof IDLIST_KEYS)[number], AriaIdListKey>
