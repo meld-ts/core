@@ -76,25 +76,31 @@ Round 4:  0 条 → clean（4 个 reviewer 全 0）
   与已修的那条是同一机制的不同触发路径，当时的判断是再改会搅乱「触发前摘除」的修复。
   事后实测：第 2 轮把摘除提到触发前之后，这个场景已经正常了（见下）。
 
-## 遗留 Minor（未修）
+## 遗留 Minor（已补）
+
+审查结束时留了两条 Minor，维护者要求一并处理，已在本文件的同一个 PR 里补掉。
 
 ### 1. `once` 的摘除时机与文档不一致
 
-实现已改成「触发前摘除」，文档仍写「触发后」：
+实现是「触发前摘除」，文档还写「触发后」。三处已改：
 
-- `AGENTS.md:185`：`once 回调无论成功失败都在触发后清理`
-- `src/events/index.ts:71`：`首次触发后自动移除`
-- `src/events/index.ts:182`：`on(name, cb, true)` 等同于 `once()`——触发后自动移除
+- `AGENTS.md:185`：`once 回调在触发前就摘除，成功失败都只触发一次`
+- `src/events/index.ts:71`：`首次触发时先摘除、再执行回调`
+- `src/events/index.ts:182`：`on(name, cb, true)` 等同于 `once()`——触发时先摘除、再执行回调
 
 ### 2. 新语义没有测试钉住
 
-`src/events/index.test.ts` 没有覆盖「摘除发生在触发前」这一行为。以下三个场景是这次修复的核心语义，靠人工脚本验过，没有进测试：
+原有测试已覆盖「并发 emit 只触发一次」和「回调里用 `on` 重注册」，缺的是「用 `once` 重注册」与「摘除先于执行」。新增两条：
 
+```ts
+// once 回调在触发期间用 once 重新注册自己 → 3 次 emit 触发 3 次
+test('re-once during emit survives the cleanup and fires again later')
+
+// 回调内重入 emit，内层快照里没有自己 → 只触发 1 次
+test('re-entrant emit inside the callback does not fire it again')
 ```
-A once 回调在触发期间用 once 重新注册自己   → 触发 3 次（每个 emit 一次）
-B once 回调重入时用 on（非 once）注册自己    → 触发 2 次
-C 并发 emit 同一个 once                     → 触发 1 次
-```
+
+验证这两条真的钉住了语义：把摘除挪回 `Promise.all` 之后（故障注入），`src/events` 有 3 条测试转红——包括新增的两条；恢复后 44 条全过。
 
 ## 维护者决策
 

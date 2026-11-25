@@ -182,7 +182,7 @@ interface MyClass extends MyTrait {}
 
 ### events 模块
 - 监听器并发执行（`Promise.all`），**emit 不会因监听器异常而 reject**——异常被静默 catch，通过 `options.onError` 回调通知
-- `once` 回调无论成功失败都在触发后清理（不重试失败的 once）
+- `once` 回调在触发前就摘除，成功失败都只触发一次（不重试失败的 once）
 - `off()` 三档重载：`off()` 清除所有事件全部监听器、`off(name)` 清除指定事件全部监听器、`off(name, callback)` 清除特定回调
 - `linkEvents` 的 `mode='once'` 对 `EventsDelegator` 同样生效——`inject(emitter, forceOnce)` 会强制所有回调只触发一次
 - `createDelegator` 返回的 `inject` 接受可选第二参数 `forceOnce`，为 `true` 时覆盖回调自身的 `once` 标记

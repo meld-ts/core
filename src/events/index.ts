@@ -68,7 +68,7 @@ export const once = <T>(fn: EventCallbackFn<T>): MarkedCallback<T> => ({
  * 事件发射器接口
  *
  * `on` 返回反注册函数，无需持有 callback 引用即可取消监听。
- * 传 `isOnce: true` 等同于 `once()`——首次触发后自动移除。
+ * 传 `isOnce: true` 等同于 `once()`——首次触发时先摘除、再执行回调。
  */
 export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
   on<N extends keyof E>(
@@ -179,7 +179,7 @@ export const isEventsEmitter = <E extends EventsDefinition = EventsDefinition>(
  * 创建事件发射器
  *
  * - 同一事件的所有监听器并发执行（Promise.all）
- * - `on(name, cb, true)` 等同于 `once()`——触发后自动移除
+ * - `on(name, cb, true)` 等同于 `once()`——触发时先摘除、再执行回调
  * - `off(name, cb)` 直接通过引用匹配移除，对 `isOnce` 回调同样有效
  * - 任意监听器抛出时，emit 皆静默，可通过 `options.onError` 进行对错误发生时的处理
  *

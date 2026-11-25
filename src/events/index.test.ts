@@ -243,6 +243,32 @@ describe('createEmitter', () => {
       await emitter.emit('tick', undefined as undefined);
       expect(fired).toBe(2);
     });
+
+    test('re-once during emit survives the cleanup and fires again later', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let fired = 0;
+      const fn = () => {
+        fired++;
+        // 回调里以 once 重新注册自己：摘除发生在触发前，重注册的这条应保留
+        if (fired < 3) emitter.once('tick', fn);
+      };
+      emitter.once('tick', fn);
+      for (let i = 0; i < 3; i++)
+        await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(3);
+    });
+
+    test('re-entrant emit inside the callback does not fire it again', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let fired = 0;
+      emitter.once('tick', async () => {
+        fired++;
+        // 摘除先于执行，内层 emit 的快照里已经没有自己
+        if (fired === 1) await emitter.emit('tick', undefined as undefined);
+      });
+      await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(1);
+    });
   });
 });
 
