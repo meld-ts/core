@@ -192,7 +192,7 @@ try {
       throw new Error(`probe returned no profile for ${lint.name}`);
     }
     generated.push({
-      rel: `src/a11y/lints/${lint.name}.ts`,
+      rel: `src/a11y/lints/_${lint.name}.ts`,
       content: serializeProfile(profile),
     });
   }

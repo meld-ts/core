@@ -71,7 +71,17 @@ rel: `src/a11y/lints/${lint.name}.ts`,
 rel: `src/a11y/lints/_${lint.name}.ts`,
 ```
 
-**这不是「顺手改」，是同一原子改动的一半。** 只改文件名不改生成器，下一次 `bun run a11y:sync` 会把旧路径的四个文件重新写出来——新旧两套并存，`_` 前缀的私有性承诺被生成器自己推翻。已核对：`serializeProfile` 不在生成内容里嵌路径；`scripts/`、`src/bin/`、`test/`、`bunup.*.ts`、`typedoc.json` 中构造 `lints/<name>` 路径的只有 `a11y-sync.ts:195` 这一处。
+**这不是「顺手改」，是同一原子改动的一半。** 只改文件名不改生成器，下一次 `bun run a11y:sync` 会把旧路径的四个文件重新写出来——新旧两套并存，`_` 前缀的私有性承诺被生成器自己推翻。
+
+引用清单（2026-11-25 复核，含运行时拼接的路径）：
+
+| 位置 | 形态 |
+|---|---|
+| `scripts/a11y-sync.ts:195` | 生成器写入路径（模板串） |
+| `src/a11y/types.test.ts:11-14` | 静态 import |
+| `src/a11y/probe/lints-sync.test.ts:65` | **运行时拼路径读文件**（检视第一轮漏掉，测试红了才暴露——路径构造不只 grep 字面量） |
+
+已核对：`serializeProfile` 不在生成内容里嵌路径；`bunup.*.ts`、`typedoc.json` 无文件级引用（入口均走 `src/a11y/index.ts`）。
 
 ### 3.3 引用同步
 

@@ -6,10 +6,10 @@ import { PROFILES } from './profiles.generated';
 import type { ProfileData, RoleRuleData } from './serialize';
 
 /**
- * lints/<name>.ts（类型表）与 profiles.generated.ts（运行时快照）由同一次
+ * lints/_<name>.ts（类型表）与 profiles.generated.ts（运行时快照）由同一次
  * a11y:sync 写出，这里守住两张表不各自漂移：表头 meta 的 lint/version 一致，
  * 且逐 role 比较三张键集（required / supported / requiredWhenFocusable）。
- * 不做逐字节比较——lints/*.ts 要过 biome 格式化，空白与断行会动；比较
+ * 不做逐字节比较——lints/_*.ts 要过 biome 格式化，空白与断行会动；比较
  * 落在语义（键集合）上。
  */
 
@@ -62,7 +62,7 @@ describe('lints tables stay in sync with PROFILES', () => {
     const profile: ProfileData = snapshot;
     test(`${lint} table matches its PROFILES snapshot`, () => {
       const text = readFileSync(
-        join(import.meta.dir, '../lints', `${lint}.ts`),
+        join(import.meta.dir, '../lints', `_${lint}.ts`),
         'utf8',
       );
       expect(text).toContain(
