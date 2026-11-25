@@ -212,9 +212,15 @@ export const timeout = <F extends AnyFunction>(
 ): ((...args: Parameters<F>) => Promise<Awaited<ReturnType<F>>>) => {
   return (...args: Parameters<F>) => {
     let timerId: ReturnType<typeof setTimeout>;
-    const fnPromise = Promise.resolve(fn(...args)).finally(() =>
-      clearTimeout(timerId),
-    );
+    // new Promise executor 同步执行（fn 仍在当前同步栈跑、时机不变），
+    // constructor 同时捕获 fn 的同步 throw，同步失败与异步 reject 走同一条 Promise
+    const fnPromise = new Promise<Awaited<ReturnType<F>>>((resolve) => {
+      resolve(
+        fn(...args) as
+          | Awaited<ReturnType<F>>
+          | PromiseLike<Awaited<ReturnType<F>>>,
+      );
+    }).finally(() => clearTimeout(timerId));
     // 吞掉 timeout 赢之后的延迟 reject/resolve，防止 unhandled rejection
     // （Promise.race settle 后不再监听输家的后续状态）
     fnPromise.catch(() => {});

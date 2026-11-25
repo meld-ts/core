@@ -198,6 +198,14 @@ describe('createTimer', () => {
     expect(() => t.set('k', () => {}, Number.NaN)).toThrow(RangeError);
   });
 
+  test('throws for a malformed mode object', () => {
+    // TimerMode 类型下不可达：JS 调用方传入垃圾 mode 时 fail-fast
+    // biome-ignore lint/suspicious/noExplicitAny: 防御分支测试需传入类型外的垃圾值
+    expect(() => createTimer('x', { set: 1 } as any)).toThrow(
+      'Timer mode invalid',
+    );
+  });
+
   test('supports custom mode object', async () => {
     let count = 0;
     // TimerMode 约束 Id 必须是 string，用 string key 封装原生 timer
@@ -224,6 +232,52 @@ describe('createTimer', () => {
     );
     await Bun.sleep(50);
     expect(count).toBe(1);
+  });
+
+  test('object config mode interval fires repeatedly', async () => {
+    let count = 0;
+    const t = createTimer({ mode: 'interval' });
+    const clear = t.set(
+      'k',
+      () => {
+        count++;
+      },
+      20,
+    );
+    await Bun.sleep(90);
+    clear();
+    expect(count).toBeGreaterThanOrEqual(3);
+  });
+
+  test('object config custom mode object is used', async () => {
+    let count = 0;
+    // TimerMode 约束 Id 必须是 string，用 string key 封装原生 timer
+    const nativeIds = new Map<string, ReturnType<typeof setTimeout>>();
+    let seq = 0;
+    const customMode: TimerCustomMode<string> = {
+      set: (fn: () => void, ms: number) => {
+        const id = String(++seq);
+        nativeIds.set(id, setTimeout(fn, ms));
+        return id;
+      },
+      clear: (id: string) => {
+        clearTimeout(nativeIds.get(id));
+        nativeIds.delete(id);
+      },
+    };
+    const t = createTimer({ mode: customMode });
+    t.set(
+      'k',
+      () => {
+        count++;
+      },
+      20,
+    );
+    await Bun.sleep(50);
+    expect(count).toBe(1);
+    // mode 走的是对象里的 customMode：seq 已自增；被忽略时 impl 是默认
+    // timeout，set 不会经过 customMode.set，seq 仍为 0
+    expect(seq).toBe(1);
   });
 });
 

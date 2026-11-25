@@ -1,4 +1,5 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, spyOn, test } from 'bun:test';
+import * as fs from 'node:fs';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -69,6 +70,8 @@ const fakeRunnerOf = (bins: Array<readonly string[]>): ProbeRunner => {
 interface FakeDepsOpts {
   /** tsconfig.json 内容；省略 = 读不到（无 tsconfig 的项目） */
   readonly tsconfig?: unknown;
+  /** tsconfig.json 读取抛的错误（如 JSONC 注释触发 JSON.parse SyntaxError） */
+  readonly tsconfigError?: Error;
   readonly devDependencies?: Record<string, string>;
   /** bun 内置 lint 的可用性与模式；省略 = 这个 bun 没有 lint */
   readonly bun?: 'oxlint' | 'defaults';
@@ -125,6 +128,7 @@ const fakeDeps = (opts: FakeDepsOpts = {}): FakeEnv => {
     },
     readJson: (path) => {
       if (path.endsWith('tsconfig.json')) {
+        if (opts.tsconfigError !== undefined) throw opts.tsconfigError;
         if (opts.tsconfig === undefined) {
           throw new Error(`ENOENT: no such file: ${path}`);
         }
@@ -139,7 +143,9 @@ const fakeDeps = (opts: FakeDepsOpts = {}): FakeEnv => {
       }
       throw new Error(`unexpected read: ${path}`);
     },
-    exists: (path) => path.endsWith('node_modules/.bin/biome'),
+    exists: (path) =>
+      path.endsWith('node_modules/.bin/biome') ||
+      path.endsWith('/package.json'),
     write: (path, content) => {
       writes.set(path, content);
     },
@@ -195,11 +201,25 @@ describe('runProbe', () => {
     expect(writes.has('/p/gen/a11y.d.ts')).toBe(true);
   });
 
-  test('warns instead of failing when tsconfig.json is unreadable', () => {
+  test('warns instead of failing when tsconfig.json is missing', () => {
     const { deps, warns } = fakeDeps();
     const target = runProbe({ cwd: '/p', lint: ['biome'], keep: false, deps });
     expect(target).toBe('/p/a11y-lints.generated.d.ts');
+    expect(warns).toHaveLength(1);
     expect(warns[0]).toContain('cannot read tsconfig.json');
+    expect(warns[0]).toContain('the override may not take effect');
+  });
+
+  test('warns with a JSONC note when tsconfig.json has comments', () => {
+    // nodeDeps.readJson 是 JSON.parse：JSONC 的注释让解析直接抛 SyntaxError
+    const { deps, warns } = fakeDeps({
+      tsconfigError: new SyntaxError("Unexpected token '/'"),
+    });
+    const target = runProbe({ cwd: '/p', lint: ['biome'], keep: false, deps });
+    expect(target).toBe('/p/a11y-lints.generated.d.ts');
+    expect(warns).toHaveLength(1);
+    expect(warns[0]).toContain('cannot parse tsconfig.json');
+    expect(warns[0]).toContain('comments or trailing commas are not supported');
   });
 
   test('warns with an actionable message when tsconfig only extends a base', () => {
@@ -305,6 +325,25 @@ describe('main', () => {
     }
     expect(logs).toHaveLength(1);
     expect(logs[0]).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  test('--version degrades to unknown when package.json is unreadable', async () => {
+    // 产物被单独复制、不在包根时读不到 package.json：只剩展示能力
+    const logs: string[] = [];
+    const original = console.log;
+    console.log = (message: string) => {
+      logs.push(message);
+    };
+    const spy = spyOn(fs, 'readFileSync').mockImplementation(() => {
+      throw new Error('ENOENT');
+    });
+    try {
+      expect(await main(['--version'])).toBe(0);
+    } finally {
+      spy.mockRestore();
+      console.log = original;
+    }
+    expect(logs).toEqual(['unknown']);
   });
 
   test('invalid probe args print message and usage, return 1', async () => {

@@ -157,15 +157,23 @@ export const createPending = (): PendingHandle => {
         getPendingCount: () => counter.value,
       };
 
-      // new Promise executor 同步执行，fn 在 inflight.set 前调用，
-      // 保证 getPendingCount() 首次返回 0；constructor 同时捕获同步 throw
-      const promise = new Promise<Awaited<T>>((resolve) => {
-        resolve(fn(params, ...args) as Awaited<T> | PromiseLike<Awaited<T>>);
+      let settle!: (value: Awaited<T> | PromiseLike<Awaited<T>>) => void;
+      let fail!: (err: unknown) => void;
+      const promise = new Promise<Awaited<T>>((resolve, reject) => {
+        settle = resolve;
+        fail = reject;
       }).finally(() => {
         inflight.delete(key);
       });
 
+      // 先占位再执行 fn：fn 同步重入时走上面的 existing 分支，只跑一次。
+      // counter 在 fn 启动时仍为 0（首次 getPendingCount 为 0 的时序不变）。
       inflight.set(key, { promise, counter });
+      try {
+        settle(fn(params, ...args) as Awaited<T> | PromiseLike<Awaited<T>>);
+      } catch (err) {
+        fail(err);
+      }
       return promise;
     };
   };

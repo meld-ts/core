@@ -2,6 +2,7 @@
 
 > 状态：草稿，已按审查 01、02 修订（修订内容见 §12）。只写类型模型、API、目录和测试方案，不写实现。
 > §11 的待定项如果没有新的决定，实现时按「建议」一栏执行。
+> 2026-11-21 合并前的旧版草稿存档在 `docs/reviews/20261121-a11y-design-pre-merge-draft.md`（key 命名、命令名等与现行实现相反，已被本稿取代，勿按它实现）。
 
 ## 1. 要解决的问题
 
@@ -743,8 +744,9 @@ Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设�
   一次 sync 写出），`--keep` 保留现场；第
   4 层（构建产物重载）跑 `bun run test:a11y-build`，在系统临时目录建最小项目、
   node_modules 用符号链接指向仓库根（不走 bun add，无网络副作用），tsc 按包名解析
-  dist 产物，断言重载在场编译过、去掉首行 `export {};` 编译失败。两个脚本都慢，不进
-  CI，进发版前检查（roadmap）。
+  dist 产物，断言重载在场编译过、去掉首行 `export {};` 编译失败。两个脚本都慢，都不进
+  `pr-check.yml`：第 4 层挂进 `version-bump.yml` 发版必跑，第 2/3 层发版前手工跑
+  （roadmap）。
 - **AGENTS / CI**：规则原文进仓库根 `AGENTS.md`（§8）；PR 检查在 Test 前跑一次
   grep（`pr-check.yml`），按 rg 退出码分流，空仓库（没有 tsx/jsx）通过、rg 自身出错
   时滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有 tsx/jsx 才失败（§8）。`bun run

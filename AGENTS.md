@@ -43,7 +43,7 @@ bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型
 bun run test           # 运行所有测试 + 覆盖率
 bun run a11y:sync      # 维护者：重建 lab，从最新 lint 探测重新生成 a11y 内置表（慢，约 2–4 分钟）
 bun run test:a11y-lint # a11y 第 2/3 层：一致性 + 反向测试（lab，慢，不进 CI）
-bun run test:a11y-build # a11y 第 4 层：构建产物重载测试（发版前）
+bun run test:a11y-build # a11y 第 4 层：构建产物重载测试（version-bump.yml 发版必跑）
 bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
 bun run build:browser  # bunup，产物到 browser/（esm + iife）
 bun run build:dist     # bunup，产物到 dist/（node esm + cjs）
@@ -53,7 +53,7 @@ bun run doc            # 生成 TypeDoc API 文档
 bun run doc:watch      # TypeDoc 文档监听模式
 ```
 
-a11y 发版前检查：`test:a11y-lint`、`test:a11y-build`，外加 `a11y:sync` 漂移检查（见 docs/requirements/a11y-roadmap.md）。
+a11y 发版前检查：`test:a11y-build` 由 `version-bump.yml` 发版必跑；`test:a11y-lint` 与 `a11y:sync` 漂移检查要装 lab，发版前手工跑（见 docs/requirements/a11y-roadmap.md）。
 
 ## 代码规范
 
@@ -182,7 +182,7 @@ interface MyClass extends MyTrait {}
 
 ### events 模块
 - 监听器并发执行（`Promise.all`），**emit 不会因监听器异常而 reject**——异常被静默 catch，通过 `options.onError` 回调通知
-- `once` 回调无论成功失败都在触发后清理（不重试失败的 once）
+- `once` 回调在触发前就摘除，成功失败都只触发一次（不重试失败的 once）
 - `off()` 三档重载：`off()` 清除所有事件全部监听器、`off(name)` 清除指定事件全部监听器、`off(name, callback)` 清除特定回调
 - `linkEvents` 的 `mode='once'` 对 `EventsDelegator` 同样生效——`inject(emitter, forceOnce)` 会强制所有回调只触发一次
 - `createDelegator` 返回的 `inject` 接受可选第二参数 `forceOnce`，为 `true` 时覆盖回调自身的 `once` 标记

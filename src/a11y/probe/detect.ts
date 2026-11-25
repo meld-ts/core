@@ -81,6 +81,14 @@ export const detectLints = ({
   const want = (n: DetectedLint['name']): boolean =>
     n === 'bun' ? wanted?.includes(n) === true : !wanted || wanted.includes(n);
 
+  // package.json 缺失时 readJson 抛裸 ENOENT，调用方无从知道该建文件
+  // 还是命令坏了：先检查，给可操作的错误
+  if (!exists(`${cwd}/package.json`)) {
+    throw new Error(
+      `no package.json found in ${cwd}; run meld-ts a11y probe in a project with a package.json`,
+    );
+  }
+
   const pkg = readJson(`${cwd}/package.json`) as {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;

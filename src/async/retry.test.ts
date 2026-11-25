@@ -211,6 +211,40 @@ describe('retry', () => {
 
       await expect(wrapped()).rejects.toThrow(RetryExhaustedError);
     });
+
+    test('formats string errors into the exhausted message', async () => {
+      // formatError 对非 Error 的字符串错误直接取字符串
+      const wrapped = retryFn(
+        () => {
+          throw 'plain string failure';
+        },
+        { attempts: 2, delay: 10 },
+      );
+      const err = await wrapped().then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(err).toBeInstanceOf(RetryExhaustedError);
+      expect((err as RetryExhaustedError).message).toContain(
+        'plain string failure',
+      );
+    });
+
+    test('formats non-Error values into the exhausted message', async () => {
+      // formatError 对非字符串的非 Error 值走 String(err)
+      const wrapped = retryFn(
+        () => {
+          throw 42;
+        },
+        { attempts: 2, delay: 10 },
+      );
+      const err = await wrapped().then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(err).toBeInstanceOf(RetryExhaustedError);
+      expect((err as RetryExhaustedError).message).toContain('42');
+    });
   });
 
   describe('timeout', () => {
@@ -246,6 +280,17 @@ describe('retry', () => {
       const wrapped = timeout(fn, 1000);
       const result = await wrapped(5);
       expect(result).toBe(10);
+    });
+
+    test('should settle sync throws as rejections, not sync throws', async () => {
+      const wrapped = timeout(() => {
+        throw new Error('boom');
+      }, 1000);
+      // 包装函数必须返回 Promise：同步 throw 也要走这条 Promise，
+      // 调用方只需 .catch / await（与 retry / pending 一致）
+      const promise = wrapped();
+      expect(promise).toBeInstanceOf(Promise);
+      await expect(promise).rejects.toThrow('boom');
     });
 
     test('should throw TimeoutError if exceeded', async () => {
@@ -294,6 +339,14 @@ describe('retry', () => {
         return { id: 1 };
       });
       expect(result).toEqual({ id: 1 });
+    });
+
+    test('should reject when fn throws synchronously', async () => {
+      await expect(
+        sleep(10, () => {
+          throw new Error('sync boom');
+        }),
+      ).rejects.toThrow('sync boom');
     });
   });
 });

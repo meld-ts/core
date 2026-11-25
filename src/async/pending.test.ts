@@ -200,6 +200,18 @@ describe('pending', () => {
       expect(execCount).toBe(1);
       expect(results[0].status).toBe('rejected');
     });
+
+    test('should share inflight and run fn once on sync reentry', async () => {
+      let execCount = 0;
+      const fn = pending('sync-reentry', () => {
+        execCount++;
+        if (execCount === 1) fn();
+        return 'ok';
+      });
+
+      await expect(fn()).resolves.toBe('ok');
+      expect(execCount).toBe(1);
+    });
   });
 
   describe('preserves function signature', () => {
@@ -322,6 +334,18 @@ describe('pendingFn', () => {
 
       const second = await fn();
       expect(second).toBe('pfn-cycle:2');
+    });
+
+    test('should share inflight and run fn once on sync reentry', async () => {
+      let execCount = 0;
+      const fn = pendingFn('pfn-sync-reentry', () => {
+        execCount++;
+        if (execCount === 1) fn();
+        return 'ok';
+      });
+
+      await expect(fn()).resolves.toBe('ok');
+      expect(execCount).toBe(1);
     });
   });
 

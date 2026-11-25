@@ -3,6 +3,9 @@
  * 段内 `*` 不跨段；目录名（含 `a/**`）按「目录下全部文件」处理。
  * include 与 files 并存取并集（tsc 语义：列进 files 的文件也算编译进去）。
  * 只作告警依据，不追求与 tsc 的完整方言一致；已知局限：
+ * - tsconfig.json 按 TypeScript 定义是 JSONC（允许 `//` 行注释、块注释
+ *   和尾逗号），这里经 CLI 的 `JSON.parse` 读取，带注释的配置解析失败，
+ *   降级为「包含未验证」警告，不做 JSONC 剥注释解析（bin 保持零运行时依赖）；
  * - 不跟随 extends——本文件没有 include/files 可判而只有 extends 时，
  *   按未包含告警（fail-safe，提示去上游配置核对），上游收窄过 include
  *   导致重载不生效的方向不再被静默放行；本文件有 include/files 时照常判；

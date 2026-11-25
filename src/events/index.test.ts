@@ -114,6 +114,24 @@ describe('createEmitter', () => {
       expect(b).toBe(1);
     });
 
+    test('off during emit does not affect the current snapshot', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      const ran: string[] = [];
+      const b = () => {
+        ran.push('b');
+      };
+      emitter.on('tick', () => {
+        ran.push('a');
+        emitter.off('tick', b); // b 已经在本次 emit 的快照里
+      });
+      emitter.on('tick', b);
+      await emitter.emit('tick', undefined as undefined);
+      expect(ran).toEqual(['a', 'b']);
+      ran.length = 0;
+      await emitter.emit('tick', undefined as undefined);
+      expect(ran).toEqual(['a']);
+    });
+
     test('emit should not the error', async () => {
       const errors: unknown[] = [];
       const emitter = createEmitter<{ boom: undefined }>({
@@ -196,6 +214,94 @@ describe('createEmitter', () => {
       await emitter.emit('tick', undefined as undefined);
       expect(onCount).toBe(2);
       expect(onceCount).toBe(1);
+    });
+
+    test('off(name, cb) clears the once mark so re-on without once fires on every emit', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let count = 0;
+      const cb = () => {
+        count++;
+      };
+      emitter.on('tick', cb, true);
+      emitter.off('tick', cb);
+      emitter.on('tick', cb); // 非 once 重注册同一引用
+      await emitter.emit('tick', undefined as undefined);
+      await emitter.emit('tick', undefined as undefined);
+      expect(count).toBe(2);
+    });
+
+    test('concurrent emit fires once callback only once', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let count = 0;
+      emitter.on(
+        'tick',
+        async () => {
+          count++;
+          await Bun.sleep(20);
+        },
+        true,
+      );
+      await Promise.all([
+        emitter.emit('tick', undefined as undefined),
+        emitter.emit('tick', undefined as undefined),
+      ]);
+      expect(count).toBe(1);
+    });
+
+    test('re-on (non-once) during emit survives the once cleanup', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let fired = 0;
+      const fn = () => {
+        fired++;
+        emitter.on('tick', fn); // 回调里以非 once 重新注册自己
+      };
+      emitter.on('tick', fn, true);
+      await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(1);
+      await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(2);
+    });
+
+    test('re-once during emit survives the cleanup and fires again later', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let fired = 0;
+      const fn = () => {
+        fired++;
+        // 回调里以 once 重新注册自己：摘除发生在触发前，重注册的这条应保留
+        if (fired < 3) emitter.once('tick', fn);
+      };
+      emitter.once('tick', fn);
+      for (let i = 0; i < 3; i++)
+        await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(3);
+    });
+
+    test('re-entrant emit inside the callback does not fire it again', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let fired = 0;
+      emitter.once('tick', async () => {
+        fired++;
+        // 摘除先于执行，内层 emit 的快照里已经没有自己
+        if (fired === 1) await emitter.emit('tick', undefined as undefined);
+      });
+      await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(1);
+    });
+
+    test('off during emit still runs an already-cleared once listener once', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let onceFired = 0;
+      const fn = () => {
+        onceFired++;
+      };
+      emitter.once('tick', () => {
+        emitter.off('tick', fn); // 摘除先于执行，快照里仍有 fn
+      });
+      emitter.once('tick', fn);
+      await emitter.emit('tick', undefined as undefined);
+      expect(onceFired).toBe(1);
+      await emitter.emit('tick', undefined as undefined);
+      expect(onceFired).toBe(1);
     });
   });
 });
