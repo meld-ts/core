@@ -66,19 +66,30 @@ a11y 发版前检查：`test:a11y-build` 由 `version-bump.yml` 发版必跑；`
 
 ### 模块入口与导出
 
-每个模块的 `index.ts` 只做星号汇总，**禁止逐个列举**导出：
+`index.ts` 只做转发，**不要逐个列举导出**：每加一个符号要改两处，浪费 token，也容易漏。但这不等于「本模块的东西都要从入口导出」——公开面是设计决定，不是星号导出的副产品。
+
+按这三条写：
+
+1. 只星号导出「整份文件都是公开符号」的那个文件。
+2. 文件里混着公开和内部符号时，把内部的挪进同目录 `_` 开头的文件（如 `_internal.ts`），再星号导出剩下的。
+3. 模块的公开面本来就是组合出来的（例如 `lints` 只承诺 `A11yBuiltinLints`，四张具体表由它组织），就**不要**星号导出那些分部文件，入口里只留组合后的符号。
 
 ```ts
-// 对
+// 对：文件里的导出全是公开面
 export * from './types';
-export * from './createA11y';
 
-// 错
+// 对：公开面是组合类型，分部文件不转发
+import type { BiomeA11yProfile } from './biome';
+
+export interface A11yBuiltinLints {
+  biome: BiomeA11yProfile;
+}
+
+// 错：逐个列举
 export type { A11yOptions, A11yProfile } from './types';
-export { createA11y } from './createA11y';
 ```
 
-不想对外暴露的符号，放进同目录 `_` 开头的文件（如 `_internal.ts`、`_checks.ts`），它们不会被入口的星号带上。不要靠入口文件的逐个列举来筛公开面：每加一个符号就要改两处，浪费 token 又容易漏。
+判断依据是「这个符号要不要对使用方承诺」，不是「它有没有写 export」。拿不准时先问：删掉这条导出，使用方还能通过组合类型拿到吗？能，就不要导出。
 
 纯类型模块也可以写 `export type * from './xxx'`，仍然是星号。
 

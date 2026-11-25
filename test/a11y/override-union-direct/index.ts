@@ -1,4 +1,6 @@
-import type { A11yOf, BiomeA11yProfile } from '../../../src/a11y/index.ts';
+import type { A11yBuiltinLints, A11yOf } from '../../../src/a11y/index.ts';
+
+type BiomeA11yProfile = A11yBuiltinLints['biome'];
 
 type BiomeMeta = { lint: 'biome'; version: '9.9.9'; source: 'probe' };
 

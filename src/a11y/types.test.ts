@@ -7,13 +7,11 @@ import type {
   AriaValue,
 } from './aria.generated';
 import { createA11y } from './createA11y';
-import type {
-  A11yBuiltinLints,
-  BiomeA11yProfile,
-  BunA11yProfile,
-  EslintA11yProfile,
-  OxlintA11yProfile,
-} from './lints';
+import type { A11yBuiltinLints } from './lints';
+import type { BiomeA11yProfile } from './lints/biome';
+import type { BunA11yProfile } from './lints/bun';
+import type { EslintA11yProfile } from './lints/eslint';
+import type { OxlintA11yProfile } from './lints/oxlint';
 import type {
   A11yLintName,
   A11yOf,

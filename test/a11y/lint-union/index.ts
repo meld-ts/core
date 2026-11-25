@@ -1,8 +1,7 @@
-import {
-  type BiomeA11yProfile,
-  type OxlintA11yProfile,
-  createA11y,
-} from '../../../src/a11y/index.ts';
+import { type A11yBuiltinLints, createA11y } from '../../../src/a11y/index.ts';
+
+type BiomeA11yProfile = A11yBuiltinLints['biome'];
+type OxlintA11yProfile = A11yBuiltinLints['oxlint'];
 
 /**
  * lint 名是 union（变量 / 条件表达式）时的交集语义：

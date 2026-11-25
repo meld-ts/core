@@ -5,7 +5,9 @@
  * 断言见 `src/a11y/override.test.ts`「unknown override key errors…」。
  */
 
-import { type BiomeA11yProfile, createA11y } from '../../../src/a11y/index.ts';
+import { type A11yBuiltinLints, createA11y } from '../../../src/a11y/index.ts';
+
+type BiomeA11yProfile = A11yBuiltinLints['biome'];
 
 declare module '../../../src/a11y/index.ts' {
   interface A11yLintOverrides {

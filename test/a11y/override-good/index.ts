@@ -1,8 +1,10 @@
 import {
+  type A11yBuiltinLints,
   type A11yOf,
-  type BiomeA11yProfile,
   createA11y,
 } from '../../../src/a11y/index.ts';
+
+type BiomeA11yProfile = A11yBuiltinLints['biome'];
 
 /**
  * 全量内置表（127 role）逐字面量重写不现实；重载表基于内置表类型

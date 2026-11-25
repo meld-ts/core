@@ -5,7 +5,10 @@
  * 断言见 `src/a11y/override.test.ts`「union-typed override value errors…」。
  */
 
-import { type BiomeA11yProfile, createA11y } from '../../../src/a11y/index.ts';
+import { type A11yBuiltinLints, createA11y } from '../../../src/a11y/index.ts';
+
+/** 具体表通过 A11yBuiltinLints 取，公开面只承诺聚合类型 */
+type BiomeA11yProfile = A11yBuiltinLints['biome'];
 
 type BiomeMeta = { lint: 'biome'; version: '9.9.9'; source: 'probe' };
 
