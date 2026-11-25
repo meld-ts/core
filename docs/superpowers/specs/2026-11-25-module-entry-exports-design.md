@@ -91,7 +91,7 @@ rel: `src/a11y/lints/_${lint.name}.ts`,
 | `src/a11y/types.ts:8` | 不变（`import type { A11yBuiltinLints } from './lints'` 走入口） |
 | `src/a11y/index.ts:12` | 不变（`export * from './lints'`） |
 
-### 3.4 `import { type X }` 混合写法（4 处）
+### 3.4 `import { type X }` 混合写法（9 处）
 
 规则：「只为类型的 import，写 `import type { X }`，不写 `import { type X }`。开了 verbatimModuleSyntax，后者编译后还留着一行 import。」混合导入拆成两行：
 
@@ -103,12 +103,20 @@ import type { TimerHandle } from '../timer';
 import { createTimer } from '../timer';
 ```
 
+检视第一轮用单行正则只扫出 4 处；多行 import（biome 折行后）另有 5 处漏网，用 `rg -U --multiline` 复扫才齐。**教训记入：扫写法类问题必须带多行模式。**
+
 | 位置 |
 |---|
-| `src/async/StatefulRpc.ts:7` |
-| `test/a11y/lint-union/index.ts:1` |
-| `test/a11y/override-union/index.ts:8` |
-| `test/a11y/override-unknown/index.ts:8` |
+| `src/async/StatefulRpc.ts:1-5`（events，多行，漏） |
+| `src/async/StatefulRpc.ts:7`（timer，单行） |
+| `src/async/retry.test.ts:4-11`（多行，漏） |
+| `src/async/retry-freeze.test.ts:3-8`（多行，漏） |
+| `src/async/StatefulRpc.test.ts:3-7`（多行，漏） |
+| `src/traits/debuggable.test.ts:2-7`（多行，漏） |
+| `test/a11y/lint-union/index.ts:1`（单行） |
+| `test/a11y/override-union/index.ts:8`（单行） |
+| `test/a11y/override-unknown/index.ts:8`（单行） |
+| `test/a11y/override-good/index.ts:1-5`（多行，漏） |
 
 ### 3.5 AGENTS.md 文本修正
 

@@ -1,10 +1,8 @@
-import {
-  type EventsCallbacks,
-  type EventsEmitter,
-  initEventsEmitter,
-} from '../events';
+import type { EventsCallbacks, EventsEmitter } from '../events';
+import { initEventsEmitter } from '../events';
 import { isNumber, notEmptyString } from '../guards';
-import { type TimerHandle, createTimer } from '../timer';
+import type { TimerHandle } from '../timer';
+import { createTimer } from '../timer';
 import { RpcAbortError, TimeoutError } from './errors';
 
 export { RpcAbortError };
