@@ -134,9 +134,16 @@ const warnUnlessIncluded = (
     });
   } catch (error) {
     // tsconfig.json 缺失或不可解析只降级为警告：探测已成功，收尾检查不能作废整轮
-    deps.warn(
-      `warning: cannot read tsconfig.json (${messageOf(error)}); the override may not take effect`,
-    );
+    if (error instanceof SyntaxError) {
+      // JSONC（注释/尾逗号）触发 JSON.parse 失败（已知局限，见 tsconfig-check 头注）
+      deps.warn(
+        `warning: cannot parse tsconfig.json (${messageOf(error)}); comments or trailing commas are not supported by this check, so the override's inclusion was not verified`,
+      );
+    } else {
+      deps.warn(
+        `warning: cannot read tsconfig.json (${messageOf(error)}); the override may not take effect`,
+      );
+    }
     return;
   }
   if (!check.included) {

@@ -43,7 +43,7 @@ bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型
 bun run test           # 运行所有测试 + 覆盖率
 bun run a11y:sync      # 维护者：重建 lab，从最新 lint 探测重新生成 a11y 内置表（慢，约 2–4 分钟）
 bun run test:a11y-lint # a11y 第 2/3 层：一致性 + 反向测试（lab，慢，不进 CI）
-bun run test:a11y-build # a11y 第 4 层：构建产物重载测试（发版前）
+bun run test:a11y-build # a11y 第 4 层：构建产物重载测试（version-bump.yml 发版必跑）
 bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
 bun run build:browser  # bunup，产物到 browser/（esm + iife）
 bun run build:dist     # bunup，产物到 dist/（node esm + cjs）
@@ -53,7 +53,7 @@ bun run doc            # 生成 TypeDoc API 文档
 bun run doc:watch      # TypeDoc 文档监听模式
 ```
 
-a11y 发版前检查：`test:a11y-lint`、`test:a11y-build`，外加 `a11y:sync` 漂移检查（见 docs/requirements/a11y-roadmap.md）。
+a11y 发版前检查：`test:a11y-build` 由 `version-bump.yml` 发版必跑；`test:a11y-lint` 与 `a11y:sync` 漂移检查要装 lab，发版前手工跑（见 docs/requirements/a11y-roadmap.md）。
 
 ## 代码规范
 

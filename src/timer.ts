@@ -109,11 +109,15 @@ const _selectModeImpl = <Mode extends TimerMode = 'timeout'>(
  */
 export const createTimer = <Mode extends TimerMode = 'timeout'>(
   prefixOrOptions?: string | TimerOptions<Mode> | null,
-  mode: Mode = 'timeout' as Mode,
+  mode?: Mode,
 ): TimerHandle => {
-  const opts: TimerOptions<Mode> = isString(prefixOrOptions)
-    ? { prefix: prefixOrOptions, mode: mode }
-    : { ...prefixOrOptions, mode: mode || prefixOrOptions?.mode };
+  // 显式第二参数 > 对象里的 mode > 'timeout'。第二参不设默认值：
+  // 设了默认值后 mode || prefixOrOptions?.mode 的左侧恒为 truthy，
+  // 对象配置里的 mode 永远不生效。opts 的 mode 放宽到全量 TimerMode：
+  // Mode 只约束调用方的输入，内部实现按运行时值选 impl
+  const opts: TimerOptions<TimerMode> = isString(prefixOrOptions)
+    ? { prefix: prefixOrOptions, mode: mode ?? 'timeout' }
+    : { ...prefixOrOptions, mode: mode ?? prefixOrOptions?.mode ?? 'timeout' };
   const store: Record<string, TimerId<Mode>> = {};
   const impl = _selectModeImpl(opts.mode);
 

@@ -224,6 +224,27 @@ describe('debug output', () => {
     expect(args[1]).toBe('color: red; font-weight: bold');
   });
 
+  it('scopeColor styles the scope', () => {
+    const obj = debuggable({ name: 'App', scopeColor: 'green' });
+    obj.setDebug(true);
+    obj.debug('fetch');
+    const args = logSpy.mock.calls[0] as string[];
+    expect(args[0]).toContain('%cfetch');
+    expect(args[1]).toBe('color: green');
+  });
+
+  it('scopeStyle takes priority over scopeColor', () => {
+    const obj = debuggable({
+      name: 'App',
+      scopeColor: 'green',
+      scopeStyle: 'color: teal; font-weight: bold',
+    });
+    obj.setDebug(true);
+    obj.debug('fetch');
+    const args = logSpy.mock.calls[0] as string[];
+    expect(args[1]).toBe('color: teal; font-weight: bold');
+  });
+
   it('includes timestamp when timeFlag: true', () => {
     const obj = debuggable({ name: 'App', timeFlag: true });
     obj.setDebug(true);

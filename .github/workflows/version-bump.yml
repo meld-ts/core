@@ -45,6 +45,12 @@ jobs:
       - name: Build
         run: bun run build
 
+      # roadmap「发版前检查（a11y）」：构建产物重载测试无网络副作用，挂进
+      # 发版流程把关；test:a11y-lint 与 a11y:sync 漂移检查要装 lab（数分钟 +
+      # 网络），发版前仍手工跑（docs/requirements/a11y-roadmap.md）
+      - name: A11y build reload test
+        run: bun run test:a11y-build
+
       - name: Bump version
         id: version
         run: |

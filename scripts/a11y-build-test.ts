@@ -1,5 +1,5 @@
 /**
- * §7 第 4 层构建产物重载测试（发版前检查，不进 CI，见 roadmap）。
+ * §7 第 4 层构建产物重载测试（version-bump.yml 发版必跑，见 roadmap）。
  *
  * build:dist 后在系统临时目录建一个最小项目，node_modules/@meld-ts/core
  * 用符号链接指向仓库根（不走 bun add，无网络与锁文件副作用），tsc 按

@@ -37,7 +37,8 @@ describe('detectLints', () => {
       cwd: '/p',
       exec,
       readJson,
-      exists: (p: string) => p.includes('node_modules/.bin/'),
+      exists: (p: string) =>
+        p === '/p/package.json' || p.includes('node_modules/.bin/'),
     });
     expect(detected.map((d) => [d.name, d.version])).toEqual([
       ['biome', '2.6.8'],
@@ -52,7 +53,7 @@ describe('detectLints', () => {
         throw new Error('exec must not be called');
       },
       readJson: fakeJson({ 'package.json': { devDependencies: {} } }),
-      exists: () => false,
+      exists: (p: string) => p === '/p/package.json',
     });
     expect(detected).toEqual([]);
   });
@@ -73,7 +74,8 @@ describe('detectLints', () => {
         },
         'eslint-plugin-jsx-a11y/package.json': { version: '6.10.2' },
       }),
-      exists: (p: string) => p.endsWith('node_modules/.bin/eslint'),
+      exists: (p: string) =>
+        p === '/p/package.json' || p.endsWith('node_modules/.bin/eslint'),
     });
     expect(detected.map((d) => [d.name, d.version])).toEqual([
       ['eslint', '6.10.2'],
@@ -196,7 +198,7 @@ describe('detectLints', () => {
       cwd: '/p',
       exec: bunExec(0, true),
       readJson: fakeJson({ 'package.json': {} }),
-      exists: () => false,
+      exists: (p: string) => p === '/p/package.json',
       wanted: ['bun'],
     });
     expect(detected).toEqual([
@@ -213,7 +215,7 @@ describe('detectLints', () => {
       cwd: '/p',
       exec: bunExec(0, false),
       readJson: fakeJson({ 'package.json': {} }),
-      exists: () => false,
+      exists: (p: string) => p === '/p/package.json',
       wanted: ['bun'],
     });
     expect(detected).toEqual([
@@ -256,7 +258,7 @@ describe('detectLints', () => {
       readJson: fakeJson({
         'package.json': { scripts: { lint: 'biome lint ./src' } },
       }),
-      exists: () => false,
+      exists: (p: string) => p === '/p/package.json',
       wanted: ['bun'],
     });
     expect(detected).toEqual([
@@ -284,7 +286,8 @@ describe('detectLints', () => {
       readJson: fakeJson({
         'package.json': { devDependencies: { '@biomejs/biome': '2.6.8' } },
       }),
-      exists: (p: string) => p.endsWith('node_modules/.bin/biome'),
+      exists: (p: string) =>
+        p === '/p/package.json' || p.endsWith('node_modules/.bin/biome'),
     });
     expect(detected.map((d) => d.name)).toEqual(['biome']);
   });
@@ -295,9 +298,27 @@ describe('detectLints', () => {
         cwd: '/p',
         exec: bunExec(1, true),
         readJson: fakeJson({ 'package.json': {} }),
-        exists: () => false,
+        exists: (p: string) => p === '/p/package.json',
         wanted: ['bun'],
       }),
     ).toThrow('bun lint is not available in this bun; upgrade bun or omit bun');
+  });
+
+  test('fails with a readable error when package.json is missing', () => {
+    expect(() =>
+      detectLints({
+        cwd: '/p',
+        exec: () => {
+          throw new Error('exec must not be called');
+        },
+        readJson: () => {
+          throw new Error('readJson must not be called');
+        },
+        // package.json 不存在（.bin 的探测不该走到，exists 一律 false）
+        exists: (p: string) => p !== '/p/package.json',
+      }),
+    ).toThrow(
+      'no package.json found in /p; run meld-ts a11y probe in a project with a package.json',
+    );
   });
 });

@@ -112,11 +112,10 @@ grep -A4 '"./a11y"' package.json
 
 ## 发版前检查（a11y）
 
-CI（`pr-check.yml`）覆盖 lint / ts-check / build / AGENTS grep / test，以及 `ts-matrix`（TypeScript 5.9.3 / 6.0.3 / 7.0.2 三档）。a11y 的三层专项慢，不进 CI，发版前跑：
+CI（`pr-check.yml`）覆盖 lint / ts-check / build / AGENTS grep / test，以及 `ts-matrix`（TypeScript 5.9.3 / 6.0.3 / 7.0.2 三档）。a11y 专项里，`test:a11y-build`（§7 第 4 层）已挂进 `.github/workflows/version-bump.yml`（Build 之后），走自动发版必跑；下面两项仍慢、要装 lab / 有网络，不进 CI，触发 version-bump 前手工跑：
 
 ```bash
 bun run test:a11y-lint    # §7 第 2/3 层：一致性 + 反向（lab，慢）
-bun run test:a11y-build    # §7 第 4 层：构建产物重载
 bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts src/a11y/probe/profiles.generated.ts
                            # 漂移检查：lint 出新版/规则变了会露出 diff
 ```

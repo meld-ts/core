@@ -1,7 +1,9 @@
 pre-commit:
   commands:
     fmt:
-      run: bun run fmt && git add -u src/
+      # git add 的范围必须与 fmt 的目标一致（package.json 的 fmt 脚本）：
+      # 只 add src/ 会让 test/、scripts/、bunup.*.ts 的格式化改动留在工作区
+      run: bun run fmt && git add -u src/ test/ scripts/ bunup.config.ts bunup.exports.ts bunup.browser.ts bunup.bin.ts
 
 pre-push:
   scripts:

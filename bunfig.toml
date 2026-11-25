@@ -1,2 +1,4 @@
 [test]
 coverageSkipTestFiles = true
+# 设计稿 §7 第 5 层：保持仓库的 100% 覆盖率——低于 100% 时 bun test 直接失败
+coverageThreshold = 1

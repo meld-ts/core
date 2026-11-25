@@ -146,8 +146,8 @@ bun run lint          # Biome lint，warning 视为错误（src + test + scripts
 bun run ts-check      # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test          # 运行所有测试 + 覆盖率
 bun run a11y:sync     # 维护者：重建 lab，从最新 lint 重新探测生成 a11y 内置表（慢）
-bun run test:a11y-lint  # a11y 一致性 + 反向测试（lab，慢，发版前）
-bun run test:a11y-build # a11y 构建产物重载测试（发版前）
+bun run test:a11y-lint  # a11y 一致性 + 反向测试（lab，慢，发版前手工）
+bun run test:a11y-build # a11y 构建产物重载测试（version-bump.yml 发版必跑）
 bun run build:exports # 基于预期的构建内容，生成 package.json exports 部分内容
 bun run build:browser # 构建 browser （ESM + iife）
 bun run build:dist    # 构建 node （ESM + cjs）

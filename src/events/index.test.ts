@@ -197,6 +197,52 @@ describe('createEmitter', () => {
       expect(onCount).toBe(2);
       expect(onceCount).toBe(1);
     });
+
+    test('off(name, cb) clears the once mark so re-on without once fires on every emit', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let count = 0;
+      const cb = () => {
+        count++;
+      };
+      emitter.on('tick', cb, true);
+      emitter.off('tick', cb);
+      emitter.on('tick', cb); // 非 once 重注册同一引用
+      await emitter.emit('tick', undefined as undefined);
+      await emitter.emit('tick', undefined as undefined);
+      expect(count).toBe(2);
+    });
+
+    test('concurrent emit fires once callback only once', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let count = 0;
+      emitter.on(
+        'tick',
+        async () => {
+          count++;
+          await Bun.sleep(20);
+        },
+        true,
+      );
+      await Promise.all([
+        emitter.emit('tick', undefined as undefined),
+        emitter.emit('tick', undefined as undefined),
+      ]);
+      expect(count).toBe(1);
+    });
+
+    test('re-on (non-once) during emit survives the once cleanup', async () => {
+      const emitter = createEmitter<{ tick: undefined }>();
+      let fired = 0;
+      const fn = () => {
+        fired++;
+        emitter.on('tick', fn); // 回调里以非 once 重新注册自己
+      };
+      emitter.on('tick', fn, true);
+      await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(1);
+      await emitter.emit('tick', undefined as undefined);
+      expect(fired).toBe(2);
+    });
   });
 });
 

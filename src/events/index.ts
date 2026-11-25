@@ -223,6 +223,10 @@ export const createEmitter = <E extends EventsDefinition = EventsDefinition>(
         _onceSets.set(name, ws);
       }
       ws.add(callback);
+    } else {
+      // 非 once 注册清掉旧标记（幂等）：回调在 emit 期间重入 on() 注册自己时，
+      // 旧 once 标记若还在，emit 的 once 清理会误删刚重注册的回调
+      _onceSets.get(name)?.delete(callback);
     }
     return () => {
       // off 时同步清理 once 标记，防止重新 on(name, cb)（非 once）时被误删
@@ -246,6 +250,9 @@ export const createEmitter = <E extends EventsDefinition = EventsDefinition>(
       return;
     }
     listeners.get(name)?.delete(callback);
+    // 与反注册闭包同一语义：摘掉回调时清 once 标记，
+    // 之后非 once 重注册同一引用不会被 emit 的 once 清理误删
+    _onceSets.get(name)?.delete(callback);
   };
 
   const emit = async <N extends keyof E>(
@@ -254,23 +261,25 @@ export const createEmitter = <E extends EventsDefinition = EventsDefinition>(
   ): Promise<void> => {
     const set = listeners.get(name);
     if (set == null || set.size === 0) return;
+    const snapshot = [...set];
+    const onceSet = _onceSets.get(name);
+    // 先摘 once，再跑回调：once 清理若等到 Promise.all 之后，
+    // 并发 emit 的快照里都还能看到同一个 once 回调，会触发多次
+    for (const fn of snapshot) {
+      if (onceSet?.has(fn)) {
+        onceSet.delete(fn);
+        set.delete(fn);
+      }
+    }
     // 缺省 emit 遇到异常时，采取静默，不抛出异常，只通过 onError 将错误通知
     await Promise.all(
-      [...set].map((fn) =>
+      snapshot.map((fn) =>
         Promise.resolve()
           .then(async () => fn(params))
           // 异常是否处理，由调用方决策
           .catch((err) => options?.onError?.(err, name)),
       ),
     );
-    // 触发后清理 once 回调（按事件隔离，不跨事件误删）
-    const onceSet = _onceSets.get(name);
-    for (const fn of [...set]) {
-      if (onceSet?.has(fn)) {
-        onceSet.delete(fn);
-        off(name, fn);
-      }
-    }
   };
 
   return {
