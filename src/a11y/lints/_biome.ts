@@ -1,10 +1,10 @@
 /**
  * biome 内置规则表。
  *
- * 生成文件，勿手改。biome 2.6.8。
+ * 生成文件，勿手改。biome 2.6.9。
  */
 export type BiomeA11yProfile = {
-  meta: { lint: 'biome'; version: '2.6.8'; source: 'builtin' };
+  meta: { lint: 'biome'; version: '2.6.9'; source: 'builtin' };
   roles: {
     alert: {
       required: never;

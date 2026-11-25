@@ -1,10 +1,10 @@
 /**
  * oxlint 内置规则表。
  *
- * 生成文件，勿手改。oxlint 1.94.0。
+ * 生成文件，勿手改。oxlint 1.95.0。
  */
 export type OxlintA11yProfile = {
-  meta: { lint: 'oxlint'; version: '1.94.0'; source: 'builtin' };
+  meta: { lint: 'oxlint'; version: '1.95.0'; source: 'builtin' };
   roles: {
     alert: {
       required: never;

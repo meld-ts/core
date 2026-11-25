@@ -6,7 +6,7 @@
 export const PROFILES = {
   biome: {
     lint: 'biome',
-    version: '2.6.8',
+    version: '2.6.9',
     roles: {
       alert: {
         required: [],
@@ -10710,7 +10710,7 @@ export const PROFILES = {
   },
   oxlint: {
     lint: 'oxlint',
-    version: '1.94.0',
+    version: '1.95.0',
     roles: {
       alert: {
         required: [],
