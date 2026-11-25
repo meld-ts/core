@@ -66,32 +66,68 @@ a11y 发版前检查：`test:a11y-build` 由 `version-bump.yml` 发版必跑；`
 
 ### 模块入口与导出
 
-`index.ts` 只做转发，**不要逐个列举导出**：每加一个符号要改两处，浪费 token，也容易漏。但这不等于「本模块的东西都要从入口导出」——公开面是设计决定，不是星号导出的副产品。
+**先分清两种 `export`。** 一个符号要给同目录别的文件用，也得写 `export`。所以「写了 export」不等于「对使用方公开」。本仓库用文件名区分：
 
-按这三条写：
+- `_` 开头的文件（`_internal.ts`、`_parse.ts`）和目录（`src/_internal/`）：内部符号，只给本包自己用。
+- 其他文件：里面每个 `export` 都是公开面，入口会原样转发。
 
-1. 只星号导出「整份文件都是公开符号」的那个文件。
-2. 文件里混着公开和内部符号时，把内部的挪进同目录 `_` 开头的文件（如 `_internal.ts`），再星号导出剩下的。
-3. 模块的公开面本来就是组合出来的（例如 `lints` 只承诺 `A11yBuiltinLints`，四张具体表由它组织），就**不要**星号导出那些分部文件，入口里只留组合后的符号。
+**写或改一个模块，按这个顺序：**
+
+1. **先定公开面。** 列出使用方要直接写出名字的符号。默认不公开，说得出使用方为什么要用它，才公开。只在别的公开类型里出现、能用索引类型取到的（比如 `A11yBuiltinLints['biome']`），不公开。
+2. **再按公开面放文件。**
+   - 公开符号放普通文件。
+   - 只给本模块其他文件用的 helper、常量、中间类型，放同目录的 `_` 文件。
+   - 几个模块都要用的内部工具，放 `src/_internal/`。
+   - 普通文件里混进了内部符号，就把内部的挪进 `_` 文件。不要在入口里挑着转发。
+3. **最后写 `index.ts`：只转发，每个普通文件一行。**
 
 ```ts
-// 对：文件里的导出全是公开面
-export * from './types';
+// src/async/index.ts
+export * from './errors';
+export * from './retry';
+export type * from './types'; // 纯类型文件
+// _ 文件不转发
+```
 
-// 对：公开面是组合类型，分部文件不转发
-import type { BiomeA11yProfile } from './biome';
+- 不写 `export { a, b } from './x'`。想挑着转发，说明 `x` 里混了内部符号，回到第 2 步拆文件。
+- 两个文件导出了同名符号，`export *` 会报 TS2308。这时改名，不要改成逐个列举。
+- index.ts 里不写实现，也不声明类型。组合出来的公开类型也放进普通文件，它用到的分部文件以 `_` 开头：
+
+```ts
+// src/a11y/lints/builtin.ts：普通文件，整份公开
+import type { BiomeA11yProfile } from './_biome';
 
 export interface A11yBuiltinLints {
   biome: BiomeA11yProfile;
 }
 
-// 错：逐个列举
-export type { A11yOptions, A11yProfile } from './types';
+// src/a11y/lints/index.ts：只转发，_ 文件不转发
+export * from './builtin';
 ```
 
-判断依据是「这个符号要不要对使用方承诺」，不是「它有没有写 export」。拿不准时先问：删掉这条导出，使用方还能通过组合类型拿到吗？能，就不要导出。
+- 单文件模块（`src/timer.ts` 这类）本身就是入口，整份都是公开面。有内部符号，就挪到 `src/_internal/`。
 
-纯类型模块也可以写 `export type * from './xxx'`，仍然是星号。
+**import 规则（防环形引用）：**
+
+- 同一模块内：import 具体文件（`./retry`、`./_internal`），不 import `./index` 或 `.`。
+- 跨模块：只 import 对方的入口（`../guards`）或 `src/_internal/`，不 import 对方的具体文件和 `_` 文件。
+- `_` 文件在模块里的最底层：普通文件可以 import 它，它不 import 本模块的普通文件。只要类型时可以，写 `import type`。
+- 只为类型的 import，写 `import type { X }`，不写 `import { type X }`。开了 verbatimModuleSyntax，后者编译后还留着一行 import，环照样在。
+- 模块之间单向依赖，只能 import 更低层的模块：
+  - 最底层：`types`、`_internal`
+  - 第二层：`guards`、`base`
+  - 第三层：`events`、`timer`、`traits`、`a11y`（自岛——不 import 任何其他模块）
+  - 最上层：`async`、`browser`（聚合全量公开面）
+- 快要成环时，把两边都要的部分挪到更低一层，通常是 `types` 或 `src/_internal/`。不要用动态 import 或调换 import 顺序来绕。
+- `bun run lint` 里的 `suspicious/noImportCycles` 会报环。报了就按上一条改。
+
+**已知例外（不要在无关改动里顺手改，调整单独提案）：**
+
+- `src/events/index.ts` 里直接写了实现。新模块不要照着学。
+- `src/types/index.ts`：types/ 目录只有这一个文件，实质是单文件模块；改成 `src/types.ts` 会动 dist 布局与 `package.json` 的 types 路径，不值得。
+- `src/a11y/probe/`：维护者工具，不进 `exports` 与 browser 产物；内部文件（detect、serialize…）不加 `_` 前缀，`scripts/` 深导入它们。
+- `src/browser/iife.ts`：打包入口，`import * from './index'` 是它的职责；自列模块清单会和 index.ts 重复一份易漏的列表。
+- `*.test.ts` import `./index`：测试测的就是公开面，且测试不进 import 图、不会成环。
 
 ## TypeScript 版本策略
 

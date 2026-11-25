@@ -39,7 +39,8 @@
     "rules": {
       "preset": "recommended",
       "suspicious": {
-        "noThenProperty": "off"
+        "noThenProperty": "off",
+        "noImportCycles": "error"
       }
     }
   },
