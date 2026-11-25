@@ -9,12 +9,10 @@ import type { BunA11yProfile } from './bun';
 import type { EslintA11yProfile } from './eslint';
 import type { OxlintA11yProfile } from './oxlint';
 
-export type {
-  BiomeA11yProfile,
-  BunA11yProfile,
-  EslintA11yProfile,
-  OxlintA11yProfile,
-};
+export * from './biome';
+export * from './bun';
+export * from './eslint';
+export * from './oxlint';
 
 /** core 内置的 lint 规则表；声明为 interface 以支持声明合并。 */
 export interface A11yBuiltinLints {

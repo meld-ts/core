@@ -1,51 +1,11 @@
-import type { AriaIdListKey } from './aria.generated';
+import { IDLIST_SET, isEmptyValue } from './_internal';
 import type {
-  A11yOf,
-  A11yOptions,
   LintSelectionCheck,
   OptionsKeyCheck,
   OutputDefiniteCheck,
   OverrideKeyCheck,
-} from './types';
-
-/**
- * idlist 属性的运行时最小表：只有这些键的数组值用空格拼接。
- * 其余逻辑全部由类型层保证。
- */
-const IDLIST_KEYS = [
-  'controls',
-  'describedby',
-  'flowto',
-  'labelledby',
-  'owns',
-] as const;
-const IDLIST_SET: ReadonlySet<string> = new Set(IDLIST_KEYS);
-
-/**
- * 运行时跳过空值的键：名字键 label，加全部 idlist 键。空串按「没传」
- * 处理；idlist 数组 join 出的值 trim 后为空（空数组、['']、['','']）与
- * 空串同一条路径（types.ts 的 NoEmpty 同源）。
- */
-const isEmptyValue = (key: string, value: unknown): boolean => {
-  if (IDLIST_SET.has(key)) {
-    return Array.isArray(value) ? value.join(' ').trim() === '' : value === '';
-  }
-  return key === 'label' && value === '';
-};
-
-type Eq<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
-    ? true
-    : false;
-type Assert<T extends true> = T;
-/**
- * 生成数据更新而此处忘记同步时，编译期报错。
- * 导出只为让 noUnusedLocals 认可这条声明，不进公共 API
- * （index.ts 不再导出它）。
- */
-export type IdListInSync = Assert<
-  Eq<(typeof IDLIST_KEYS)[number], AriaIdListKey>
->;
+} from './_internal';
+import type { A11yOf, A11yOptions } from './types';
 
 /** 实现内部用的宽松签名，对外不可见 */
 interface A11yCallable {

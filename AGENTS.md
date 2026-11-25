@@ -63,6 +63,24 @@ a11y 发版前检查：`test:a11y-build` 由 `version-bump.yml` 发版必跑；`
 - **注释**：只写 WHY，不写 WHAT；JSDoc 格式，包含 @example
 - **类型**：strict 模式，verbatimModuleSyntax，不允许隐式 any
 
+### 模块入口与导出
+
+每个模块的 `index.ts` 只做星号汇总，**禁止逐个列举**导出：
+
+```ts
+// 对
+export * from './types';
+export * from './createA11y';
+
+// 错
+export type { A11yOptions, A11yProfile } from './types';
+export { createA11y } from './createA11y';
+```
+
+不想对外暴露的符号，放进同目录 `_` 开头的文件（如 `_internal.ts`、`_checks.ts`），它们不会被入口的星号带上。不要靠入口文件的逐个列举来筛公开面：每加一个符号就要改两处，浪费 token 又容易漏。
+
+纯类型模块也可以写 `export type * from './xxx'`，仍然是星号。
+
 ## TypeScript 版本策略
 
 本仓库涉及三个不同的「TypeScript 版本」，改动时必须一起更新，否则会重演 2026-07 的漂移（peer 写成 `^7`、实际跑 5.9.3、工具链又升不上去）。
