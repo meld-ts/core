@@ -48,7 +48,8 @@ bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部
 bun run build:browser  # bunup，产物到 browser/（esm + iife）
 bun run build:dist     # bunup，产物到 dist/（node esm + cjs）
 bun run build:bin      # bunup，meld-ts CLI 到 dist/bin/meld-ts.js（带 bun shebang）
-bun run build          # build:browser && build:dist && build:bin
+bun run clean          # 删除 dist/ 与 browser/（build 会先跑一遍）
+bun run build          # clean && build:browser && build:dist && build:bin
 bun run doc            # 生成 TypeDoc API 文档
 bun run doc:watch      # TypeDoc 文档监听模式
 ```

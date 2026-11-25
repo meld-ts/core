@@ -133,7 +133,8 @@
     "build:browser": "bunup --config bunup.browser.ts",
     "build:dist": "bunup",
     "build:bin": "bunup --config bunup.bin.ts",
-    "build": "bun run build:browser && bun run build:dist && bun run build:bin",
+    "clean": "rm -rf dist browser",
+    "build": "bun run clean && bun run build:browser && bun run build:dist && bun run build:bin",
     "doc": "bun typedoc --options typedoc.json --cleanOutputDir",
     "doc:watch": "bun typedoc  --options typedoc.json --watch",
     "biome-migrate": "bunx biome migrate --write"
