@@ -1,10 +1,10 @@
-import { IDLIST_SET, isEmptyValue } from './_internal';
 import type {
   LintSelectionCheck,
   OptionsKeyCheck,
   OutputDefiniteCheck,
   OverrideKeyCheck,
 } from './_internal';
+import { IDLIST_SET, isEmptyValue } from './_internal';
 import type { A11yOf, A11yOptions } from './types';
 
 /** 实现内部用的宽松签名，对外不可见 */

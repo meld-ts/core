@@ -6,12 +6,12 @@
 
 import type { DetectedLint } from './detect';
 import type { ExecFn } from './exec';
+import type { Fixture } from './fixtures';
 import {
   buildRemovalFixtures,
   buildSelfCheckFixture,
   buildSupportedFixtures,
 } from './fixtures';
-import type { Fixture } from './fixtures';
 import type { LintReport, RunnerOptions } from './runners/eslint';
 import type { ProfileData, RoleRuleData } from './serialize';
 

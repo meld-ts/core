@@ -1,7 +1,7 @@
+import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, test } from 'bun:test';
 
 /**
  * 公开面快照（1.0.3 之后按破坏性变更发版的收缩）：入口从 25 个名字收到 21 个——

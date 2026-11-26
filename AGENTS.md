@@ -38,7 +38,7 @@ docs/
 ## 常用命令
 
 ```bash
-bun run fmt            # Biome 格式化（src + test + scripts + bunup.*.ts）
+bun run fmt            # Biome 格式化 + import 排序（src + test + scripts + bunup.*.ts；不跑 lint 自动修复）
 bun run lint           # Biome lint，warning 视为错误（src + test + scripts + bunup.*.ts）
 bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率

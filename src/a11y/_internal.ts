@@ -1,7 +1,7 @@
 import type { AriaIdListKey } from './aria.generated';
 import type {
-  A11yLintOverrides,
   A11yLintName,
+  A11yLintOverrides,
   A11yLints,
   A11yOptions,
   A11yProfile,

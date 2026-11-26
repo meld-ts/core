@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { isConstructor, isFunction, isPromise } from './function';
 
 describe('guards/function', () => {

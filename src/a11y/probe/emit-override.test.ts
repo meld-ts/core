@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { serializeOverride } from './emit-override';
 
 const profile = {

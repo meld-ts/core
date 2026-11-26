@@ -1,5 +1,4 @@
 import { describe, test } from 'bun:test';
-
 import type {
   A11yNameRule,
   A11yRole,

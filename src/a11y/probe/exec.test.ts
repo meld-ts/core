@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { nodeExec } from './exec';
 
 describe('nodeExec', () => {

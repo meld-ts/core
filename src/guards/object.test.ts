@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { isDate, isInferObject, isPlainObject, isRegExp } from './object';
 
 describe('guards/object', () => {

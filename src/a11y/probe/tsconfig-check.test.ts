@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { checkTsconfigIncludes } from './tsconfig-check';
 
 const tsconfigOf =

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { TimeoutError } from './errors';
-import { RpcAbortError } from './errors';
+import { RpcAbortError, TimeoutError } from './errors';
 import { StatefulRpc, type StatefulRpcTask } from './StatefulRpc';
 
 // ============================================================================
