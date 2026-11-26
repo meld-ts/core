@@ -126,6 +126,7 @@
     "lint": "biome lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ lint/ --coverage",
+    "test:fetch-env": "bun scripts/fetch-env-check.ts",
     "a11y:sync": "bun scripts/a11y-sync.ts",
     "test:a11y-lint": "bun scripts/a11y-lint-test.ts",
     "test:a11y-build": "bun scripts/a11y-build-test.ts",
@@ -142,6 +143,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
     "@types/bun": "latest",
+    "@types/node": "^25.9.3",
     "bunup": "^0.16.32",
     "lefthook": "^2.1.9",
     "typedoc": "^0.28.19",

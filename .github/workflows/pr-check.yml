@@ -73,6 +73,9 @@ jobs:
       - name: Type check with TypeScript ${{ matrix.ts }}
         run: bunx -p typescript@${{ matrix.ts }} tsc -p tsconfig.json --noEmit
 
+      - name: Fetch environment matrix
+        run: bun run test:fetch-env -- --ts ${{ matrix.ts }}
+
   ts-matrix-ok:
     needs: ts-matrix
     # fail-closed：success 之外的结论（failure / cancelled / skipped）一律失败。
