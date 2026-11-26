@@ -191,6 +191,13 @@ or {
       r".*/src/events/index\.ts",
       r".*/src/types/index\.ts",
     },
+    // 性能：顶层性与 export 反查先于 import 关联的递归扫描——嵌套声明符（测试文件
+    // 回调内成百的 let/const）在这里先被拒，不再付 wrapped_imported 全程序扫描的代价
+    // 顶层性：$span 所在声明必须在模块顶层，函数 / 块内的同名声明不参与关联
+    $program <: or {
+      JsModule(items = [..., top_level_declarator($span), ...]),
+      TsDeclarationModule(items = [..., top_level_declarator($span), ...]),
+    },
     $program <: contains or {
       JsInitializerClause(expression = wrapped_imported($value)) as $init_src where {
         // 这个 initializer 是 $span 自己的字段（字段匹配不深入子树——箭头函数参数的
@@ -236,11 +243,6 @@ or {
       ),
       JsExportDefaultExpressionClause(expression = wrapped_imported($b)),
     },
-    // 顶层性：$span 所在声明必须在模块顶层，函数 / 块内的同名声明不参与关联
-    $program <: or {
-      JsModule(items = [..., top_level_declarator($span), ...]),
-      TsDeclarationModule(items = [..., top_level_declarator($span), ...]),
-    },
   },
 
   // 换名再导出——类型别名（export type X = Y）。同样以别名声明为根，「是否被
@@ -258,6 +260,12 @@ or {
       r".*/src/events/index\.ts",
       r".*/src/types/index\.ts",
     },
+    // 性能：顶层性前置——嵌套类型别名（类型测试文件里成百的 Eq/Assert 别名）先被拒
+    // 顶层性：同值分支，函数 / 块内的同名类型别名不参与关联
+    $program <: or {
+      JsModule(items = [..., top_level_type_alias($span), ...]),
+      TsDeclarationModule(items = [..., top_level_type_alias($span), ...]),
+    },
     $program <: contains or {
       JsExport(export_clause = $span),
       JsExportNamedClause(
@@ -270,11 +278,6 @@ or {
           ...,
         ]
       ),
-    },
-    // 顶层性：同值分支，函数 / 块内的同名类型别名不参与关联
-    $program <: or {
-      JsModule(items = [..., top_level_type_alias($span), ...]),
-      TsDeclarationModule(items = [..., top_level_type_alias($span), ...]),
     },
     $program <: contains or {
       JsShorthandNamedImportSpecifier(local_name = $value),
