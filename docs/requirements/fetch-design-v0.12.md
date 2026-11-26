@@ -497,7 +497,7 @@ type FetchErrorOf<Failure> = FetchError & (
 );
 ```
 
-`FetchError` 带一个 `Symbol.for('@meld-ts/core/fetch:FetchError')` 品牌，并实现 `static [Symbol.hasInstance]`：包被装了两份（比如某个 renderer 自己打包了一份 core）时，`instanceof FetchError` 仍然成立。理由和 `allowNil` 一样——`Symbol.for` 跨副本共享。
+`FetchError` 带一个 `Symbol.for('@meld-ts/core/fetch:FetchError')` 品牌，并实现 `static [Symbol.hasInstance]`：包被装了两份（比如某个 renderer 自己打包了一份 core）时，`instanceof FetchError` 仍然成立。理由和 `allowNil` 一样——`Symbol.for` 跨副本共享。品牌用构造函数里的 `Object.defineProperty` 装：`isolatedDeclarations` 下自定义 symbol 的类字段无法 emit（TS9038），`in` 判断和 `instanceof` 不受影响。
 
 | kind | 什么时候 | 带什么 |
 |---|---|---|
