@@ -1,6 +1,6 @@
 ---
 name: meld-ts-core
-description: "Using @meld-ts/core in a project — complete export reference, import paths, and key design notes for guards, events, async tools (StatefulRpc / pending / retry), traits/mixin system, aria attribute constructor (createA11y), and path utils."
+description: "Using @meld-ts/core in a project — complete export reference, import paths, and key design notes for guards, events, async tools (StatefulRpc / pending / retry), traits/mixin system, aria attribute constructor (createA11y), fetch (createFetcher / FetchError), and path utils."
 disable-model-invocation: false
 user-invocable: false
 ---
@@ -395,6 +395,40 @@ rpc.resolve('user:42', profile); // p1 and p2 both settle
 **settle contract**: resolve/reject happens first (deliver result ASAP), then events fire as notifications. Event handlers must not assume the Promise is still pending.
 
 **Timeout behavior**: when any task times out, the entire key is rejected with `TimeoutError`, including tasks that haven't timed out yet. Override `protected onTimeout` to customize.
+
+---
+
+## `@meld-ts/core/fetch`
+
+One request pipeline, one error type, no DOM types in the declarations.
+
+```ts
+import { createFetcher, allowNil } from '@meld-ts/core/fetch';
+
+const api = createFetcher({ baseUrl: '/api' });
+const user = await api.request({ path: '/users/1', validate: isUser });
+const maybe = await api.request<User>({ path: '/users/me', validate: allowNil });
+const res = await api.raw({ path: '/export' });
+```
+
+| Export / Fetcher member | Purpose |
+|---|---|
+| `createFetcher(opts)` | Builds a fetcher; `fetch` / `decode` are injectable |
+| `api.request({ path, method, query, headers, json, body, signal, init, validate, transform })` | Classified result or `FetchError` |
+| `api.raw({ ... })` | Original `Res` without decode / classification |
+| `api.isFetchError(err)` | Per-instance narrowing, `failure` typed |
+| `allowNil` | `validate` marker: result becomes `T \| null` |
+| `readBody` / `successEnvelope` | Helpers for standard responses |
+| `FetchError` | `kind`: `network` / `status` / `failure` / `invalid` |
+
+`api.*` rows are methods on the object `createFetcher()` returns, not module exports. The runtime exports are exactly five: `createFetcher`, `allowNil`, `readBody`, `successEnvelope`, `FetchError`. Everything else the subpath exports is a type:
+
+| Group | Type exports |
+|---|---|
+| Options / results | `FetcherOptions`, `SendOptions`, `ParseOptions`, `AllowNilOptions`, `AllowNil`, `Decoded`, `Decode`, `DecodeContext`, `BodyRead`, `SuccessEnvelopeFailure` |
+| Transport | `FetchLike`, `FetchInit`, `FetchRequest`, `HeaderValues`, `DefaultRes`, `DefaultInit`, `ResponseLike` |
+| Instance | `Fetcher`, `InitOf`, `ResOf`, `RequireFor` |
+| Errors | `FetchErrorKind`, `FetchErrorOptions`, `FetchErrorOf` |
 
 ---
 

@@ -7,6 +7,7 @@
       "devDependencies": {
         "@biomejs/biome": "^2.5.0",
         "@types/bun": "latest",
+        "@types/node": "^25.9.3",
         "bunup": "^0.16.32",
         "lefthook": "^2.1.9",
         "typedoc": "^0.28.19",

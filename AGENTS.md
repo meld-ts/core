@@ -24,10 +24,11 @@ src/
   browser/          # Browser 全量入口（iife.ts 全局变量 MeldTS + index.ts ESM）
   a11y/             # a11y 属性构造器：按 lint 规则表做类型约束（createA11y）
     probe/          # 维护者专用探针（a11y:sync 消费），不进 a11y 入口与 browser 产物
+  fetch/            # 请求流水线：createFetcher / FetchError / decode 工具
   bin/              # meld-ts CLI（a11y probe 路由与参数解析，独立打包到 dist/bin）
-test/               # 构建/类型 fixture 与集成测试（test/a11y/*）
+test/               # 构建/类型 fixture 与集成测试（test/a11y/*、test/fetch-env/*、test/public-surface.ts）
 lint/               # 自定义 biome 插件（no-cross-file-reexport）与它的 fixture 回归测试（lint/fixtures/*）
-scripts/            # 维护者脚本：a11y-sync、lab、lint/build 层测试
+scripts/            # 维护者脚本：a11y-sync、lab、lint/build 层测试、fetch-env-check.ts
 skills/             # 接入说明（skills/meld-ts-core/SKILL.md）
 docs/
   requirements/     # 设计稿与路线图（a11y-design.md / a11y-roadmap.md）
@@ -42,6 +43,7 @@ bun run fmt            # Biome 格式化 + import 排序（src + test + scripts 
 bun run lint           # Biome lint，warning 视为错误（src + test + scripts + bunup.*.ts）
 bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率
+bun run test:fetch-env # fetch 环境矩阵：6 份 fixture × TS 矩阵
 bun run a11y:sync      # 维护者：重建 lab，从最新 lint 探测重新生成 a11y 内置表（慢，约 2–4 分钟）
 bun run test:a11y-lint # a11y 第 2/3 层：一致性 + 反向测试（lab，慢，不进 CI）
 bun run test:a11y-build # a11y 第 4 层：构建产物重载测试（version-bump.yml 发版必跑）
@@ -144,7 +146,7 @@ export type RO = RetryOptions;
 - 模块之间单向依赖，只能 import 更低层的模块：
   - 最底层：`types`、`_internal`
   - 第二层：`guards`、`base`
-  - 第三层：`events`、`timer`、`path`、`singleton`、`traits`、`a11y`（自岛——不 import 任何其他模块）
+  - 第三层：`events`、`timer`、`path`、`singleton`、`traits`、`a11y`（自岛——不 import 任何其他模块）、`fetch`（自岛——不 import 任何其他模块）
   - 最上层：`async`、`browser`（聚合全量公开面）
   - `bin` 不参与分层：维护者 CLI 入口，不进 `exports`，深导入 probe 内部文件（见「已知例外」）
 - 快要成环时，把两边都要的部分挪到更低一层，通常是 `types` 或 `src/_internal/`。不要用动态 import 或调换 import 顺序来绕。
@@ -315,6 +317,7 @@ interface MyClass extends MyTrait {}
 - `./timer` `./singleton` `./path`
 - `./traits` `./events` `./async`
 - `./a11y`
+- `./fetch`
 - `./package.json`
 
 `browser/` 目录不在 `exports` 中——它只应被网页 `<script>` 直接引用，不应被打包工具作为模块导入。

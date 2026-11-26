@@ -10,9 +10,6 @@
   "module": "./dist/index.js",
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "meld-ts": "./dist/bin/meld-ts.js"
-  },
   "exports": {
     ".": {
       "import": {
@@ -22,6 +19,16 @@
       "require": {
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
+      }
+    },
+    "./fetch": {
+      "import": {
+        "types": "./dist/fetch/index.d.ts",
+        "default": "./dist/fetch/index.js"
+      },
+      "require": {
+        "types": "./dist/fetch/index.d.cts",
+        "default": "./dist/fetch/index.cjs"
       }
     },
     "./timer": {
@@ -55,33 +62,33 @@
       }
     },
     "./traits": {
-      "import": {
-        "types": "./dist/traits/index.d.ts",
-        "default": "./dist/traits/index.js"
-      },
       "require": {
         "types": "./dist/traits/index.d.cts",
         "default": "./dist/traits/index.cjs"
+      },
+      "import": {
+        "types": "./dist/traits/index.d.ts",
+        "default": "./dist/traits/index.js"
       }
     },
     "./events": {
-      "import": {
-        "types": "./dist/events/index.d.ts",
-        "default": "./dist/events/index.js"
-      },
       "require": {
         "types": "./dist/events/index.d.cts",
         "default": "./dist/events/index.cjs"
+      },
+      "import": {
+        "types": "./dist/events/index.d.ts",
+        "default": "./dist/events/index.js"
       }
     },
     "./async": {
-      "require": {
-        "types": "./dist/async/index.d.cts",
-        "default": "./dist/async/index.cjs"
-      },
       "import": {
         "types": "./dist/async/index.d.ts",
         "default": "./dist/async/index.js"
+      },
+      "require": {
+        "types": "./dist/async/index.d.cts",
+        "default": "./dist/async/index.cjs"
       }
     },
     "./a11y": {
@@ -95,6 +102,9 @@
       }
     },
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "meld-ts": "./dist/bin/meld-ts.js"
   },
   "keywords": [
     "typescript",
@@ -126,6 +136,7 @@
     "lint": "biome lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
     "ts-check": "tsc --noEmit",
     "test": "bun test src/ lint/ --coverage",
+    "test:fetch-env": "bun scripts/fetch-env-check.ts",
     "a11y:sync": "bun scripts/a11y-sync.ts",
     "test:a11y-lint": "bun scripts/a11y-lint-test.ts",
     "test:a11y-build": "bun scripts/a11y-build-test.ts",
@@ -142,6 +153,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
     "@types/bun": "latest",
+    "@types/node": "^25.9.3",
     "bunup": "^0.16.32",
     "lefthook": "^2.1.9",
     "typedoc": "^0.28.19",

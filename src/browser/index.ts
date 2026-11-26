@@ -18,3 +18,4 @@ export * from '../traits';
 export * from '../events';
 export * from '../async';
 export * from '../a11y';
+export * from '../fetch';

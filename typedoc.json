@@ -9,7 +9,8 @@
     "src/traits/index.ts",
     "src/events/index.ts",
     "src/async/index.ts",
-    "src/a11y/index.ts"
+    "src/a11y/index.ts",
+    "src/fetch/index.ts"
   ],
   "router": "structure",
   "entryPointStrategy": "resolve",
