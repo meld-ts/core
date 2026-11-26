@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import type { DebugSettings, DebuggableTrait } from './debuggable';
-import { debugTimeFlag, debuggable } from './debuggable';
+import {
+  type DebugSettings,
+  type DebuggableTrait,
+  debugTimeFlag,
+  debuggable,
+} from './debuggable';
 import { implTraits } from './implTraits';
 
 // ── debugTimeFlag ─────────────────────────────────────────────────────────────

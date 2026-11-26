@@ -26,6 +26,7 @@ src/
     probe/          # 维护者专用探针（a11y:sync 消费），不进 a11y 入口与 browser 产物
   bin/              # meld-ts CLI（a11y probe 路由与参数解析，独立打包到 dist/bin）
 test/               # 构建/类型 fixture 与集成测试（test/a11y/*）
+lint/               # 自定义 biome 插件（no-cross-file-reexport）与它的 fixture 回归测试（lint/fixtures/*）
 scripts/            # 维护者脚本：a11y-sync、lab、lint/build 层测试
 skills/             # 接入说明（skills/meld-ts-core/SKILL.md）
 docs/
@@ -85,7 +86,7 @@ a11y 发版前检查：`test:a11y-build` 由 `version-bump.yml` 发版必跑；`
 // src/async/index.ts
 export * from './errors';
 export * from './retry';
-export type * from './types'; // 纯类型文件
+// 有纯类型文件时再加一行：export type * from './types';
 // _ 文件不转发
 ```
 
@@ -140,20 +141,30 @@ export type RO = RetryOptions;
 - 同一模块内：import 具体文件（`./retry`、`./_internal`），不 import `./index` 或 `.`。
 - 跨模块：只 import 对方的入口（`../guards`）或 `src/_internal/`，不 import 对方的具体文件和 `_` 文件。
 - `_` 文件在模块里的最底层：普通文件可以 import 它，它不 import 本模块的普通文件。只要类型时可以，写 `import type`。
-- 只为类型的 import，写 `import type { X }`，不写 `import { type X }`。开了 verbatimModuleSyntax，后者编译后还留着一行 import，环照样在。
 - 模块之间单向依赖，只能 import 更低层的模块：
   - 最底层：`types`、`_internal`
   - 第二层：`guards`、`base`
-  - 第三层：`events`、`timer`、`traits`、`a11y`（自岛——不 import 任何其他模块）
+  - 第三层：`events`、`timer`、`path`、`singleton`、`traits`、`a11y`（自岛——不 import 任何其他模块）
   - 最上层：`async`、`browser`（聚合全量公开面）
+  - `bin` 不参与分层：维护者 CLI 入口，不进 `exports`，深导入 probe 内部文件（见「已知例外」）
 - 快要成环时，把两边都要的部分挪到更低一层，通常是 `types` 或 `src/_internal/`。不要用动态 import 或调换 import 顺序来绕。
 - `bun run lint` 里的 `suspicious/noImportCycles` 会报环。报了就按上一条改。
+
+**类型 import 与编译产物（实测）：**
+
+「只为类型的 import 必须写 `import type`」不作为本仓库规则。依据是 2026-11-25 的实测（tsc 5.9.3 + bun 1.4.x）：
+
+- `import { type X } from './m'`（整条 import 只有类型）：tsc 开 `verbatimModuleSyntax` 时产物保留 `import {} from './m';`，不开该选项时完全擦除。
+- 本仓库的 dist 由 bunup/bun 打包，空 import 完全消失——实测 `bun build` 对该写法 0 字节残留；混合写法 `import { type X, value }` 的产物与拆成两行的写法逐字节相同。
+- 本仓库 tsc 只跑 `--noEmit`，从不产出 JS——这个形态在本仓库任何产物里都不存在。
+- 空 import 即使成环也无运行时危害：环上没有代码执行，不碰任何绑定。注意 `noImportCycles` 在源码层仍会把 `import { type X }` 这类整条类型 import 算进环并报错；`useImportType` 会先要求把它改成 `import type`，改完环即消失。别为此拆依赖层。
+- 结论：不为此设规则。纯类型 import 的统一写法由 biome `useImportType`（recommended，已启用）处理；混合 import 不设拆行要求。
 
 **已知例外（不要在无关改动里顺手改，调整单独提案）：**
 
 - `src/events/index.ts` 里直接写了实现。新模块不要照着学。
 - `src/types/index.ts`：types/ 目录只有这一个文件，实质是单文件模块；改成 `src/types.ts` 会动 dist 布局与 `package.json` 的 types 路径，不值得。
-- `src/a11y/probe/`：维护者工具，不进 `exports` 与 browser 产物；内部文件（detect、serialize…）不加 `_` 前缀，`scripts/` 深导入它们。
+- `src/a11y/probe/`：维护者工具，不进 `exports` 与 browser 产物；内部文件（detect、serialize…）不加 `_` 前缀，`scripts/` 与 `src/bin/` 深导入它们。
 - `src/browser/iife.ts`：打包入口，`import * from './index'` 是它的职责；自列模块清单会和 index.ts 重复一份易漏的列表。
 - `*.test.ts` import `./index`：测试测的就是公开面，且测试不进 import 图、不会成环。
 

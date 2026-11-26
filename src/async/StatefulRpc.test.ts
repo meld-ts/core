@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { TimeoutError } from './errors';
-import type { StatefulRpcTask } from './StatefulRpc';
 import { RpcAbortError } from './errors';
-import { StatefulRpc } from './StatefulRpc';
+import { StatefulRpc, type StatefulRpcTask } from './StatefulRpc';
 
 // ============================================================================
 // Basic pending / settle

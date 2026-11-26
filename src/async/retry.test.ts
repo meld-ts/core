@@ -1,8 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 
 import { TimeoutError } from './errors';
-import type { RetryFnParams } from './retry';
-import { RetryExhaustedError, retry, retryFn, sleep, timeout } from './retry';
+import {
+  RetryExhaustedError,
+  type RetryFnParams,
+  retry,
+  retryFn,
+  sleep,
+  timeout,
+} from './retry';
 
 describe('retry', () => {
   describe('retry', () => {

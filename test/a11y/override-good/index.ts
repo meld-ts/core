@@ -1,5 +1,8 @@
-import type { A11yBuiltinLints, A11yOf } from '../../../src/a11y/index.ts';
-import { createA11y } from '../../../src/a11y/index.ts';
+import {
+  type A11yBuiltinLints,
+  type A11yOf,
+  createA11y,
+} from '../../../src/a11y/index.ts';
 
 type BiomeA11yProfile = A11yBuiltinLints['biome'];
 

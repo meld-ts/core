@@ -1,44 +1,376 @@
 language js
 
-// 只有 index.ts 能转发：非入口文件里，把别的文件定义的符号再导出（含改别名）一律禁止。
-// - export { X } from / export * from / export * as：JsExportFromClause / JsExportNamedFromClause
-// - export const/let/var X = Y / export type X = Y：Y 是同文件 import 进来的标识符。
-//   用 $program 跨语句关联，对 import 说明符的 local_name 匹配——多说明符、
-//   别名导入（A as B）、默认导入、import type 都覆盖。
-// - import 进来再 export { X }：biome 内置 noExportedImports 负责。
-// 误报防护：本地值的别名（export const c = localConfig）不命中——import 关联不到就不报。
+// 只有 index.ts 能转发；入口也只做全量转发。五类形态分开匹配，报错统一打在 $span 上：
+// - 逐个列举转发（export { a, b } from / export type { a, b } from）：JsExportNamedFromClause，
+//   所有文件一律禁止，含 index.ts——AGENTS.md 明文禁止入口逐个列举，想挑着转发说明来源
+//   文件混了内部符号，先拆文件。
+// - 星号转发（export * from / export * as ns from / export type * from）：JsExportFromClause，
+//   仅非 index.ts 禁止；typed 变体与无 type_token 的是同一节点，一并覆盖。
+// - 换名再导出（export const/let/var X = Y / 空声明后置赋值再 export（let X;
+//   X = Y; export { X }）/ 先声明再 export { X } / 先声明再
+//   export default X / 带本地 initializer 的声明再覆盖赋值（let X = dummy;
+//   X = Y; export { X }，Y 是同文件 import 进来的标识符，包装形态见
+//   wrapped_imported）：所有文件一律禁止，含 index.ts——入口只做全量转发，
+//   index.ts 里不声明类型。左值限定简单标识符绑定：解构（对象 / 数组 /
+//   namespace）是取字段或取成员，构造了新绑定，不算转发。
+// - 类型换名（export type X = Y / 先声明再 export type { X }，Y 是 import 进来的类型
+//   引用，括号包装见 parenthesized_type——括号不改类型，带类型实参的组合见
+//   bare_reference_type）：所有文件一律禁止。
+// - default 转发（export default <右值>）：default 是完整公开面出口，右值解包后是
+//   import 标识符就报，含 index.ts；包装形态与值换名共用 wrapped_imported。裸 default
+//   同时被 biome 内置 noExportedImports 拦一层，插件统一报，不依赖 biome 层不变化。
+// - import 进来再 export { X }（无 from）：biome 内置 noExportedImports 负责，这里不重复。
+// - 入口纪律（round06 F-01 选项 1）：src/ 下的 index.ts 顶层只允许星号转发与
+//   import，其余顶层语句一律报，每条一条——AGENTS.md「index.ts 里不写实现，
+//   也不声明类型」。五类转发支对 src/ 入口（例外文件除外）整体让位，同一条
+//   语句不双报。文件名例外（AGENTS.md 已列）：src/events/index.ts（入口直接
+//   写实现）、src/types/index.ts（单文件模块）。$filename 是绝对路径且正则
+//   全串匹配、不允许捕获组（grit 把捕获组当变量绑定），目录段用非捕获组
+//   表达：src 段后最多两层目录（仓库最深 src/a11y/lints/）。test/a11y/*/
+//   index.ts 是有意写类型的夹具，但它们在仓库根 test/ 下，路径不含 src 段，
+//   正则天然不命中（src 祖先检出下也超层深），不设 test/ 整段排除（round08
+//   F-01：检出路径任意段叫 test 时，旧排除让入口纪律静默而五类让位照让，
+//   双端全灭）。祖先 src 段下三层以内还有别的 index.ts 时仍会误伤，写明边界，
+//   靠 review。
+// 误报防护：本地值的别名（export const c = localConfig）不命中——import 关联不到就不报；
+// 尖括号断言（<T>x）、namespace 成员访问（export const A = g.isString）、空体 interface /
+// class extends 换名（export interface X extends Wrapper {} / export class Y extends
+// SomeClass {}，含 default class——「预备扩展」是 TS 惯用写法，空体 extends 刻意绕过
+// 只能靠 review）、包装超过四层的病态写法不在执法面。包装递归深度取四层：真实代码
+// 的包装至多两层（双层 as、括号包
+// 断言加非空），四层已覆盖全部实测绕过形态，再深只能靠 contains + 排除清单实现
+// 任意层，而构造新值的节点无法穷举（数组 / 调用 / 三元 / 成员访问……），漏一个就
+// 误报正常代码，写明边界比堆排除清单稳。后置 export 关联按绑定名文本统一，
+// 函数 / 块内与后置导出同名的声明会被误当顶层绑定——顶层性约束（top_level_
+// declarator / top_level_type_alias）把声明收窄到模块顶层。入口纪律与五类的
+// 去重不靠形状排除（round07 F-02：旧排除按「右值含 import 引用 / wrapped
+// initializer」近似换名支会报，与换名支「被导出 + import 关联 + 裸引用」的实际
+// 条件不重合，未导出的本地别名与组合类型别名两层都不报），改为五类转发支对
+// src/ 入口让位、入口支接管全部顶层语句，去重边界只剩文件名一层。
+
+// 右值内核是裸标识符；括号 / non-null / satisfies / as 只是包装，不改运行时绑定，
+// 仍是转发。包装递归四层，一层到四层包装的任意组合（(x)、((x))、(((x)))、x!、
+// (x as T)、x as T、x as unknown as T、x as unknown as any as T、(x as T)!、
+// ((x as T)!)…）全部命中；「export const A = [x]」这类构造新值的写法不命中——
+// 每一层都限定在四种包装节点上，第一层不是包装直接不匹配。
+pattern wrapped_imported($value) {
+  or {
+    JsIdentifierExpression(name = $value),
+    or {
+      JsParenthesizedExpression(expression = $w1),
+      TsNonNullAssertionExpression(expression = $w1),
+      TsSatisfiesExpression(expression = $w1),
+      TsAsExpression(expression = $w1),
+    } where {
+      $w1 <: or {
+        JsIdentifierExpression(name = $value),
+        or {
+          JsParenthesizedExpression(expression = $w2),
+          TsNonNullAssertionExpression(expression = $w2),
+          TsSatisfiesExpression(expression = $w2),
+          TsAsExpression(expression = $w2),
+        } where {
+          $w2 <: or {
+            JsIdentifierExpression(name = $value),
+            or {
+              JsParenthesizedExpression(expression = $w3),
+              TsNonNullAssertionExpression(expression = $w3),
+              TsSatisfiesExpression(expression = $w3),
+              TsAsExpression(expression = $w3),
+            } where {
+              $w3 <: or {
+                JsIdentifierExpression(name = $value),
+                or {
+                  JsParenthesizedExpression(expression = $w4),
+                  TsNonNullAssertionExpression(expression = $w4),
+                  TsSatisfiesExpression(expression = $w4),
+                  TsAsExpression(expression = $w4),
+                } where {
+                  $w4 <: JsIdentifierExpression(name = $value),
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  }
+}
+
+// 裸类型引用才叫转发：带类型实参的组合（Wrapper<string>）是给导入的泛型加实参，
+// 构造了新类型，AGENTS.md 允许在别的类型基础上定义新类型，不命中。
+pattern bare_reference_type($value) {
+  TsReferenceType(name = $value) as $ref where {
+    $ref <: not contains TsTypeArguments(),
+  }
+}
+
+// 类型别名右值的括号解包，与 wrapped_imported 对齐递归四层。第一支必须是具体的
+// TsReferenceType：裸 $value 会先绑到整个括号节点，import 关联随之统一不上。
+// Omit<Y, 'k'> 这类改写了类型的组合在 name 字段就对不上 import 名，天然不命中。
+pattern parenthesized_type($value) {
+  or {
+    bare_reference_type($value),
+    TsParenthesizedType(ty = or {
+      bare_reference_type($value),
+      TsParenthesizedType(ty = or {
+        bare_reference_type($value),
+        TsParenthesizedType(ty = or {
+          bare_reference_type($value),
+          TsParenthesizedType(ty = bare_reference_type($value)),
+        }),
+      }),
+    }),
+  }
+}
+
+// 模块顶层的声明形态，顶层性约束用：后置 export 关联按绑定名文本统一，会把函数 /
+// 块内与后置导出同名的声明误当顶层绑定，这里按「声明是模块顶层列表的成员」收窄。
+// 内联 export 语句只能出现在顶层，天然是顶层成员。ESM 文件根是 JsModule /
+// TsDeclarationModule，顶层列表字段是 items；JsScript 根的文件没有 import/export，
+// import 关联先不成立，到不了顶层性约束，无需覆盖。
+pattern top_level_declarator($span) {
+  or {
+    JsExport(
+      export_clause = JsVariableDeclarationClause(
+        declaration = JsVariableDeclaration(declarators = [..., $span, ...])
+      )
+    ),
+    JsVariableStatement(
+      declaration = JsVariableDeclaration(declarators = [..., $span, ...])
+    ),
+  }
+}
+
+pattern top_level_type_alias($span) {
+  or {
+    JsExport(export_clause = $span),
+    $span,
+  }
+}
+
 or {
-  JsExportNamedFromClause(),
-  JsExportFromClause(),
-  `export const $name = $value;` where {
+  // src/ 下的 index.ts（例外文件除外）归入口纪律分支统一报，本支让位不双报
+  JsExportNamedFromClause() as $span where {
+    $filename <: or {
+      not r".*/src/(?:[^/]+/){0,2}index\.ts",
+      r".*/src/events/index\.ts",
+      r".*/src/types/index\.ts",
+    },
+  },
+  JsExportFromClause() as $span where {
+    $filename <: not r".*/index\.ts",
+  },
+
+  // 换名再导出——值。以声明符（JsVariableDeclarator）为根模式，而不是整个 export 语句：
+  // grit 的 contains / 列表模式对一次匹配只取第一个完整绑定，根模式挂在 export 上时
+  // 「export const A = x, B = y」只会报 A。声明符做根后每个声明符独立成一次匹配，
+  // 多声明符逐个命中。const/let/var 是同一 JsVariableDeclaration，自然全覆盖。
+  // 「import 值来源」两种并列（round06 F-02 合并）：声明当下的 initializer 就是转发，
+  // 或存在同名绑定的后置赋值（right = wrapped_imported）——带本地 initializer 的
+  // dummy 声明（let X = undefined as any）再覆盖赋值为 import 与空声明同语义，
+  // 求值后送出的都是 import 名。两个来源各自完成 import 关联（$value 绑定后按文本
+  // 与 import 说明符的 local_name 统一），或一次命中只报一条：initializer 与后置
+  // 赋值都是 import 的声明符不双报；initializer 是 wrapped 但关联不上（本地标识符
+  // 的 as 包装）时由赋值支兜住。赋值来源对作用域不敏感：函数 / 块内给顶层同名绑定
+  // 赋 import 值也命中——live binding 送出的仍是 import 名，语义上还是换名。
+  // 「是否被 export」用已绑定的 $span 反查，三种形态并列：声明符出现在某个 JsExport
+  // 的声明符列表里（内联 export const X = …），或本文件有 export { X }（含 as 换名）
+  // 的说明符引用这个绑定名——绑定名与说明符名是不同节点（JsIdentifierBinding /
+  // JsReferenceIdentifier），按文本统一——或本文件有 export default <右值>，右值解包后
+  // 是这个绑定名（先声明再 export default X，两步 default 的组合出口；default 右值的
+  // 包装与 wrapped_imported 同构）。先声明再 export 的写法两边此前都拦不住。
+  // 左值收窄到简单标识符绑定：$b 在解构声明上是 binding pattern，JsIdentifierBinding()
+  // 不命中，export const { length } = imported 这类取字段导出就不报。
+  // 入口同样报：入口只做全量转发——src/ 下的入口（例外文件除外）由入口纪律
+  // 分支统一报，本支让位不双报。
+  JsVariableDeclarator(id = $b) as $span where {
+    $b <: JsIdentifierBinding(),
+    $filename <: or {
+      not r".*/src/(?:[^/]+/){0,2}index\.ts",
+      r".*/src/events/index\.ts",
+      r".*/src/types/index\.ts",
+    },
+    $program <: contains or {
+      JsInitializerClause(expression = wrapped_imported($value)) as $init_src where {
+        // 这个 initializer 是 $span 自己的字段（字段匹配不深入子树——箭头函数参数的
+        // 默认值也是 JsInitializerClause，contains 语义会把参数默认值误当声明符的
+        // initializer），且标识符关联 import
+        $span <: JsVariableDeclarator(
+          initializer = JsInitializerClause(expression = wrapped_imported($value))
+        ),
+        $program <: contains or {
+          JsShorthandNamedImportSpecifier(local_name = $value),
+          JsNamedImportSpecifier(local_name = $value),
+          JsDefaultImportSpecifier(local_name = $value),
+          JsNamespaceImportSpecifier(local_name = $value),
+        },
+      },
+      // 赋值左侧在 grit 方言里是叶子节点 JsIdentifierAssignment（无 name 子字段，右侧
+      // 才是 JsIdentifierExpression），直接把 $b 放在 left 位置按文本统一关联，与
+      // export 说明符一支同款。
+      JsAssignmentExpression(left = $b, right = wrapped_imported($value)) as $assign_src where {
+        $program <: contains or {
+          JsShorthandNamedImportSpecifier(local_name = $value),
+          JsNamedImportSpecifier(local_name = $value),
+          JsDefaultImportSpecifier(local_name = $value),
+          JsNamespaceImportSpecifier(local_name = $value),
+        },
+      },
+    },
+    $program <: contains or {
+      JsExport(
+        export_clause = JsVariableDeclarationClause(
+          declaration = JsVariableDeclaration(declarators = [..., $span, ...])
+        )
+      ),
+      JsExportNamedClause(
+        specifiers = [
+          ...,
+          or {
+            JsExportNamedShorthandSpecifier(name = $b),
+            JsExportNamedSpecifier(local_name = $b),
+          },
+          ...,
+        ]
+      ),
+      JsExportDefaultExpressionClause(expression = wrapped_imported($b)),
+    },
+    // 顶层性：$span 所在声明必须在模块顶层，函数 / 块内的同名声明不参与关联
+    $program <: or {
+      JsModule(items = [..., top_level_declarator($span), ...]),
+      TsDeclarationModule(items = [..., top_level_declarator($span), ...]),
+    },
+  },
+
+  // 换名再导出——类型别名（export type X = Y）。同样以别名声明为根，「是否被
+  // export」两种形态并列：声明本身就是某个 JsExport 的 export_clause（内联），
+  // 或本文件有 export type { X }（含 as 换名）的说明符引用绑定名。右值按文本与
+  // import 说明符的 local_name 关联：Omit<Y, 'k'> 这类改写了类型的组合不命中。
+  // 入口同样报——index.ts 不声明类型，组合出来的公开类型放进普通文件；
+  // src/ 下的入口（例外文件除外）由入口纪律分支统一报，本支让位不双报。
+  TsTypeAliasDeclaration(
+    binding_identifier = $tb,
+    ty = parenthesized_type($value)
+  ) as $span where {
+    $filename <: or {
+      not r".*/src/(?:[^/]+/){0,2}index\.ts",
+      r".*/src/events/index\.ts",
+      r".*/src/types/index\.ts",
+    },
+    $program <: contains or {
+      JsExport(export_clause = $span),
+      JsExportNamedClause(
+        specifiers = [
+          ...,
+          or {
+            JsExportNamedShorthandSpecifier(name = $tb),
+            JsExportNamedSpecifier(local_name = $tb),
+          },
+          ...,
+        ]
+      ),
+    },
+    // 顶层性：同值分支，函数 / 块内的同名类型别名不参与关联
+    $program <: or {
+      JsModule(items = [..., top_level_type_alias($span), ...]),
+      TsDeclarationModule(items = [..., top_level_type_alias($span), ...]),
+    },
     $program <: contains or {
       JsShorthandNamedImportSpecifier(local_name = $value),
       JsNamedImportSpecifier(local_name = $value),
       JsDefaultImportSpecifier(local_name = $value),
+      JsNamespaceImportSpecifier(local_name = $value),
     },
   },
-  `export let $name = $value;` where {
+
+  // default 转发（export default <右值>）。右值与值换名共用 wrapped_imported——包装
+  // 不改绑定，default 又是完整公开面出口，没有理由比命名导出宽松。裸 default 插件
+  // 也报（biome noExportedImports 挡不住包装形态，两层执法对 default 各自的空隙
+  // 互相兜不住，插件统一报最稳）。先声明再 export default X 的两步形态走上面值
+  // 声明符分支的 default 第三支，不在这里。src/ 下的入口（例外文件除外）由入口
+  // 纪律分支统一报，本支让位不双报。
+  JsExportDefaultExpressionClause(expression = wrapped_imported($value)) as $span where {
+    $filename <: or {
+      not r".*/src/(?:[^/]+/){0,2}index\.ts",
+      r".*/src/events/index\.ts",
+      r".*/src/types/index\.ts",
+    },
     $program <: contains or {
       JsShorthandNamedImportSpecifier(local_name = $value),
       JsNamedImportSpecifier(local_name = $value),
       JsDefaultImportSpecifier(local_name = $value),
+      JsNamespaceImportSpecifier(local_name = $value),
     },
   },
-  `export var $name = $value;` where {
-    $program <: contains or {
-      JsShorthandNamedImportSpecifier(local_name = $value),
-      JsNamedImportSpecifier(local_name = $value),
-      JsDefaultImportSpecifier(local_name = $value),
+
+  // 入口纪律（round06 F-01 选项 1）：src/ 下的 index.ts 顶层只允许星号转发与
+  // import——AGENTS.md「index.ts 只转发，不写实现，也不声明类型」。其余顶层
+  // 语句一律报，每条一条：五类转发形态的语句也归口到这里（五类分支对 src/
+  // 入口让位，见各支排除条件），不再按「换名支会报」的形状排除（round07
+  // F-02 的漏报根源）。顶层语句按 AnyJsStatement 全量枚举 + 非星号 JsExport：
+  // grit 根模式命中不了模块根本身（biome 的锚定遍历跳过根节点），「顶层 items
+  // 的任意元素」没有单个模式可写，枚举即覆盖面——biome 新增顶层语句形态时
+  // 这里要跟着补（JsBogusStatement 语法错误产物、JsMetavariable 不枚举）。
+  or {
+    JsBlockStatement() as $span,
+    JsBreakStatement() as $span,
+    JsClassDeclaration() as $span,
+    JsContinueStatement() as $span,
+    JsDebuggerStatement() as $span,
+    JsDoWhileStatement() as $span,
+    JsEmptyStatement() as $span,
+    JsExpressionStatement() as $span,
+    JsForInStatement() as $span,
+    JsForOfStatement() as $span,
+    JsForStatement() as $span,
+    JsIfStatement() as $span,
+    JsLabeledStatement() as $span,
+    JsReturnStatement() as $span,
+    JsSwitchStatement() as $span,
+    JsThrowStatement() as $span,
+    JsTryFinallyStatement() as $span,
+    JsTryStatement() as $span,
+    JsVariableStatement() as $span,
+    JsWhileStatement() as $span,
+    JsWithStatement() as $span,
+    JsFunctionDeclaration() as $span,
+    TsEnumDeclaration() as $span,
+    TsTypeAliasDeclaration() as $span,
+    TsInterfaceDeclaration() as $span,
+    TsDeclareFunctionDeclaration() as $span,
+    TsDeclareStatement() as $span,
+    TsModuleDeclaration() as $span,
+    TsExternalModuleDeclaration() as $span,
+    TsGlobalDeclaration() as $span,
+    TsImportEqualsDeclaration() as $span,
+    // 非星号转发的 export 全量报：逐个列举、换名声明（值 / 类型）、default
+    // 表达式与 default 声明（class / function / interface / declare function，
+    // round07 F-01 补的漏报口）、export declare、export =、export as
+    // namespace。星号转发（JsExportFromClause，typed 变体同节点）豁免
+    JsExport() as $span where {
+      $span <: not JsExport(export_clause = JsExportFromClause()),
+    },
+  } where {
+    // src 段后最多两层目录（仓库最深 src/a11y/lints/index.ts）。不设 test/
+    // 整段排除（round08 F-01）：检出路径任意段叫 test 时，旧排除让入口纪律
+    // 静默而五类让位照让，双端全灭；test/a11y/*/index.ts 夹具在仓库根
+    // test/ 下，路径不含 src 段，正则天然不命中（src 祖先检出下也超层深）。
+    // 检出路径祖先含别的 src 段且入口落在其下三层以内时仍会误伤——写明边界，
+    // 见文件头注释
+    $filename <: r".*/src/(?:[^/]+/){0,2}index\.ts",
+    // AGENTS.md 已列的两个例外文件：入口直接写实现 / 单文件模块，整支豁免，
+    // 五类分支对这两个文件照常生效
+    $filename <: not r".*/src/events/index\.ts",
+    $filename <: not r".*/src/types/index\.ts",
+    // 顶层性：$span 必须是模块顶层 items 的元素——枚举的语句形态在函数 /
+    // 块内同样出现，嵌套位置不报。export 声明（export interface X）的语句
+    // 根是 JsExport，由 JsExport 支报；裸声明的根才是语句本身
+    $program <: or {
+      JsModule(items = [..., $span, ...]),
+      TsDeclarationModule(items = [..., $span, ...]),
     },
   },
-  `export type $name = $value;` where {
-    $program <: contains or {
-      JsShorthandNamedImportSpecifier(local_name = $value),
-      JsNamedImportSpecifier(local_name = $value),
-      JsDefaultImportSpecifier(local_name = $value),
-    },
-  },
-} as $e where {
-  $filename <: not r".*/index\.ts",
-  register_diagnostic(span=$e, message="只有 index.ts 能转发。使用方直接从源文件 import，这里不要再导出。")
+} where {
+  register_diagnostic(span=$span, message="只有 index.ts 能转发，入口也只做全量转发（export * from）。要挑着转发，说明来源文件混了内部符号，先拆文件再转发；非入口的符号让使用方直接从源文件 import。")
 }

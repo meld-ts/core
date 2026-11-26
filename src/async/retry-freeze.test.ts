@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { RetryOptions } from './retry';
-import { RetryExhaustedError, retry, retryFn } from './retry';
+import {
+  RetryExhaustedError,
+  type RetryOptions,
+  retry,
+  retryFn,
+} from './retry';
 
 describe('retry — options immutability', () => {
   test('retry options should be frozen — mutation after wrapper creation does not affect behavior', async () => {
