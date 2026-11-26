@@ -74,7 +74,7 @@ const typeChecks = async (): Promise<void> => {
     }),
     fetch: async (_url: string, _init: RequestInit) => new Response(),
   });
-  const lateRes: Promise<ResponseLike> = lateFetch.raw({ path: '/x' });
+  const lateRes: Assert<Eq<ResOf<typeof lateFetch>, ResponseLike>> = true;
 
   check(request1, request2, request3, request4, raw1, init1, forced, lateRes);
 };
