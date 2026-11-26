@@ -827,7 +827,7 @@ await post<Order, number>('/orders', input, { transform: (o) => o.total });   //
   - 项目自己包的 `get`（转发 `<T, R>`）和 `post`（照抄两个签名、实现不用 `as`），推断不丢。
   - headers 函数，含 async。
   - `implTraits` 混进 class 以后类型照旧。
-- 环境矩阵放进仓库，成为常驻 fixture：`test/fetch-env/{dom,node,bun,dom-node,dom-bun,no-dom}/`；每个目录一份 `tsconfig.json` + `index.ts`，由 `scripts/fetch-env-check.ts` 逐个跑 `tsc -p`。CI 的 `ts-matrix` 三档各自跑一遍。`no-dom` 用 `lib: ["ES2022"]`、`types: []`、`skipLibCheck: false`，并断言 `createFetcher()`、`createFetcher<MyRes>({})` 报错、给了 fetch 不报。
+- 环境矩阵放进仓库，成为常驻 fixture：`test/fetch-env/{dom,node,bun,dom-node,dom-bun,no-dom}/`；每个目录一份 `tsconfig.json` + `index.ts`，由 `scripts/fetch-env-check.ts` 逐个跑 `tsc -p`（`--ts` 缺值 / 未知参数必须非零退出，不能回退本地 tsc）。CI 的 `ts-matrix` 三档各自跑一遍。每份 fixture 同时开 `declaration` + `isolatedDeclarations`（`noEmit` 不落盘）。`no-dom` 用 `lib: ["ES2022"]`、`types: []`、`skipLibCheck: false`，断言 `createFetcher()`、`createFetcher<MyRes>({})`、`init.credentials` 报错、给了 fetch 不报；其余四份非 DOM fixture 用 `init: { cache }` 正向、`init: { timeout }` 反向、`raw: Promise<Response>` 证明 `DefaultInit` / `DefaultRes` 真的来自环境声明。
 - 公开面快照：`src/fetch/public-surface.test.ts` 读 `dist/fetch/index.d.ts`，钉住名字集合（做法同 `src/a11y/public-surface.test.ts`）。
 - `bun run lint`、`bun run ts-check`、`bun run test`、`bun run build`、`bun run test:fetch-env` 全过。
 
