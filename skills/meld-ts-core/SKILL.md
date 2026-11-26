@@ -1,6 +1,6 @@
 ---
 name: meld-ts-core
-description: "Using @meld-ts/core in a project — complete export reference, import paths, and key design notes for guards, events, async tools (StatefulRpc / pending / retry), traits/mixin system, aria attribute constructor (createA11y), and path utils."
+description: "Using @meld-ts/core in a project — complete export reference, import paths, and key design notes for guards, events, async tools (StatefulRpc / pending / retry), traits/mixin system, aria attribute constructor (createA11y), fetch (createFetcher / FetchError), and path utils."
 disable-model-invocation: false
 user-invocable: false
 ---
@@ -397,6 +397,29 @@ rpc.resolve('user:42', profile); // p1 and p2 both settle
 **Timeout behavior**: when any task times out, the entire key is rejected with `TimeoutError`, including tasks that haven't timed out yet. Override `protected onTimeout` to customize.
 
 ---
+
+## `@meld-ts/core/fetch`
+
+One request pipeline, one error type, no DOM types in the declarations.
+
+```ts
+import { createFetcher, allowNil } from '@meld-ts/core/fetch';
+
+const api = createFetcher({ baseUrl: '/api' });
+const user = await api.request({ path: '/users/1', validate: isUser });
+const maybe = await api.request<User>({ path: '/users/me', validate: allowNil });
+const res = await api.raw({ path: '/export' });
+```
+
+| Export | Purpose |
+|---|---|
+| `createFetcher(opts)` | Builds a fetcher; `fetch` / `decode` are injectable |
+| `request({ path, method, query, headers, json, body, signal, init, validate, transform })` | Classified result or `FetchError` |
+| `raw({ ... })` | Original `Res` without decode / classification |
+| `isFetchError(err)` | Per-instance narrowing, `failure` typed |
+| `allowNil` | `validate` marker: result becomes `T \| null` |
+| `readBody` / `successEnvelope` | Helpers for standard responses |
+| `FetchError` | `kind`: `network` / `status` / `failure` / `invalid` |
 
 ## `@meld-ts/core/a11y`
 
