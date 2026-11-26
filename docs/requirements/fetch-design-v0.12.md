@@ -203,7 +203,7 @@ type RequireFor<Res> = [Res] extends [never]
 
 按 `fetch` → `decode` → `onError` 的顺序写。
 
-`fetch` 是变量，或者参数标了类型，顺序无所谓。`fetch` 写成行内箭头函数、又放在 `decode` 后面，推断到 `decode` 时 `Res` 还没定，会直接报错，不会悄悄推错。`onError` 用到了 `err` 参数、又写在 `decode` 前面，同理。
+`fetch` 是变量，或者参数标了类型，顺序无所谓。行内 `fetch` 放在 `decode` 后面也能编译：`Res` 会停在 `decode` 的 `res` 注解上（比如 `ResponseLike`），不会优先取 `fetch` 的 `Response`，`raw()` 的类型也跟着变宽；如果 `decode` 的 `res` 没标类型，才会因为隐式 `any` 报错。`onError` 同理：用到 `err` 时，`Failure` 必须已经由 `decode` 定下来。推荐顺序仍是 `fetch` → `decode` → `onError`，这样 `Res` 取最具体的 `fetch` 返回类型。
 
 ### 4.6 选项和实例
 
