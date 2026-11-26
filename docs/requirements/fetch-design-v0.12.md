@@ -136,7 +136,8 @@ type FetchLike<Res, Init> = (url: string, init: Init & FetchInit) => Promise<Res
 ```
 
 - 库自己只定这四个字段：method 是大写；headers 是普通对象，键全小写；body 是 json 序列化后的字符串，或调用方原样传的 body；signal 原样转交。
-- 其余字段的类型都从 `fetch` 来。用标准 fetch，`body` 是 `BodyInit`，`signal` 是 `AbortSignal`，`init` 能写 `credentials`、`cache`；用小程序的 fetch，就是它自己声明的那些。fetch 没声明的字段不能传。
+- 其余字段的类型都从 `fetch` 来。用标准 fetch，`body` 是 `BodyInit`，`signal` 是 `AbortSignal`，`init` 能写 `credentials`、`cache`；用小程序的 fetch，就是它自己声明的那些。fetch 没声明的字段不能传。一种边界要专门处理：fetch 只声明了库的四个字段时，`init` 的额外字段类型是空的；TS 对 `{}` 不做 excess property check，`credentials` 会漏进来。所以没有额外字段时用 `never` 索引（`ExactInit`）把所有键禁掉。
+- 还有一个编译器限制：**有全局 fetch**、注入的 fetch 又只声明库的四个字段时，TS 推不出「空的 Init」，会退回全局 fetch 的 `Init`（浏览器里 `init` 仍能写 `credentials`，传进去被自定义 fetch 忽略）。要严格禁止这些键，给 fetch 声明至少一个额外字段（比如 `timeout?: number`），或在没有全局 fetch 的环境使用——后者 `Init` 默认是空，`ExactInit` 生效。
 - 自己写 fetch 时，给第二个参数标上类型，比如 `(url: string, init: FetchInit & { timeout?: number; signal?: AbortSignal }) => ...`。要支持取消，signal 也得声明，没声明就传不进去（§4.8）。行内箭头函数不标类型时，额外参数按全局 fetch 的算；没有全局 fetch，就只有库的四个字段。
 - 参数还是 `(url, init)` 两个：全局 fetch、node-fetch 这类实现不用包一层就能注入。
 - 不用 `Request` 对象：它的 body 是流，axios、小程序这类实现还得先读出来；Node 和 Bun 里 `new Request()` 也不收相对地址。
@@ -250,7 +251,7 @@ type SendOptions<Init> = {
   query?: Record<string, QueryValue | readonly QueryValue[]>;
   headers?: HeaderValues;
   signal?: InitField<Init, 'signal'>;  // 类型从 fetch 来
-  init?: InitExtras<Init>;             // fetch 自己的其余参数，类型从 fetch 来
+  init?: ExactInit<Init>;              // fetch 自己的其余参数，类型从 fetch 来；没声明的键不能传
 } & (
   | { json?: unknown; body?: never }                     // json 用 `!== undefined` 判断有无；false / 0 / null 都会原样发送
   | { body?: InitField<Init, 'body'>; json?: never }     // body 的类型从 fetch 来；和 json 同时给，类型报错
@@ -261,6 +262,10 @@ type InitField<Init, K extends PropertyKey> = K extends keyof NonNullable<Init>
   ? NonNullable<NonNullable<Init>[K]>
   : never;
 type InitExtras<Init> = Omit<NonNullable<Init>, 'method' | 'headers' | 'body' | 'signal'>;
+/** 没有任何额外字段时用 never 索引禁掉所有键：TS 对 `{}` 不做 excess property check。 */
+type ExactInit<Init> = keyof InitExtras<Init> extends never
+  ? { [key: string]: never }
+  : InitExtras<Init>;
 type InitOf<F> = F extends Fetcher<any, infer Init, any> ? Init : never;
 type ResOf<F> = F extends Fetcher<infer Res, any, any> ? Res : never;
 
@@ -813,7 +818,7 @@ await post<Order, number>('/orders', input, { transform: (o) => o.total });   //
   - `allowNil` 用 `Symbol.for` 创建，validate 既不是 allowNil 也不是函数时 reject TypeError。
 - 类型测试，用仓库现有的 `Eq` / `Assert` / `@ts-expect-error` 写法（与 `src/a11y/types.test.ts` 一致）：
   - `createFetcher` 的推断：v0.2 那些照旧；没有全局 fetch 时 `createFetcher()` 报错，浏览器里不报；没有全局 fetch 时 `createFetcher<MyRes>({})` 也报错，给了 fetch 就不报。
-  - `Init`：用标准 fetch 时 `init` 能写 `credentials`、不能写 `timeout`；自定义 fetch 的 `init` 跟着它声明的类型；行内 fetch 不标类型时，`init` 至少有 method、headers、body。
+  - `Init`：用标准 fetch 时 `init` 能写 `credentials`、不能写 `timeout`；自定义 fetch 的 `init` 跟着它声明的额外字段，没声明额外字段时在没有全局 fetch 的环境里任何键都不能传（有全局 fetch 时受 §4.2 最后一条编译器限制影响，会退回全局 Init）；行内 fetch 不标类型时，`init` 至少有 method、headers、body。
   - `request` 的两个签名：§7.1、§7.2 里的每一种写法；只写 `<User>` 时 transform 返回别的类型会报错；`json` 和 `body` 互斥；async transform 报错。
   - 结果类型不从变量注解反推：§7 那种写法报错，项目照 §7.3 包的 get 也一样。
   - `res`：默认 fetch 时是 Response，自定义 fetch 时是它的响应类型；只收一个参数的守卫照样能用；包装函数写 `ResOf<typeof api>` 能拿到具体类型。
@@ -992,10 +997,14 @@ export type RequireFor<Res> = [Res] extends [never]
 type QueryValue = string | number | boolean | null | undefined;
 type CleanInit<Init> = NonNullable<Init>;
 /** Init 里某个字段的类型；fetch 没声明这个字段就是 never（不能传）。 */
-export type InitField<Init, K extends PropertyKey> = K extends keyof CleanInit<Init>
+type InitField<Init, K extends PropertyKey> = K extends keyof CleanInit<Init>
   ? NonNullable<CleanInit<Init>[K]>
   : never;
-export type InitExtras<Init> = Omit<CleanInit<Init>, 'method' | 'headers' | 'body' | 'signal'>;
+type InitExtras<Init> = Omit<CleanInit<Init>, 'method' | 'headers' | 'body' | 'signal'>;
+/** 没有任何额外字段时用 never 索引禁掉所有键：TS 对 `{}` 不做 excess property check。 */
+type ExactInit<Init> = keyof InitExtras<Init> extends never
+  ? { [key: string]: never }
+  : InitExtras<Init>;
 
 /** request 和 raw 共用：怎么发这个请求。 */
 export type SendOptions<Init> = {
@@ -1005,8 +1014,8 @@ export type SendOptions<Init> = {
   query?: Record<string, QueryValue | readonly QueryValue[]>;
   headers?: HeaderValues;
   signal?: InitField<Init, 'signal'>;
-  /** fetch 自己的其余参数，类型从 fetch 推断。 */
-  init?: InitExtras<Init>;
+  /** fetch 自己的其余参数，类型从 fetch 推断；没声明的键不能传。 */
+  init?: ExactInit<Init>;
 } & ({ json?: unknown; body?: never } | { body?: InitField<Init, 'body'>; json?: never });
 
 /**
