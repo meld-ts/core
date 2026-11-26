@@ -49,4 +49,18 @@ describe('FetchError', () => {
       expect(code).toBe(42);
     }
   });
+
+  test('accepts a foreign instance that carries the shared brand', () => {
+    const foreign = {};
+    Object.defineProperty(
+      foreign,
+      Symbol.for('@meld-ts/core/fetch:FetchError'),
+      { value: true },
+    );
+    expect(foreign).toBeInstanceOf(FetchError);
+  });
+
+  test('rejects an object without the shared brand', () => {
+    expect({}).not.toBeInstanceOf(FetchError);
+  });
 });
