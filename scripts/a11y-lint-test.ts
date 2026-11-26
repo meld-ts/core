@@ -22,23 +22,23 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { probe } from '../src/a11y/probe';
 import type { ProbeRunner } from '../src/a11y/probe';
+import { probe } from '../src/a11y/probe';
 import {
   buildConsistencyFixtures,
   buildReverseFixtures,
   mergeProfiles,
 } from '../src/a11y/probe/consistency';
-import { detectLints } from '../src/a11y/probe/detect';
 import type { DetectedLint } from '../src/a11y/probe/detect';
+import { detectLints } from '../src/a11y/probe/detect';
 import { nodeExec } from '../src/a11y/probe/exec';
 import type { Fixture } from '../src/a11y/probe/fixtures';
 import { fixtureSamples } from '../src/a11y/probe/fixtures';
 import { PROFILES } from '../src/a11y/probe/profiles.generated';
 import { runBiome } from '../src/a11y/probe/runners/biome';
 import { runBun } from '../src/a11y/probe/runners/bun';
-import { runEslint } from '../src/a11y/probe/runners/eslint';
 import type { LintReport } from '../src/a11y/probe/runners/eslint';
+import { runEslint } from '../src/a11y/probe/runners/eslint';
 import { runOxlint } from '../src/a11y/probe/runners/oxlint';
 import {
   ARIA_KEYS,

@@ -1,12 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-
 import type { DetectedLint } from './detect';
 import type { Fixture } from './fixtures';
-import { assertInvariants, probe, selfCheck } from './index';
 import type { ProbeFs, ProbeRunner } from './index';
+import { assertInvariants, probe, selfCheck } from './index';
 import type { LintReport } from './runners/eslint';
-import type { ProfileData } from './serialize';
-import type { RoleRuleData } from './serialize';
+import type { ProfileData, RoleRuleData } from './serialize';
 
 interface RoleModel {
   readonly required: readonly string[];

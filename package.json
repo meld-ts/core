@@ -122,10 +122,10 @@
   "license": "MIT",
   "scripts": {
     "prepare": "lefthook install",
-    "fmt": "biome format --write ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
+    "fmt": "biome check --write --linter-enabled=false ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
     "lint": "biome lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts ./bunup.browser.ts ./bunup.bin.ts",
     "ts-check": "tsc --noEmit",
-    "test": "bun test src/ --coverage",
+    "test": "bun test src/ lint/ --coverage",
     "a11y:sync": "bun scripts/a11y-sync.ts",
     "test:a11y-lint": "bun scripts/a11y-lint-test.ts",
     "test:a11y-build": "bun scripts/a11y-build-test.ts",
@@ -133,7 +133,8 @@
     "build:browser": "bunup --config bunup.browser.ts",
     "build:dist": "bunup",
     "build:bin": "bunup --config bunup.bin.ts",
-    "build": "bun run build:browser && bun run build:dist && bun run build:bin",
+    "clean": "rm -rf dist browser",
+    "build": "bun run clean && bun run build:browser && bun run build:dist && bun run build:bin",
     "doc": "bun typedoc --options typedoc.json --cleanOutputDir",
     "doc:watch": "bun typedoc  --options typedoc.json --watch",
     "biome-migrate": "bunx biome migrate --write"

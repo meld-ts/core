@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { createA11y } from './createA11y';
 
 const react = createA11y({ lint: 'biome' });

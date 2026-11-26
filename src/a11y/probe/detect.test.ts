@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { detectLints } from './detect';
 
 const fakeJson =

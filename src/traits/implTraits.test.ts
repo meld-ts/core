@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test';
-
 import { implTraits } from './implTraits';
 
 // ── 实验基础类 ──────────────────────────────────────────────────────────────

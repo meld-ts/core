@@ -1,5 +1,4 @@
 import { describe, test } from 'bun:test';
-
 import type {
   A11yNameRule,
   A11yRole,
@@ -7,13 +6,11 @@ import type {
   AriaValue,
 } from './aria.generated';
 import { createA11y } from './createA11y';
-import type {
-  A11yBuiltinLints,
-  BiomeA11yProfile,
-  BunA11yProfile,
-  EslintA11yProfile,
-  OxlintA11yProfile,
-} from './lints';
+import type { A11yBuiltinLints } from './lints';
+import type { BiomeA11yProfile } from './lints/_biome';
+import type { BunA11yProfile } from './lints/_bun';
+import type { EslintA11yProfile } from './lints/_eslint';
+import type { OxlintA11yProfile } from './lints/_oxlint';
 import type {
   A11yLintName,
   A11yOf,

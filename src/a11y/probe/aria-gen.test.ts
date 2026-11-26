@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-
+import type { AriaQuerySource } from './aria-gen';
 import {
   ariaKeys,
   generateAriaTypes,
@@ -7,7 +7,6 @@ import {
   nameRules,
   samplesOf,
 } from './aria-gen';
-import type { AriaQuerySource } from './aria-gen';
 
 const src: AriaQuerySource = {
   aria: [

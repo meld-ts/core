@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { TimeoutError } from './errors';
-import {
-  RpcAbortError,
-  StatefulRpc,
-  type StatefulRpcTask,
-} from './StatefulRpc';
+import { RpcAbortError, TimeoutError } from './errors';
+import { StatefulRpc, type StatefulRpcTask } from './StatefulRpc';
 
 // ============================================================================
 // Basic pending / settle
@@ -113,7 +109,11 @@ describe('StatefulRpc - multiple tasks per key', () => {
   it('each task gets a unique taskId', async () => {
     const taskIds: string[] = [];
     const rpc = new StatefulRpc<number, string>({
-      events: { pending: ({ task }) => void taskIds.push(task.taskId) },
+      events: {
+        pending: ({ task }) => {
+          taskIds.push(task.taskId);
+        },
+      },
     });
     const p1 = rpc.pending('k', 'a');
     const p2 = rpc.pending('k', 'b');
@@ -377,7 +377,11 @@ describe('StatefulRpc - events', () => {
   it('pending event fires when a task is added', async () => {
     const keys: string[] = [];
     const rpc = new StatefulRpc<number, string>({
-      events: { pending: ({ task }) => void keys.push(task.key) },
+      events: {
+        pending: ({ task }) => {
+          keys.push(task.key);
+        },
+      },
     });
     const p = rpc.pending('r', 'd');
     rpc.resolve('r', 1);
@@ -389,8 +393,9 @@ describe('StatefulRpc - events', () => {
     const calls: { key: string; result: number }[] = [];
     const rpc = new StatefulRpc<number, string>({
       events: {
-        resolve: ({ task, result }) =>
-          void calls.push({ key: task.key, result }),
+        resolve: ({ task, result }) => {
+          calls.push({ key: task.key, result });
+        },
       },
     });
     const p = rpc.pending('r', 'd');
@@ -402,7 +407,11 @@ describe('StatefulRpc - events', () => {
   it('reject event fires for explicit reject', async () => {
     const errors: unknown[] = [];
     const rpc = new StatefulRpc<number, string>({
-      events: { reject: ({ result }) => void errors.push(result) },
+      events: {
+        reject: ({ result }) => {
+          errors.push(result);
+        },
+      },
     });
     const err = new Error('fail');
     const p = rpc.pending('r', 'd');
@@ -414,7 +423,11 @@ describe('StatefulRpc - events', () => {
   it('reject event fires for abort', async () => {
     const errors: unknown[] = [];
     const rpc = new StatefulRpc<number, string>({
-      events: { reject: ({ result }) => void errors.push(result) },
+      events: {
+        reject: ({ result }) => {
+          errors.push(result);
+        },
+      },
     });
     const p = rpc.pending('r', 'd');
     rpc.abort('r', 'gone');
@@ -426,7 +439,11 @@ describe('StatefulRpc - events', () => {
     const errors: unknown[] = [];
     const rpc = new StatefulRpc<number, string>({
       timeout: 20,
-      events: { reject: ({ result }) => void errors.push(result) },
+      events: {
+        reject: ({ result }) => {
+          errors.push(result);
+        },
+      },
     });
     const p = rpc.pending('r', 'd');
     await p.catch(() => {});
@@ -436,7 +453,11 @@ describe('StatefulRpc - events', () => {
   it('reject event fires for each task on clear', async () => {
     const rejectedKeys: string[] = [];
     const rpc = new StatefulRpc<number, string>({
-      events: { reject: ({ task }) => void rejectedKeys.push(task.key) },
+      events: {
+        reject: ({ task }) => {
+          rejectedKeys.push(task.key);
+        },
+      },
     });
     const p1 = rpc.pending('a', 'x');
     const p2 = rpc.pending('b', 'y');
@@ -448,7 +469,11 @@ describe('StatefulRpc - events', () => {
   it('settle event fires for both resolve and reject', async () => {
     const types: string[] = [];
     const rpc = new StatefulRpc<number, string>({
-      events: { settle: ({ type }) => void types.push(type) },
+      events: {
+        settle: ({ type }) => {
+          types.push(type);
+        },
+      },
     });
     const p1 = rpc.pending('a', 'x');
     const p2 = rpc.pending('b', 'y');
@@ -462,7 +487,11 @@ describe('StatefulRpc - events', () => {
   it('settle event fires once per task when multiple tasks share a key', async () => {
     const settled: string[] = [];
     const rpc = new StatefulRpc<number, string>({
-      events: { settle: ({ task }) => void settled.push(task.taskId) },
+      events: {
+        settle: ({ task }) => {
+          settled.push(task.taskId);
+        },
+      },
     });
     const p1 = rpc.pending('k', 'a');
     const p2 = rpc.pending('k', 'b');

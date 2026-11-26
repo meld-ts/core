@@ -7,14 +7,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-
-import { probe } from '../a11y/probe';
 import type { ProbeRunner } from '../a11y/probe';
-import { detectLints } from '../a11y/probe/detect';
+import { probe } from '../a11y/probe';
 import type { DetectedLint } from '../a11y/probe/detect';
-import { nodeExec } from '../a11y/probe/exec';
-import type { ExecFn } from '../a11y/probe/exec';
+import { detectLints } from '../a11y/probe/detect';
 import { serializeOverride } from '../a11y/probe/emit-override';
+import type { ExecFn } from '../a11y/probe/exec';
+import { nodeExec } from '../a11y/probe/exec';
 import { fixtureSamples } from '../a11y/probe/fixtures';
 import { runBiome } from '../a11y/probe/runners/biome';
 import { runBun } from '../a11y/probe/runners/bun';
@@ -25,8 +24,8 @@ import {
   NAME_RULES,
   SAMPLES,
 } from '../a11y/probe/samples.generated';
-import { checkTsconfigIncludes } from '../a11y/probe/tsconfig-check';
 import type { TsconfigCheckResult } from '../a11y/probe/tsconfig-check';
+import { checkTsconfigIncludes } from '../a11y/probe/tsconfig-check';
 
 export interface ProbeArgs {
   readonly lint?: readonly DetectedLint['name'][];

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { generateProfiles, mergeProfilesSnapshot } from './profiles-gen';
 import type { ProfileData } from './serialize';
 

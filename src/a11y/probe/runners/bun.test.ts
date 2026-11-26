@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import type { ExecFn } from '../exec';
 import { parseBun, runBun } from './bun';
 import type { RunnerOptions } from './eslint';

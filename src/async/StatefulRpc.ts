@@ -7,8 +7,6 @@ import { isNumber, notEmptyString } from '../guards';
 import { type TimerHandle, createTimer } from '../timer';
 import { RpcAbortError, TimeoutError } from './errors';
 
-export { RpcAbortError };
-
 /** 事件映射：pending / resolve / reject / settle */
 export type StatefulRpcEvents<Result, Params> = {
   pending: { task: StatefulRpcTask<Params> };

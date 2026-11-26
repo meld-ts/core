@@ -1,5 +1,5 @@
-import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'bun:test';
+import { fileURLToPath } from 'node:url';
 
 // Windows 下 URL.pathname 是 /C:/... 形态，不能当路径用
 const root = fileURLToPath(new URL('../..', import.meta.url));

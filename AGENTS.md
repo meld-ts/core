@@ -26,6 +26,7 @@ src/
     probe/          # 维护者专用探针（a11y:sync 消费），不进 a11y 入口与 browser 产物
   bin/              # meld-ts CLI（a11y probe 路由与参数解析，独立打包到 dist/bin）
 test/               # 构建/类型 fixture 与集成测试（test/a11y/*）
+lint/               # 自定义 biome 插件（no-cross-file-reexport）与它的 fixture 回归测试（lint/fixtures/*）
 scripts/            # 维护者脚本：a11y-sync、lab、lint/build 层测试
 skills/             # 接入说明（skills/meld-ts-core/SKILL.md）
 docs/
@@ -37,7 +38,7 @@ docs/
 ## 常用命令
 
 ```bash
-bun run fmt            # Biome 格式化（src + test + scripts + bunup.*.ts）
+bun run fmt            # Biome 格式化 + import 排序（src + test + scripts + bunup.*.ts；不跑 lint 自动修复）
 bun run lint           # Biome lint，warning 视为错误（src + test + scripts + bunup.*.ts）
 bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率
@@ -48,7 +49,8 @@ bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部
 bun run build:browser  # bunup，产物到 browser/（esm + iife）
 bun run build:dist     # bunup，产物到 dist/（node esm + cjs）
 bun run build:bin      # bunup，meld-ts CLI 到 dist/bin/meld-ts.js（带 bun shebang）
-bun run build          # build:browser && build:dist && build:bin
+bun run clean          # 删除 dist/ 与 browser/（build 会先跑一遍）
+bun run build          # clean && build:browser && build:dist && build:bin
 bun run doc            # 生成 TypeDoc API 文档
 bun run doc:watch      # TypeDoc 文档监听模式
 ```
@@ -62,6 +64,109 @@ a11y 发版前检查：`test:a11y-build` 由 `version-bump.yml` 发版必跑；`
 - **显式 any**：使用 `// biome-ignore lint/suspicious/noExplicitAny: <reason>` 注释说明原因
 - **注释**：只写 WHY，不写 WHAT；JSDoc 格式，包含 @example
 - **类型**：strict 模式，verbatimModuleSyntax，不允许隐式 any
+
+### 模块入口与导出
+
+**先分清两种 `export`。** 一个符号要给同目录别的文件用，也得写 `export`。所以「写了 export」不等于「对使用方公开」。本仓库用文件名区分：
+
+- `_` 开头的文件（`_internal.ts`、`_parse.ts`）和目录（`src/_internal/`）：内部符号，只给本包自己用。
+- 其他文件：里面每个 `export` 都是公开面，入口会原样转发。
+
+**写或改一个模块，按这个顺序：**
+
+1. **先定公开面。** 列出使用方要直接写出名字的符号。默认不公开，说得出使用方为什么要用它，才公开。只在别的公开类型里出现、能用索引类型取到的（比如 `A11yBuiltinLints['biome']`），不公开。
+2. **再按公开面放文件。**
+   - 公开符号放普通文件。
+   - 只给本模块其他文件用的 helper、常量、中间类型，放同目录的 `_` 文件。
+   - 几个模块都要用的内部工具，放 `src/_internal/`。
+   - 普通文件里混进了内部符号，就把内部的挪进 `_` 文件。不要在入口里挑着转发。
+3. **最后写 `index.ts`：只转发，每个普通文件一行。**
+
+```ts
+// src/async/index.ts
+export * from './errors';
+export * from './retry';
+// 有纯类型文件时再加一行：export type * from './types';
+// _ 文件不转发
+```
+
+- 不写 `export { a, b } from './x'`。想挑着转发，说明 `x` 里混了内部符号，回到第 2 步拆文件。
+- 两个文件导出了同名符号，`export *` 会报 TS2308。这时改名，不要改成逐个列举。
+- index.ts 里不写实现，也不声明类型。组合出来的公开类型也放进普通文件，它用到的分部文件以 `_` 开头：
+
+```ts
+// src/a11y/lints/builtin.ts：普通文件，整份公开
+import type { BiomeA11yProfile } from './_biome';
+
+export interface A11yBuiltinLints {
+  biome: BiomeA11yProfile;
+}
+
+// src/a11y/lints/index.ts：只转发，_ 文件不转发
+export * from './builtin';
+```
+
+- 单文件模块（`src/timer.ts` 这类）本身就是入口，整份都是公开面。有内部符号，就挪到 `src/_internal/`。
+
+#### 只有 index.ts 能转发
+
+除了 index.ts，任何文件都不能导出别的文件里定义的符号，类型和值都一样。一个符号只从定义它的文件导出，再加上 index.ts 的转发，没有第三条路。
+
+下面这些写法，出现在 index.ts 以外的文件里，一律禁止：
+
+```ts
+import { RpcAbortError } from './errors';
+export { RpcAbortError };                     // import 进来再导出
+export { TimeoutError } from './errors';      // 直接转发
+export type { RetryOptions } from './retry';  // 类型也一样
+export { retry as retryFn } from './retry';   // 改个名转发
+export * from './pending';                    // 星号转发
+export * as errors from './errors';           // 命名空间转发
+export const TE = TimeoutError;               // 换个名字再导出一遍
+export type RO = RetryOptions;
+```
+
+- 用到别的文件的符号，import 进来自己用。调用方也要用它，就让调用方自己去 import：同模块从源文件 import，跨模块从对方入口 import。
+- 在别的类型基础上定义新类型，是允许的，比如 `export type UseAgentChatOptions = Omit<SessionOptions, 'runtime'> & { blankEpoch?: number }`。判断方法：等号右边只是别处的一个名字、什么都没改，就算转发，禁止。
+
+**搬文件、改名：改所有引用，不留旧路径。**
+
+- 文件换了路径，就把所有 import 改到新路径，删掉旧文件。不要在旧位置留一个转发新文件的空壳。
+- 符号改名同理：改掉所有用到它的地方，不留 `export const oldName = newName`。
+- 改完用 `rg` 搜旧路径和旧名字，测试、README、`skills/` 下的 SKILL.md 里的路径都要改。再跑 `bun run ts-check` 和 `bun run lint`。
+- 唯一要停下来问的情况：搬的是公开入口（package.json `exports` 里的子路径），或者改的是公开符号的名字。这是破坏性改动，先问，不要自己留兼容转发。
+
+**import 规则（防环形引用）：**
+
+- 同一模块内：import 具体文件（`./retry`、`./_internal`），不 import `./index` 或 `.`。
+- 跨模块：只 import 对方的入口（`../guards`）或 `src/_internal/`，不 import 对方的具体文件和 `_` 文件。
+- `_` 文件在模块里的最底层：普通文件可以 import 它，它不 import 本模块的普通文件。只要类型时可以，写 `import type`。
+- 模块之间单向依赖，只能 import 更低层的模块：
+  - 最底层：`types`、`_internal`
+  - 第二层：`guards`、`base`
+  - 第三层：`events`、`timer`、`path`、`singleton`、`traits`、`a11y`（自岛——不 import 任何其他模块）
+  - 最上层：`async`、`browser`（聚合全量公开面）
+  - `bin` 不参与分层：维护者 CLI 入口，不进 `exports`，深导入 probe 内部文件（见「已知例外」）
+- 快要成环时，把两边都要的部分挪到更低一层，通常是 `types` 或 `src/_internal/`。不要用动态 import 或调换 import 顺序来绕。
+- `bun run lint` 里的 `suspicious/noImportCycles` 会报环。报了就按上一条改。
+
+**类型 import 与编译产物（实测）：**
+
+「只为类型的 import 必须写 `import type`」不作为本仓库规则。依据是 2026-11-25 的实测（tsc 5.9.3 + bun 1.4.x）：
+
+- `import { type X } from './m'`（整条 import 只有类型）：tsc 开 `verbatimModuleSyntax` 时产物保留 `import {} from './m';`，不开该选项时完全擦除。
+- 本仓库的 dist 由 bunup/bun 打包，空 import 完全消失——实测 `bun build` 对该写法 0 字节残留；混合写法 `import { type X, value }` 的产物与拆成两行的写法逐字节相同。
+- 本仓库 tsc 只跑 `--noEmit`，从不产出 JS——这个形态在本仓库任何产物里都不存在。
+- 空 import 即使成环也无运行时危害：环上没有代码执行，不碰任何绑定。注意 `noImportCycles` 在源码层仍会把 `import { type X }` 这类整条类型 import 算进环并报错；`useImportType` 会先要求把它改成 `import type`，改完环即消失。别为此拆依赖层。
+- 结论：不为此设规则。纯类型 import 的统一写法由 biome `useImportType`（recommended，已启用）处理；混合 import 不设拆行要求。
+
+**已知例外（不要在无关改动里顺手改，调整单独提案）：**
+
+- `src/events/index.ts` 里直接写了实现。新模块不要照着学。
+- `src/types/index.ts`：types/ 目录只有这一个文件，实质是单文件模块；改成 `src/types.ts` 会动 dist 布局与 `package.json` 的 types 路径，不值得。
+- `src/a11y/probe/`：维护者工具，不进 `exports` 与 browser 产物；内部文件（detect、serialize…）不加 `_` 前缀，`scripts/` 与 `src/bin/` 深导入它们。
+- `src/browser/iife.ts`：打包入口，`import * from './index'` 是它的职责；自列模块清单会和 index.ts 重复一份易漏的列表。
+- `*.test.ts` import `./index`：测试测的就是公开面，且测试不进 import 图、不会成环。
 
 ## TypeScript 版本策略
 

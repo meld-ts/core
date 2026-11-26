@@ -28,11 +28,11 @@ import {
 import type { DetectedLint } from '../src/a11y/probe/detect';
 import { detectLints } from '../src/a11y/probe/detect';
 import { nodeExec } from '../src/a11y/probe/exec';
+import { PROFILES } from '../src/a11y/probe/profiles.generated';
 import {
   generateProfiles,
   mergeProfilesSnapshot,
 } from '../src/a11y/probe/profiles-gen';
-import { PROFILES } from '../src/a11y/probe/profiles.generated';
 import { runBiome } from '../src/a11y/probe/runners/biome';
 import { runBun } from '../src/a11y/probe/runners/bun';
 import { runEslint } from '../src/a11y/probe/runners/eslint';
@@ -192,7 +192,7 @@ try {
       throw new Error(`probe returned no profile for ${lint.name}`);
     }
     generated.push({
-      rel: `src/a11y/lints/${lint.name}.ts`,
+      rel: `src/a11y/lints/_${lint.name}.ts`,
       content: serializeProfile(profile),
     });
   }

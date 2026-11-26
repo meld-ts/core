@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { TimeoutError } from './errors';
 import {
   RetryExhaustedError,

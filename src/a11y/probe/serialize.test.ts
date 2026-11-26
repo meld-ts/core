@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import { serializeProfile, serializeProfileLiteral } from './serialize';
 
 const profile = {

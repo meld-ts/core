@@ -3,10 +3,9 @@ import * as fs from 'node:fs';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
 import type { ProbeRunner } from '../a11y/probe';
-import { main, nodeDeps, parseProbeArgs, runProbe } from './meld-ts';
 import type { ProbeDeps } from './meld-ts';
+import { main, nodeDeps, parseProbeArgs, runProbe } from './meld-ts';
 
 describe('parseProbeArgs', () => {
   test('defaults', () => {

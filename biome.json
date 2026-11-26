@@ -34,13 +34,17 @@
     "lineWidth": 80,
     "attributePosition": "auto"
   },
+  "plugins": ["./lint/no-cross-file-reexport.grit"],
   "linter": {
     "enabled": true,
     "rules": {
       "preset": "recommended",
       "suspicious": {
-        "noThenProperty": "off"
-      }
+        "noThenProperty": "off",
+        "noImportCycles": "error"
+      },
+      "complexity": { "noVoid": "error" },
+      "style": { "noExportedImports": "error" }
     }
   },
   "javascript": {

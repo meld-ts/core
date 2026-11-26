@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-
 import type { ExecFn } from '../exec';
 import type { Fixture } from '../fixtures';
 import { parseBiome, runBiome } from './biome';
