@@ -2,6 +2,13 @@
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** application/json or application/*+json; parameters such as charset are ignored. */
+export const isJsonContentType = (value: string | null): boolean => {
+  if (value === null) return false;
+  const type = (value.split(';', 1)[0] ?? '').trim().toLowerCase();
+  return type === 'application/json' || type.endsWith('+json');
+};
+
 export const MSG_REQUEST_FAILED = 'Request failed.';
 export const MSG_INVALID_DATA = 'Invalid response data.';
 export const MSG_INVALID_RESPONSE = 'Invalid response.';
