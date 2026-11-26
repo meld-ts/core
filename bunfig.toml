@@ -1,4 +1,6 @@
 [test]
 coverageSkipTestFiles = true
+# test/public-surface.ts 是读取构建产物的测试工具，不是被测代码；算进覆盖率会拉低 100%
+coveragePathIgnorePatterns = ["test/public-surface.ts"]
 # 设计稿 §7 第 5 层：保持仓库的 100% 覆盖率——低于 100% 时 bun test 直接失败
 coverageThreshold = 1

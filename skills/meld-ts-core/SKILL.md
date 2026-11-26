@@ -411,15 +411,19 @@ const maybe = await api.request<User>({ path: '/users/me', validate: allowNil })
 const res = await api.raw({ path: '/export' });
 ```
 
-| Export | Purpose |
+| Export / Fetcher member | Purpose |
 |---|---|
 | `createFetcher(opts)` | Builds a fetcher; `fetch` / `decode` are injectable |
-| `request({ path, method, query, headers, json, body, signal, init, validate, transform })` | Classified result or `FetchError` |
-| `raw({ ... })` | Original `Res` without decode / classification |
-| `isFetchError(err)` | Per-instance narrowing, `failure` typed |
+| `api.request({ path, method, query, headers, json, body, signal, init, validate, transform })` | Classified result or `FetchError` |
+| `api.raw({ ... })` | Original `Res` without decode / classification |
+| `api.isFetchError(err)` | Per-instance narrowing, `failure` typed |
 | `allowNil` | `validate` marker: result becomes `T \| null` |
 | `readBody` / `successEnvelope` | Helpers for standard responses |
 | `FetchError` | `kind`: `network` / `status` / `failure` / `invalid` |
+
+`api.*` rows are methods on the object `createFetcher()` returns, not module exports — only `createFetcher`, `allowNil`, `readBody`, `successEnvelope` and `FetchError` are importable from `@meld-ts/core/fetch`.
+
+---
 
 ## `@meld-ts/core/a11y`
 
