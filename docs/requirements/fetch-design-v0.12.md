@@ -828,7 +828,7 @@ await post<Order, number>('/orders', input, { transform: (o) => o.total });   //
   - headers 函数，含 async。
   - `implTraits` 混进 class 以后类型照旧。
 - 环境矩阵放进仓库，成为常驻 fixture：`test/fetch-env/{dom,node,bun,dom-node,dom-bun,no-dom}/`；每个目录一份 `tsconfig.json` + `index.ts`，由 `scripts/fetch-env-check.ts` 逐个跑 `tsc -p`（`--ts` 缺值 / 未知参数必须非零退出，不能回退本地 tsc）。CI 的 `ts-matrix` 三档各自跑一遍。每份 fixture 同时开 `declaration` + `isolatedDeclarations`（`noEmit` 不落盘）。`no-dom` 用 `lib: ["ES2022"]`、`types: []`、`skipLibCheck: false`，断言 `createFetcher()`、`createFetcher<MyRes>({})`、`init.credentials` 报错、给了 fetch 不报；其余四份非 DOM fixture 用 `init: { cache }` 正向、`init: { timeout }` 反向、`raw: Promise<Response>` 证明 `DefaultInit` / `DefaultRes` 真的来自环境声明。
-- 公开面快照：`src/fetch/public-surface.test.ts` 读 `dist/fetch/index.d.ts`，钉住名字集合（做法同 `src/a11y/public-surface.test.ts`）。
+- 公开面快照：`src/fetch/public-surface.test.ts` 通过 `test/public-surface.ts` 共享 helper 读 `dist/fetch/index.d.ts` 与 `index.d.cts`，钉住两份名字集合。两份公开面测试并发跑时用 `.cache/public-surface.lock` 保证只构建一次；helper 的 export 形态解析 fail-loud（出现 `export declare`/`export type` 等新形态直接报错），不计入覆盖率。
 - `bun run lint`、`bun run ts-check`、`bun run test`、`bun run build`、`bun run test:fetch-env` 全过。
 
 ## 附录 A：类型原型（已实测）
