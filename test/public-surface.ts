@@ -46,22 +46,23 @@ const acquireLock = (): void => {
   }
 };
 
-const distIsFresh = (): boolean =>
-  existsSync(join(distRoot, 'index.d.ts')) &&
-  existsSync(join(distRoot, 'index.d.cts'));
+const distIsFresh = (entry: string): boolean =>
+  existsSync(join(distRoot, entry, 'index.d.ts')) &&
+  existsSync(join(distRoot, entry, 'index.d.cts'));
 
 /**
- * 缺 dist 时构建一次。`build:dist` 是全量 clean + 全量产出，所以主入口的
- * 产物新鲜就代表所有入口都在。
+ * 缺指定入口的 dist 时构建一次。`build:dist` 是全量 clean + 全量产出，但判断
+ * 只看被请求的那个入口：别的入口还在、这个入口缺了（或上次构建写了一半）就
+ * 会重建，避免把 stale 产物当成新鲜。
  *
- * 先抢锁再判断，不先在锁外走快路径：构建中途 dist/index.d.ts 可能已经
- * 落盘而某个入口还没写，锁外的判断会读到半成品。
+ * 先抢锁再判断，不先在锁外走快路径：构建中途某个入口可能已经落盘而另一个还
+ * 没写，锁外的判断会读到半成品。
  */
-export const ensureDist = (): void => {
+export const ensureDist = (entry: string): void => {
   acquireLock();
   try {
     // 抢到锁后再看一眼：等锁期间别的进程可能已经构建完。
-    if (distIsFresh()) return;
+    if (distIsFresh(entry)) return;
     const proc = Bun.spawnSync([process.execPath, 'run', 'build:dist'], {
       cwd: root,
     });
@@ -70,8 +71,8 @@ export const ensureDist = (): void => {
         `build:dist exited ${proc.exitCode}:\n${proc.stdout.toString()}${proc.stderr.toString()}`,
       );
     }
-    if (!distIsFresh()) {
-      throw new Error('build:dist did not produce dist/index.d.ts');
+    if (!distIsFresh(entry)) {
+      throw new Error(`build:dist did not produce dist/${entry}/index.d.ts`);
     }
   } finally {
     rmSync(lockDir, { recursive: true, force: true });
@@ -119,10 +120,19 @@ const mustExist = (file: string): string => {
 export const getPublicSurface = (
   entry: string,
 ): { dts: string[]; dcts: string[] } => {
-  ensureDist();
+  ensureDist(entry);
   const entryDir = join(distRoot, entry);
   return {
     dts: readNames(mustExist(join(entryDir, 'index.d.ts'))),
     dcts: readNames(mustExist(join(entryDir, 'index.d.cts'))),
   };
+};
+
+/**
+ * `dist/<entry>/index.d.ts` 的原文：用来断言产物「没有提到什么」（比如
+ * 不出现 DOM 类型名），这类负向断言读不了 export 名列表。
+ */
+export const getSurfaceSource = (entry: string): string => {
+  ensureDist(entry);
+  return readFileSync(mustExist(join(distRoot, entry, 'index.d.ts')), 'utf8');
 };

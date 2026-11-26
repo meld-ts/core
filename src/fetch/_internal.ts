@@ -1,4 +1,9 @@
-/** Runtime check for a plain object (arrays and null excluded). */
+/**
+ * Runtime check for a plain object (arrays and null excluded).
+ *
+ * Self-island: keep this copy, do not move it to `guards`. The fetch subpath
+ * must not import any other module, so it cannot depend on that entry.
+ */
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -42,9 +47,15 @@ export const appendQuery = (
     }
   }
   if (parts.length === 0) return url;
-  if (!url.includes('?')) return `${url}?${parts.join('&')}`;
-  if (url.endsWith('?') || url.endsWith('&')) return url + parts.join('&');
-  return `${url}&${parts.join('&')}`;
+  // A `?` inside the fragment is not the query; keep the fragment last.
+  const hashIndex = url.indexOf('#');
+  const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+  const joined = parts.join('&');
+  if (!base.includes('?')) return `${base}?${joined}${hash}`;
+  if (base.endsWith('?') || base.endsWith('&'))
+    return `${base}${joined}${hash}`;
+  return `${base}&${joined}${hash}`;
 };
 
 /**

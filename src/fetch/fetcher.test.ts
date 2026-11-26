@@ -137,6 +137,20 @@ describe('url and query', () => {
     await api.raw({ path: '/x?', query: { a: 1 } });
     expect(onlyCall(calls).url).toBe('/x?a=1');
   });
+
+  test('inserts the query before a fragment', async () => {
+    const { calls, fetchImpl } = makeFetch();
+    const api = makeApi(fetchImpl);
+    await api.raw({ path: '/x#frag', query: { a: 1 } });
+    expect(onlyCall(calls).url).toBe('/x?a=1#frag');
+  });
+
+  test('keeps an existing query and the fragment in order', async () => {
+    const { calls, fetchImpl } = makeFetch();
+    const api = makeApi(fetchImpl);
+    await api.raw({ path: '/x?z=1#frag', query: { a: 1 } });
+    expect(onlyCall(calls).url).toBe('/x?z=1&a=1#frag');
+  });
 });
 
 describe('headers', () => {

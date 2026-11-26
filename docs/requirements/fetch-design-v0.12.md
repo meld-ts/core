@@ -78,7 +78,7 @@ src/fetch/
   *.test.ts
 ```
 
-v0.1 的 `parse-response.ts`、`unwrap-request.ts` 不再需要（§7）。`TypeGuard` 不重复导出，用主入口 `@meld-ts/core` 的。
+v0.1 的 `parse-response.ts`、`unwrap-request.ts` 不再需要（§7）。`TypeGuard` 不重复导出，签名内联写。
 
 子路径 `@meld-ts/core/fetch`。同步改：`bunup.config.ts` entry、`typedoc.json` entryPoints、`src/browser/index.ts`、`bun run build:exports`、`AGENTS.md`（目录结构 / 分层 / 子路径 / 常用命令）、`README.md` 模块表、`skills/meld-ts-core/SKILL.md`。
 
@@ -181,13 +181,15 @@ type Decode<Res, Failure> = (
  * 环境里没有全局 fetch 时，显式写了 Res 也要给 fetch。
  */
 type RequireFor<Res> = [Res] extends [never]
-  ? { fetch: unknown; decode: unknown }
+  ? { fetch: {}; decode: {} }
   : [Res] extends [ResponseLike]
     ? [DefaultRes] extends [never]
-      ? { fetch: unknown }
+      ? { fetch: {} }
       : unknown
-    : { fetch: unknown; decode: unknown };
+    : { fetch: {}; decode: {} };
 ```
+
+必填键用 `{}` 而不是 `unknown`：`{}` 拒绝 undefined / null，`unknown` 不会（`unknown & (T | undefined)` 还是 `T | undefined`，显式传 `fetch: undefined` 能编译，运行时才 TypeError）。
 
 - `Res` 不是标准响应的结构（`ResponseLike`，见 §6）：库读不了它，没有默认的 `decode` 可用。node-fetch 这类返回标准响应的实现不算，`decode` 照样可省。
 - 环境里没有全局 fetch：没有默认的 `fetch` 可用。这时 `createFetcher` 的参数是必填的，一个参数都不给也会类型报错（§4.1 的签名）。显式写了 `Res`，比如 `createFetcher<MyRes>({})`，也一样要给 `fetch`；`MyRes` 是标准响应的结构时，`decode` 可以不给。
@@ -315,6 +317,7 @@ URL：
 - path 以 `http://`、`https://` 或 `//` 开头时，不用 baseUrl。
 - 否则把 baseUrl 末尾和 path 开头的 `/` 合成一个；两边都没有 `/` 时插入一个（`/api` + `users` → `/api/users`）。没有 baseUrl 就是 path 本身。
 - path 里已经带了 `?`，query 用 `&` 接在后面；path 以 `?` / `&` 结尾时不再补分隔符。
+- path 带 `#fragment` 时，query 插在 `#` 之前（`/x#frag` + `{a:1}` → `/x?a=1#frag`）。
 
 query：
 
@@ -541,7 +544,7 @@ try {
 
 - 库自己用不上细分的错误类。分类规则在库里（§6），抛出去以后怎么处理是应用的事；错误类多了，库要维护继承关系，用的人要记一堆名字。
 - 应用要的信息都在字段上：kind 分情况，status、failure、body、cause 带细节。按 kind 收窄就能拿到对应字段，不用拿 instanceof 一个个试。
-- invalid 不再细分原因（not-envelope、decode-failed、invalid-data）：区别写在 message 里，decode 抛错时还有 cause。应用很少按这个分支处理。
+- invalid 不再细分原因（not-envelope、decode-failed、invalid-data）：区别体现在 `cause` / `status` / `body` 字段上，message 不作为 API。应用很少按这个分支处理。
 - 也不拆成两种（比如传输错误和响应错误）：kind 已经分开了，多一个类只多一层 instanceof。
 
 跨实例：同一个包副本里的不同 fetcher 实例，`instanceof FetchError` 都认（品牌跨副本也认），kind、status 照样能用，failure 是 unknown。`api.isFetchError` 只认本实例抛的，failure 带着这个实例推断出来的类型（§4.6）。
@@ -808,7 +811,7 @@ await post<Order, number>('/orders', input, { transform: (o) => o.total });   //
 - 每个文件一个测试文件，`fetch` 通过 `FetcherOptions.fetch` 注入假实现。
 - 保持仓库现有的 100% 覆盖率。
 - 行为测试，按 §4.7、§4.8、§6 逐条写：
-  - URL 和 query 的拼法（含 `/api` + `users`、`a[]=1`、已有 `?`）；json 补 content-type；headers 的合并顺序，单次请求写 null 删掉实例级的头；headers 函数返回 content-type 时不被预览盖掉；
+  - URL 和 query 的拼法（含 `/api` + `users`、`a[]=1`、已有 `?`、`#fragment` 前插入）；json 补 content-type；headers 的合并顺序，单次请求写 null 删掉实例级的头；headers 函数返回 content-type 时不被预览盖掉；
   - 默认 fetch 每次请求时才取，测试里后 stub 的全局 fetch 生效；注入的 fetch 不带 this 调用；
   - 取消的三个检查点；reason 是 undefined 时抛 AbortError；
   - §6.2 表里的每一行：抛的是什么、kind 对不对，onError 有没有被调到；`isFetchError` 只认本实例；onError 自己抛错时抛的是它；onError 返回非 Error 时忽略；
@@ -828,7 +831,7 @@ await post<Order, number>('/orders', input, { transform: (o) => o.total });   //
   - headers 函数，含 async。
   - `implTraits` 混进 class 以后类型照旧。
 - 环境矩阵放进仓库，成为常驻 fixture：`test/fetch-env/{dom,node,bun,dom-node,dom-bun,no-dom}/`；每个目录一份 `tsconfig.json` + `index.ts`，由 `scripts/fetch-env-check.ts` 逐个跑 `tsc -p`（`--ts` 缺值 / 未知参数必须非零退出，不能回退本地 tsc）。CI 的 `ts-matrix` 三档各自跑一遍。每份 fixture 同时开 `declaration` + `isolatedDeclarations`（`noEmit` 不落盘）。`no-dom` 用 `lib: ["ES2022"]`、`types: []`、`skipLibCheck: false`，断言 `createFetcher()`、`createFetcher<MyRes>({})`、`init.credentials` 报错、给了 fetch 不报；其余四份非 DOM fixture 用 `init: { cache }` 正向、`init: { timeout }` 反向、`raw: Promise<Response>` 证明 `DefaultInit` / `DefaultRes` 真的来自环境声明。
-- 公开面快照：`src/fetch/public-surface.test.ts` 通过 `test/public-surface.ts` 共享 helper 读 `dist/fetch/index.d.ts` 与 `index.d.cts`，钉住两份名字集合。两份公开面测试并发跑时用 `.cache/public-surface.lock` 保证只构建一次；helper 的 export 形态解析 fail-loud（出现 `export declare`/`export type` 等新形态直接报错），不计入覆盖率。
+- 公开面快照：`src/fetch/public-surface.test.ts` 通过 `test/public-surface.ts` 共享 helper 读 `dist/fetch/index.d.ts` 与 `index.d.cts`，钉住两份名字集合，并断言产物原文不含 DOM 类型名。两份公开面测试并发跑时用 `.cache/public-surface.lock` 保证只构建一次；helper 的 export 形态解析 fail-loud（出现 `export declare`/`export type` 等新形态直接报错），不计入覆盖率。
 - `bun run lint`、`bun run ts-check`、`bun run test`、`bun run build`、`bun run test:fetch-env` 全过。
 
 ## 附录 A：类型原型（已实测）
@@ -839,7 +842,7 @@ await post<Order, number>('/orders', input, { transform: (o) => o.total });   //
 // @meld-ts/core/fetch 设计稿 v0.12 的类型签名：只有声明，没有实现。
 // 平台无关：这个文件不引用任何 DOM 类型（RequestInit、Response、AbortSignal……），
 // 默认值从使用方环境里的全局 fetch 推出来。跑法见 use.ts、no-dom/use.ts 开头。
-// TypeGuard 不在这里导出：用主入口 @meld-ts/core 的。
+// TypeGuard 不在这里导出：需要的地方内联写签名。
 
 type MaybePromise<T> = T | Promise<T>;
 type SyncResult<T> = T extends PromiseLike<unknown> ? never : T;
@@ -985,12 +988,12 @@ export type FetcherOptions<Res, Init, Failure> = {
  * 环境里没有全局 fetch 时，显式写了 Res 也要给 fetch。
  */
 export type RequireFor<Res> = [Res] extends [never]
-  ? { fetch: unknown; decode: unknown }
+  ? { fetch: {}; decode: {} }
   : [Res] extends [ResponseLike]
     ? [DefaultRes] extends [never]
-      ? { fetch: unknown }
+      ? { fetch: {} }
       : unknown
-    : { fetch: unknown; decode: unknown };
+    : { fetch: {}; decode: {} };
 
 // ---- §4.6 实例 ----
 

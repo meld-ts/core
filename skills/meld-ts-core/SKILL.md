@@ -421,7 +421,14 @@ const res = await api.raw({ path: '/export' });
 | `readBody` / `successEnvelope` | Helpers for standard responses |
 | `FetchError` | `kind`: `network` / `status` / `failure` / `invalid` |
 
-`api.*` rows are methods on the object `createFetcher()` returns, not module exports — only `createFetcher`, `allowNil`, `readBody`, `successEnvelope` and `FetchError` are importable from `@meld-ts/core/fetch`.
+`api.*` rows are methods on the object `createFetcher()` returns, not module exports. The runtime exports are exactly five: `createFetcher`, `allowNil`, `readBody`, `successEnvelope`, `FetchError`. Everything else the subpath exports is a type:
+
+| Group | Type exports |
+|---|---|
+| Options / results | `FetcherOptions`, `SendOptions`, `ParseOptions`, `AllowNilOptions`, `AllowNil`, `Decoded`, `Decode`, `DecodeContext`, `BodyRead`, `SuccessEnvelopeFailure` |
+| Transport | `FetchLike`, `FetchInit`, `FetchRequest`, `HeaderValues`, `DefaultRes`, `DefaultInit`, `ResponseLike` |
+| Instance | `Fetcher`, `InitOf`, `ResOf`, `RequireFor` |
+| Errors | `FetchErrorKind`, `FetchErrorOptions`, `FetchErrorOf` |
 
 ---
 

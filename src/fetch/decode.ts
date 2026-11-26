@@ -39,6 +39,22 @@ export type SuccessEnvelopeFailure = {
   message: string | null;
 };
 
+/**
+ * Reads a standard response once, applying the body rules the library relies
+ * on: no body for HEAD / 204 / 205 / 304 or blank text, parsed JSON when the
+ * content type says JSON, raw text otherwise. A parse failure comes back as
+ * text plus `malformedJson` instead of throwing, so a gateway's error page can
+ * still reach the status error's `body`.
+ *
+ * @example
+ * ```ts
+ * const decode = async (res: ResponseLike, ctx: DecodeContext) => {
+ *   const { body, malformedJson } = await readBody(res, ctx);
+ *   if (malformedJson) return { kind: 'unrecognized', status: res.status, body };
+ *   return { kind: 'success', data: body };
+ * };
+ * ```
+ */
 export const readBody: (
   res: ResponseLike,
   ctx: DecodeContext,
@@ -64,6 +80,19 @@ export const readBody: (
   }
 };
 
+/**
+ * Builds a decode for the common `{ success, data, code, message }` envelope;
+ * key names are configurable because every backend renames them. Returning a
+ * decode keeps the failure shape (`SuccessEnvelopeFailure`) inferred into
+ * `onError` and `isFetchError`, so callers never re-check the envelope.
+ *
+ * @example
+ * ```ts
+ * const api = createFetcher({
+ *   decode: successEnvelope({ code: 'errorCode', message: 'errorMessage' }),
+ * });
+ * ```
+ */
 export const successEnvelope: (keys?: {
   success?: string;
   data?: string;

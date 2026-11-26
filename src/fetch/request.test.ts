@@ -145,6 +145,17 @@ describe('decode results', () => {
     expect(err.message).toBe('no');
   });
 
+  test('falls back to the default message when a failure has none', async () => {
+    const api = makeApi<null>({
+      decode: rawDecode({ kind: 'failure', status: 400, failure: null }),
+    });
+    const err = asFetchError(await reject(api.request({ path: '/x' })));
+    expect(err.kind).toBe('failure');
+    expect(err.status).toBe(400);
+    expect(err.failure).toBeNull();
+    expect(err.message).toBe('Request failed.');
+  });
+
   test('turns an unrecognized non-2xx into a status error', async () => {
     const api = makeApi({
       decode: rawDecode({ kind: 'unrecognized', status: 500, body: 'x' }),
@@ -441,5 +452,29 @@ describe('missing decode', () => {
     const err = await reject(api.request({ path: '/x' }));
     expect(err).toBeInstanceOf(TypeError);
     expect(asError(err).message).toContain('decode is required');
+  });
+});
+
+describe('createFetcher defaults', () => {
+  test('builds from the global fetch with no options at all', async () => {
+    const saved = globalThis.fetch;
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      writable: true,
+      value: async () =>
+        new Response('{"id":1}', {
+          headers: { 'content-type': 'application/json' },
+        }),
+    });
+    try {
+      const api = createFetcher();
+      expect(await api.request({ path: '/x' })).toEqual({ id: 1 });
+    } finally {
+      Object.defineProperty(globalThis, 'fetch', {
+        configurable: true,
+        writable: true,
+        value: saved,
+      });
+    }
   });
 });

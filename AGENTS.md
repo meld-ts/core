@@ -26,7 +26,7 @@ src/
     probe/          # 维护者专用探针（a11y:sync 消费），不进 a11y 入口与 browser 产物
   fetch/            # 请求流水线：createFetcher / FetchError / decode 工具
   bin/              # meld-ts CLI（a11y probe 路由与参数解析，独立打包到 dist/bin）
-test/               # 构建/类型 fixture 与集成测试（test/a11y/*、test/fetch-env/*）
+test/               # 构建/类型 fixture 与集成测试（test/a11y/*、test/fetch-env/*、test/public-surface.ts）
 lint/               # 自定义 biome 插件（no-cross-file-reexport）与它的 fixture 回归测试（lint/fixtures/*）
 scripts/            # 维护者脚本：a11y-sync、lab、lint/build 层测试、fetch-env-check.ts
 skills/             # 接入说明（skills/meld-ts-core/SKILL.md）

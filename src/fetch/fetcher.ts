@@ -92,6 +92,30 @@ const makeInvalid = (
 ): FetchError =>
   new FetchError(message, { kind: 'invalid', url, method, ...extra });
 
+/**
+ * Builds a fetcher around an injectable `fetch` and an optional `decode`.
+ * Injection is the extension point: swap `fetch` for axios, a mini-program
+ * client or a test double, and `decode` for the backend's envelope, without
+ * touching how success and failure are classified.
+ *
+ * With a global `fetch` in scope every option is optional, because `Res` and
+ * `Init` default to the environment's own types; without one, `fetch` is
+ * required (see `RequireFor`).
+ *
+ * @example
+ * ```ts
+ * const api = createFetcher({ baseUrl: '/api' });
+ * const user = await api.request({ path: '/users/1', validate: isUser });
+ *
+ * const envelope = createFetcher({
+ *   baseUrl: '/api',
+ *   decode: successEnvelope(),
+ *   onError: (err) => {
+ *     if (err.status === 401) emitter.emit('unauthorized', err);
+ *   },
+ * });
+ * ```
+ */
 export function createFetcher<
   Res = DefaultRes,
   Init = DefaultInit,

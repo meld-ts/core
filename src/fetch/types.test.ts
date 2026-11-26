@@ -3,7 +3,9 @@ import { allowNil } from './allowNil';
 import { FetchError, type FetchErrorOf } from './errors';
 import {
   type AllowNilOptions,
+  type Decode,
   type FetchInit,
+  type FetchLike,
   type FetchRequest,
   type Fetcher,
   type InitOf,
@@ -118,6 +120,22 @@ const customChecks = (): void => {
 
   // @ts-expect-error 非标准响应结构：fetch 和 decode 都必须给
   createFetcher<{ nope: true }>({});
+
+  // RequireFor 的必填键是 `{}` 而不是 `unknown`：显式传 undefined 也拦得住
+  const maybeFetch: FetchLike<{ nope: true }, RequestInit> | undefined =
+    undefined;
+  const maybeDecode: Decode<{ nope: true }, never> | undefined = undefined;
+  createFetcher<{ nope: true }>({
+    // @ts-expect-error fetch 可能为 undefined，不能当成已提供
+    fetch: maybeFetch,
+    decode: async () => ({ kind: 'success', data: 1 }),
+  });
+  createFetcher<{ nope: true }>({
+    fetch: async () => ({}) as { nope: true },
+    // @ts-expect-error decode 可能为 undefined，不能当成已提供
+    decode: maybeDecode,
+  });
+  check(maybeFetch, maybeDecode);
 
   const resArg: Promise<unknown> = custom.request({
     path: '/x',
