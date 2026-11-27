@@ -33,15 +33,31 @@ if (!existsSync(dtsPath)) {
 
 const exportNames = (() => {
   const names: string[] = [];
-  // tsdown 的 dts 是顶层声明形态（export type/interface/declare function…），
-  // 不是打包器常见的单条 export { 名单 }；
-  for (const m of readFileSync(dtsPath, 'utf8').matchAll(
+  const text = readFileSync(dtsPath, 'utf8');
+  // tsdown 的 dts 两种形态都枚举：顶层声明（export type/interface/declare
+  // function…）与单条 export { 名单 }（dist/events/index.d.ts 就是这种），
+  // 只认一种会在形态切换时静默漏计
+  for (const m of text.matchAll(
     /^export (?:declare )?(?:const|function|class|type|interface) (\w+)/gm,
   )) {
     // 捕获组由正则保证存在，这里的判断只为收窄 noUncheckedIndexedAccess
     const name = m[1];
     if (name === undefined) continue;
     names.push(name);
+  }
+  for (const m of text.matchAll(/^export \{([^}]*)\};$/gm)) {
+    const list = m[1];
+    // 同上：捕获组由正则保证存在
+    if (list === undefined) continue;
+    for (const part of list.split(',')) {
+      // export { A as B } 计别名 B；export {} 空名单跳过
+      const name = part
+        .trim()
+        .split(/\s+as\s+/)
+        .pop();
+      if (name === undefined || name === '') continue;
+      names.push(name);
+    }
   }
   return names.sort();
 })();

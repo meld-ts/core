@@ -320,6 +320,14 @@ interface MyClass extends MyTrait {}
 
 `browser/` 目录不在 `exports` 中——它只应被网页 `<script>` 直接引用，不应被打包工具作为模块导入。
 
+### browser 用法的实证契约（不许推翻）
+
+browser 的用法是实测钉死的对外契约，review 或迁移不得以「现代解析模式不兼容」为由改它（2026-11 实测：npm 安装 1.0.2 + TS 5.9.3 三档 resolution）：
+
+- 主用法是 CDN URL 直接引用（README「浏览器使用」）：`<script src>`（iife，全局 `MeldTS`）与 `<script type="module">`（ESM），不经过 node_modules 与打包工具，不受 `exports` 影响。
+- iife 全局类型注入写法（项目 d.ts 里 `var MeldTS: typeof import('@meld-ts/core/browser')`）在 `moduleResolution: node`（legacy）下实测可用；`bundler` / `nodenext` 下 TS2307 是用户 resolution 配置差异的已知局限，不是文档错误。
+- 因此：不改 README 写法、不改 browser 产物结构（`iife.global.js` / `index.d.ts` / `index.js` 三个必须文件）、不往 `exports` 加 `./browser`（含仅类型子路径）。
+
 `bin`（`dist/bin/meld-ts.js`，独立 `tsdown.bin.ts` 打包）同样不在 `exports` 中——它只应作为命令行工具运行（`meld-ts a11y probe`）。
 
 ## 审查记录

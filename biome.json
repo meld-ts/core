@@ -19,7 +19,7 @@
       "scripts/**/*.{ts,js}",
       "src/**/*.{ts,js}",
       "test/**/*.{ts,js}",
-      "bunup.*.ts",
+      "tsdown.*.ts",
       "!docs",
       "!dist",
       "!browser/**/*"

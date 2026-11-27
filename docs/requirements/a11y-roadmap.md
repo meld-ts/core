@@ -29,7 +29,7 @@
 | 2 | 注册表与重载检查（`A11yLintOverrides`、`OverrideKeyCheck`、4 个 tsc fixture） | ✅ |
 | 3 | 输入输出类型、多 lint 合并、选项解析 | ✅ |
 | 4 | `createA11y` 运行时实现 + 单测 | ✅ |
-| 5 | 接线（bunup / browser / exports / README / CLAUDE.md） | ✅ |
+| 5 | 接线（bunup / browser / exports / README / CLAUDE.md，2026-11 迁移 tsdown） | ✅ |
 | 6 | 全量验证（fmt / lint / ts-check / test） | ✅ |
 
 **验收方式**：

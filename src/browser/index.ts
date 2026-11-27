@@ -4,7 +4,7 @@
  * - 输出 iife 和 esm 两种格式
  * - target 为 browser
  *
- * 打包为 `browser/index.js`（ESM）和 `browser/index.global.js`（iife），
+ * 打包为 `browser/index.js`（ESM）和 `browser/iife.global.js`（iife），
  * iife 通过 `<script>` 引入后，全局变量 `MeldTS` 提供所有模块导出。
  */
 /** biome-ignore-all assist/source/organizeImports: 手动维护导出排序 */
