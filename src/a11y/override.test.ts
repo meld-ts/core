@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Windows 下 URL.pathname 是 /C:/... 形态，不能当路径用
 const root = fileURLToPath(new URL('../..', import.meta.url));
-
+// typedoc 要求 TS ≤ 6，typescript 留在 5.9.3；这里用别名装的 TS 7，快好几倍
+const tsc7 = join(root, 'node_modules/typescript7/bin/tsc');
 /**
  * 子进程跑 tsc：fixture 在独立 tsconfig 下编译，
  * 避免坏重载污染主项目的 ts-check。
@@ -11,7 +13,7 @@ const root = fileURLToPath(new URL('../..', import.meta.url));
  */
 const tsc = (fixture: string): { exitCode: number; output: string } => {
   const proc = Bun.spawnSync(
-    [process.execPath, 'x', 'tsc', '-p', `test/a11y/${fixture}`],
+    [process.execPath, tsc7, '-p', `test/a11y/${fixture}`],
     { cwd: root },
   );
   // tsc 5.x 的诊断可能写 stdout 也可能写 stderr，合并后断言

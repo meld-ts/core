@@ -141,9 +141,10 @@ declare global {
 ## 开发
 
 ```bash
-bun run fmt           # Biome 格式化（src + test + scripts + tsdown.*.ts）
+bun run fmt:all       # Biome 格式化全源代码（src + test + scripts + tsdown.*.ts）
+bun run fmt ./文件名   # Biome 格式化特定文件
 bun run lint          # Biome lint，warning 视为错误（src + test + scripts + tsdown.*.ts）
-bun run ts-check      # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
+bun run ts-check      # tsc --noEmit，TypeScript 7（锁定版本）类型检查
 bun run test          # 运行所有测试 + 覆盖率
 bun run a11y:sync     # 维护者：重建 lab，从最新 lint 重新探测生成 a11y 内置表（慢）
 bun run test:a11y-lint  # a11y 一致性 + 反向测试（lab，慢，发版前手工）
@@ -160,9 +161,9 @@ bun run doc           # 生成 TypeDoc API 文档
 - **不需要 TypeScript 也能用**：发布物是 ESM + CJS，运行时不依赖 TypeScript；本包**不声明** `peerDependencies.typescript`，纯 JS 消费者不会被自动安装任何 TypeScript 版本。
 - **类型支持范围**：`>=5.9 <8`。这是实测过的范围（下界 5.9 是验证过的低版本，不是语言特性下限），由 CI 的 `ts-matrix` 对 5.9.3 / 6.0.3 / 7.0.2 三档持续验证。
 - **越界不会在安装阶段被拦**：TypeScript 版本超出范围时，安装照常成功，问题会在编译 `.d.ts` 时暴露。这是有意的取舍。
-- **仓库工具链版本**：固定在 `5.9.3`。`bun run doc` 使用的 typedoc 依赖 TypeScript 的编译器 API，而 TS 7 只提供 AST 层 API（`unstable/ast`），因此文档工具链不能升到 7。
+- **仓库工具链版本**：typedoc 用 5.9.3，类型检查和测试用 7.0.2。`bun run doc` 使用的 typedoc 依赖 TypeScript 的编译器 API，而 TS 7 只提供 AST 层 API（`unstable/ast`），因此文档工具链不能升到 7。
 
-类型支持范围与仓库工具链版本是两件事：前者是给使用者的承诺，后者是构建和文档工具需要的版本。升级策略见 `AGENTS.md` 的「TypeScript 版本策略」。
+类型支持范围与仓库工具链版本是两件事：前者是给使用者的承诺，后者是构建和文档工具需要的版本。升级策略见 `AGENTS.md` 的「TypeScript 版本」。
 
 ## 构建说明
 

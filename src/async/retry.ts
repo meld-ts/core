@@ -13,7 +13,7 @@ export type RetryFnParams = {
   attempt: number;
   /** 触发本次重试的错误；首次执行时（attempt=1）为 `undefined` */
   error: unknown;
-  /** 只读的重试选项，与调用 `retry`/`retryFn` 时传入的 options 一致 */
+  /** 调用 `retry` / `retryFn` 时传入的 options 的冻结副本；之后再改原对象不影响这里 */
   readonly options: RetryOptions;
 };
 
@@ -59,6 +59,7 @@ const formatError = (err: unknown): string => {
 export class RetryExhaustedError extends Error {
   public readonly attempt: number;
   public readonly error: unknown;
+  /** 调用 `retry` / `retryFn` 时传入的 options 的冻结副本；之后再改原对象不影响这里 */
   public readonly options: RetryOptions;
 
   constructor(params: RetryFnParams) {

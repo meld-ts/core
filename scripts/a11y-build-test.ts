@@ -29,6 +29,7 @@ import type { ProfileData } from '../src/a11y/probe/serialize';
 import { runCmd } from './lab';
 
 const root = resolve(import.meta.dir, '..');
+const tsc7 = join(root, 'node_modules/typescript7/bin/tsc');
 
 const log = (msg: string): void => {
   console.log(`[a11y-build-test] ${msg}`);
@@ -56,7 +57,7 @@ const expect = (
  * 本地安装（override.test.ts 同一机制）。
  */
 const tsc = (project: string): { code: number; output: string } => {
-  const r = nodeExec([process.execPath, 'x', 'tsc', '-p', project], {
+  const r = nodeExec([process.execPath, tsc7, '-p', project], {
     cwd: root,
   });
   return { code: r.code, output: `${r.stdout}${r.stderr}` };

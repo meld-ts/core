@@ -1,10 +1,10 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
-  "root": false,
-  "plugins": ["../no-cross-file-reexport.grit"],
-  "linter": {
-    "enabled": true,
-    "rules": { "preset": "none", "style": { "noExportedImports": "error" } }
-  },
-  "files": { "includes": ["**"] }
+	"$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+	"root": false,
+	"plugins": ["../no-cross-file-reexport.grit"],
+	"linter": {
+		"enabled": true,
+		"rules": { "preset": "none", "style": { "noExportedImports": "error" } }
+	},
+	"files": { "includes": ["**"] }
 }

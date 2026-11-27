@@ -74,9 +74,10 @@
   "license": "MIT",
   "scripts": {
     "prepare": "lefthook install",
-    "fmt": "biome check --write --linter-enabled=false ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts ./tsdown.bin.ts",
+    "fmt": "biome check --write --linter-enabled=false",
+    "fmt:all": "biome check --write --linter-enabled=false ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts ./tsdown.bin.ts",
     "lint": "biome lint --error-on-warnings ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts ./tsdown.bin.ts",
-    "ts-check": "tsc --noEmit",
+    "ts-check": "node_modules/typescript7/bin/tsc --noEmit",
     "test": "bun test src/ lint/ --coverage",
     "a11y:sync": "bun scripts/a11y-sync.ts",
     "test:a11y-lint": "bun scripts/a11y-lint-test.ts",
@@ -87,6 +88,7 @@
     "clean": "rm -rf dist browser",
     "build": "bun run clean && bun run build:browser && bun run build:dist && bun run build:bin",
     "doc": "bun typedoc --options typedoc.json --cleanOutputDir",
+    "doc:check": "typedoc --options typedoc.check.json",
     "doc:watch": "bun typedoc  --options typedoc.json --watch",
     "biome-migrate": "bunx biome migrate --write"
   },
@@ -99,6 +101,7 @@
     "typedoc-material-theme": "^1.4.1",
     "typedoc-plugin-expand-object-like-types": "^0.1.2",
     "typedoc-plugin-merge-modules": "^7.0.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "typescript7": "npm:typescript@7.0.2"
   }
 }

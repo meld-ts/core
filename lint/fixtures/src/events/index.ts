@@ -3,4 +3,4 @@
 // 列举报 1 条。由 lint/no-cross-file-reexport.test.ts 断言诊断数，不要「修复」本文件。
 export type LocalThing = { a: number };
 export const impl = () => 2;
-export { isString } from '../source';
+export { isString } from "../source";

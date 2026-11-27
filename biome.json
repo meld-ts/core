@@ -63,6 +63,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/**", "!src/bin/**", "!src/a11y/probe/**", "!**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "error"
+          }
+        }
+      }
     }
   ]
 }
