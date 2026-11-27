@@ -8,7 +8,7 @@
  * 1. 首行 export {}; 在场：重载对打包后的 d.ts 生效，switch 缺必填
  *    checked 仍编译过（内置表下同样的调用必须报错）；
  * 2. 删掉首行：文件变脚本，declare module 盖掉子路径，use.ts 编译失败。
- * bunup 拆 chunk、改接口转出形状后，这条链路可能悄悄断掉，这里是兜底。
+ * 打包器拆 chunk、改接口转出形状后，这条链路可能悄悄断掉，这里是兜底。
  */
 
 import {
@@ -98,8 +98,8 @@ if (switchRequired.length === 0) {
 }
 
 log('building dist');
-// bunup dist 构建本机偶发 EINVAL（分支前既有，CI/ubuntu 未观察到）：直接
-// 重试，3 次都失败才报错退出，bunup 输出带进错误信息。
+// dist 构建曾在本机偶发 EINVAL（bunup 时代观察，迁移 tsdown 前既有，CI/ubuntu 未见）：直接
+// 重试，3 次都失败才报错退出，构建输出带进错误信息。
 let distCode = 0;
 let distOutput = '';
 for (let attempt = 1; attempt <= 3; attempt++) {
@@ -119,7 +119,7 @@ if (!existsSync(join(root, 'dist/a11y/index.d.ts'))) {
   throw new Error('build:dist did not produce dist/a11y/index.d.ts');
 }
 
-// bunup 默认 clean 会清空 dist/（含 dist/bin/），上面只重建了库产物；bin
+// tsdown 默认 clean 会清空 dist/（含 dist/bin/），上面只重建了库产物；bin
 // 不重建的话 npm pack 会静默打出缺 dist/bin/meld-ts.js 的包
 log('building bin');
 runCmd([process.execPath, 'run', 'build:bin'], root);
@@ -127,7 +127,7 @@ const binPath = join(root, 'dist/bin/meld-ts.js');
 if (!existsSync(binPath)) {
   throw new Error('build:bin did not produce dist/bin/meld-ts.js');
 }
-// shebang 由 bunup.bin.ts 的 banner 注入，丢了它包里就是个普通 js 文件
+// shebang 由 tsdown.bin.ts 的 banner 注入，丢了它包里就是个普通 js 文件
 const binFirstLine = readFileSync(binPath, 'utf8').split('\n')[0];
 if (binFirstLine !== '#!/usr/bin/env bun') {
   throw new Error(

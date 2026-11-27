@@ -38,17 +38,16 @@ docs/
 ## 常用命令
 
 ```bash
-bun run fmt            # Biome 格式化 + import 排序（src + test + scripts + bunup.*.ts；不跑 lint 自动修复）
-bun run lint           # Biome lint，warning 视为错误（src + test + scripts + bunup.*.ts）
+bun run fmt            # Biome 格式化 + import 排序（src + test + scripts + tsdown.*.ts；不跑 lint 自动修复）
+bun run lint           # Biome lint，warning 视为错误（src + test + scripts + tsdown.*.ts）
 bun run ts-check       # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test           # 运行所有测试 + 覆盖率
 bun run a11y:sync      # 维护者：重建 lab，从最新 lint 探测重新生成 a11y 内置表（慢，约 2–4 分钟）
 bun run test:a11y-lint # a11y 第 2/3 层：一致性 + 反向测试（lab，慢，不进 CI）
 bun run test:a11y-build # a11y 第 4 层：构建产物重载测试（version-bump.yml 发版必跑）
-bun run build:exports  # 基于 bunup.config 生成 package.json 的 exports 部分
-bun run build:browser  # bunup，产物到 browser/（esm + iife）
-bun run build:dist     # bunup，产物到 dist/（node esm + cjs）
-bun run build:bin      # bunup，meld-ts CLI 到 dist/bin/meld-ts.js（带 bun shebang）
+bun run build:browser  # tsdown，产物到 browser/（esm + iife）
+bun run build:dist     # tsdown，产物到 dist/（node esm + cjs + dts），并生成 package.json 的 exports
+bun run build:bin      # tsdown，meld-ts CLI 到 dist/bin/meld-ts.js（带 bun shebang）
 bun run clean          # 删除 dist/ 与 browser/（build 会先跑一遍）
 bun run build          # clean && build:browser && build:dist && build:bin
 bun run doc            # 生成 TypeDoc API 文档
@@ -155,7 +154,7 @@ export type RO = RetryOptions;
 「只为类型的 import 必须写 `import type`」不作为本仓库规则。依据是 2026-11-25 的实测（tsc 5.9.3 + bun 1.4.x）：
 
 - `import { type X } from './m'`（整条 import 只有类型）：tsc 开 `verbatimModuleSyntax` 时产物保留 `import {} from './m';`，不开该选项时完全擦除。
-- 本仓库的 dist 由 bunup/bun 打包，空 import 完全消失——实测 `bun build` 对该写法 0 字节残留；混合写法 `import { type X, value }` 的产物与拆成两行的写法逐字节相同。
+- 本仓库的 dist 由 tsdown/rolldown 打包，空 import 完全消失（2026-11 迁移 tsdown 后复测）；混合写法 `import { type X, value }` 的产物与拆成两行的写法逐字节相同。
 - 本仓库 tsc 只跑 `--noEmit`，从不产出 JS——这个形态在本仓库任何产物里都不存在。
 - 空 import 即使成环也无运行时危害：环上没有代码执行，不碰任何绑定。注意 `noImportCycles` 在源码层仍会把 `import { type X }` 这类整条类型 import 算进环并报错；`useImportType` 会先要求把它改成 `import type`，改完环即消失。别为此拆依赖层。
 - 结论：不为此设规则。纯类型 import 的统一写法由 biome `useImportType`（recommended，已启用）处理；混合 import 不设拆行要求。
@@ -255,7 +254,7 @@ meld-ts <group> <command> [options]
 
 - 新 group 的路由加在 `src/bin/meld-ts.ts`；实现放在可单测的模块里。
 - 每个命令必须支持 `--help`（stdout + 退出 0），错误走 stderr + 非零退出。
-- 打包只走 `bunup.bin.ts` 单一入口，产物在 `dist/bin/`；不把 bin 加进 `exports`。
+- 打包只走 `tsdown.bin.ts` 单一入口，产物在 `dist/bin/`；不把 bin 加进 `exports`。
 - 用户侧调用：项目脚本里直接写 `meld-ts ...`，或 `bunx --package @meld-ts/core meld-ts ...`。
 
 ## 架构约定
@@ -308,7 +307,9 @@ interface MyClass extends MyTrait {}
 | `build:bin` | `dist/bin/` | esm | node |
 | `build` | `dist/` + `browser/` + `dist/bin/` | 同上 | 同上 |
 
-`build:dist` / `build:exports` 会清空 `dist/`（连带 `dist/bin`）；`build` 链把 `build:bin` 放在最后，完整构建后 bin 一定在。
+`build:dist` 会清空 `dist/`（连带 `dist/bin`）；`build` 链把 `build:bin` 放在最后，完整构建后 bin 一定在。
+
+`exports` 字段由 `build:dist`（tsdown `exports: true`）在构建末尾生成：`import`/`require` 双条件指向各入口产物，`types` 靠同名 `.d.ts`/`.d.cts` 邻近声明解析，不写显式 types 条件（publint + attw 全策略实测通过）。改入口集合后跑 `bun run build:dist` 即可刷新。
 
 `package.json` 的 `exports` 字段声明了以下子路径：
 - `.` — 主入口（types + guards + base）
@@ -319,7 +320,7 @@ interface MyClass extends MyTrait {}
 
 `browser/` 目录不在 `exports` 中——它只应被网页 `<script>` 直接引用，不应被打包工具作为模块导入。
 
-`bin`（`dist/bin/meld-ts.js`，独立 `bunup.bin.ts` 打包）同样不在 `exports` 中——它只应作为命令行工具运行（`meld-ts a11y probe`）。
+`bin`（`dist/bin/meld-ts.js`，独立 `tsdown.bin.ts` 打包）同样不在 `exports` 中——它只应作为命令行工具运行（`meld-ts a11y probe`）。
 
 ## 审查记录
 

@@ -1,4 +1,4 @@
-// shebang 由 bunup.bin.ts 的 banner 注入；源文件再写一份会打包出两行 #!
+// shebang 由 tsdown.bin.ts 的 banner 注入；源文件再写一份会打包出两行 #!
 import {
   existsSync,
   mkdirSync,

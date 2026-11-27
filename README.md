@@ -141,16 +141,15 @@ declare global {
 ## 开发
 
 ```bash
-bun run fmt           # Biome 格式化（src + test + scripts + bunup.*.ts）
-bun run lint          # Biome lint，warning 视为错误（src + test + scripts + bunup.*.ts）
+bun run fmt           # Biome 格式化（src + test + scripts + tsdown.*.ts）
+bun run lint          # Biome lint，warning 视为错误（src + test + scripts + tsdown.*.ts）
 bun run ts-check      # tsc --noEmit，TypeScript 5.9.3（锁定版本）类型检查
 bun run test          # 运行所有测试 + 覆盖率
 bun run a11y:sync     # 维护者：重建 lab，从最新 lint 重新探测生成 a11y 内置表（慢）
 bun run test:a11y-lint  # a11y 一致性 + 反向测试（lab，慢，发版前手工）
 bun run test:a11y-build # a11y 构建产物重载测试（version-bump.yml 发版必跑）
-bun run build:exports # 基于预期的构建内容，生成 package.json exports 部分内容
 bun run build:browser # 构建 browser （ESM + iife）
-bun run build:dist    # 构建 node （ESM + cjs）
+bun run build:dist    # 构建 node （ESM + cjs），并生成 package.json 的 exports
 bun run build:bin    # 构建 meld-ts CLI（dist/bin/meld-ts.js）
 bun run build         # dist + browser + bin
 bun run doc           # 生成 TypeDoc API 文档
@@ -167,12 +166,11 @@ bun run doc           # 生成 TypeDoc API 文档
 
 ## 构建说明
 
-目前项目构建，使用 bunup 。
+目前项目构建，使用 [tsdown](https://tsdown.dev)（底层为 rolldown）。
 
-- `bunup.config.ts` 用于构建 node 的部分，输出目录在 dist，输出 esm + cjs。也是项目的主构建。
-- `bunup.exports.ts` 基于主构建 `bunup.config.ts` 的内容，来生成 package.json 的 `exports`, `main`, `module`, `types`, `files` 部分。
-- `bunup.bin.ts` 用于构建 meld-ts CLI（`meld-ts a11y probe`），输出 `dist/bin/meld-ts.js`，带 bun shebang；bin 不在 `exports` 里，只应作为命令行工具运行。
-- `bunup.browser.ts` 用于构建 browser 内容，将所有 modules 合并，输出目录在 browser，输出 esm + iife 格式。
+- `tsdown.config.ts` 是项目的主构建：node 产物到 dist（esm + cjs + dts），跨入口共享代码进 shared chunk（CJS 同样支持 tree shake 与 chunk 共享），并在构建末尾生成 package.json 的 `exports`、`main`、`types` 字段——类型不写显式 types 条件，靠同名 `.d.ts`/`.d.cts` 邻近声明解析。
+- `tsdown.bin.ts` 用于构建 meld-ts CLI（`meld-ts a11y probe`），输出 `dist/bin/meld-ts.js`，带 bun shebang；bin 不在 `exports` 里，只应作为命令行工具运行。
+- `tsdown.browser.ts` 用于构建 browser 内容，将所有 modules 合并，输出目录在 browser，输出 esm + iife 格式。
   - `browser/index.js` esm 引入文件，注意这个不能放在 exports ，他只应被网页 `<script type="module">` 的方式去引用
   - `browser/index.d.ts` 作为所有源代码统一导出的 d.ts ，只应该被用于注入全局变量类型标注，而不应该直接在源代码中引用。
   - `browser/iife.global.js` 作为 iife 输出，会为注入全局变量 `MeldTS`

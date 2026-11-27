@@ -33,13 +33,15 @@ if (!existsSync(dtsPath)) {
 
 const exportNames = (() => {
   const names: string[] = [];
+  // tsdown 的 dts 是顶层声明形态（export type/interface/declare function…），
+  // 不是打包器常见的单条 export { 名单 }；
   for (const m of readFileSync(dtsPath, 'utf8').matchAll(
-    /^export \{ ([^}]*) \};$/gm,
+    /^export (?:declare )?(?:const|function|class|type|interface) (\w+)/gm,
   )) {
     // 捕获组由正则保证存在，这里的判断只为收窄 noUncheckedIndexedAccess
-    const list = m[1];
-    if (list === undefined) continue;
-    names.push(...list.split(',').map((n) => n.trim()));
+    const name = m[1];
+    if (name === undefined) continue;
+    names.push(name);
   }
   return names.sort();
 })();
