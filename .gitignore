@@ -39,3 +39,5 @@ temp
 
 # typedoc generated output (deployed via GitHub Actions, not committed)
 docs/typedoc
+# SDD plan executions (per-plan scratch, not committed)
+docs/superpowers/plans/executions/
