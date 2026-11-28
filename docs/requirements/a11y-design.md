@@ -326,7 +326,7 @@ declare function createA11y<const Opt extends A11yOptions>(options: Opt & Overri
 
 ```
 src/a11y/
-  index.ts                 子路径 @meld-ts/core/a11y 的入口：createA11y、类型、内置表。不导出 probe
+  index.ts                 子路径 @meld-ts/core/a11y 的入口：createA11y、类型、内置表
   createA11y.ts            运行时：值转换、id 数组拼接、跳过 undefined、focusable → tabIndex
   createA11y.test.ts
   types.ts                 A11yProfile、A11yInput、A11yAttrs、AriaAttrs、OutValue、注册表接口和重载检查、

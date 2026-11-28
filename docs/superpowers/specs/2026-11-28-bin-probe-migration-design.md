@@ -48,15 +48,15 @@ bin/                        # 与 src/ 同级,Node 内部工具,可用 node: 模
 
 ## 4. 改动清单
 
-### 4.1 前置修复:lint/fixtures 夹具恢复 + biome 防御排除
+### 4.1 前置修复:恢复 + 嵌套配置关格式化
 
 `577c826` 提交把 `lint/fixtures/` 的 28 个夹具文件格式化重排(import 排序、双引号、`export default` 去括号),`noExportedImports` 诊断数随之变化,`lint/no-cross-file-reexport.test.ts` 4 个用例失败(夹具注释明写「不要『修复』本文件」)。
 
 修复:
 1. `git checkout 593f6d6 -- lint/fixtures/` 恢复夹具原形态(已试跑验证:12/12 全绿);
-2. `biome.json` 的 `files.includes` 增加显式排除 `"!lint/fixtures"`(与 `!docs`、`!dist` 同风格的防御性声明——当前 includes 本不含 `lint/**`,此排除保证未来 includes 加宽或手动跑 biome 带宽路径时夹具不被扫到)。
+2. 嵌套 `lint/fixtures/biome.json` 关闭 formatter 与 assist(防御实测:`biome check --write lint/fixtures/` 对夹具零改动)。原设想的根配置 `files.includes` 排除 `"!lint/fixtures"` 被实测否决——嵌套配置整体接管目录:裸目录排除会饿死测试自起的 biome 运行,诊断归零、9 用例红;文件级排除纯装饰。
 
-单独一个 commit。这是恢复被误改的形态并防重演,不是「修复」夹具。此修复让 `bun run test` 全绿基线成立,本设计所有验证标准不再携带「除预存失败外」的口径。
+恢复与嵌套配置各单独一个 commit。这是恢复被误改的形态并防重演,不是「修复」夹具。此修复让 `bun run test` 全绿基线成立,本设计所有验证标准不再携带「除预存失败外」的口径。
 
 ### 4.2 文件搬移
 
@@ -81,7 +81,7 @@ bin/                        # 与 src/ 同级,Node 内部工具,可用 node: 模
 | 文件 | 改动 |
 |------|------|
 | `tsdown.bin.ts` | `entry: ['src/bin/meld-ts.ts']` → `['bin/meld-ts.ts']` |
-| `biome.json` | `files.includes` 增加 `"bin/**/*.{ts,js}"` 与 `"!lint/fixtures"`(前者使 lint 与 fmt 均覆盖 bin,与 scripts/ 同等待遇,生成文件随目录迁移待遇不变;后者为夹具防御排除,见 §4.1);noNodejsModules 的 override 从 `["src/**", "!src/bin/**", "!src/a11y/probe/**", "!**/*.test.ts"]` 简化为 `["src/**", "!**/*.test.ts"]`(例外消失) |
+| `biome.json` | `files.includes` 增加 `"bin/**/*.{ts,js}"`(使 lint 与 fmt 均覆盖 bin,与 scripts/ 同等待遇,生成文件随目录迁移待遇不变;夹具防御不走根配置排除,见 §4.1);noNodejsModules 的 override 从 `["src/**", "!src/bin/**", "!src/a11y/probe/**", "!**/*.test.ts"]` 简化为 `["src/**", "!**/*.test.ts"]`(例外消失) |
 | `bunfig.toml` | 删除 `coveragePathIgnorePatterns = ["src/bin/**"]`(bin 不再在 src/ 测试路径下) |
 | `package.json` | 新增 `"test:bin": "bun test bin/"`(不带 `--coverage`——bunfig 的 100% 门槛对所有带 `--coverage` 的 bun test 生效,bin 不受此约束);`fmt:all` 与 `lint` 脚本的目标加 `./bin` |
 | `.github/workflows/pr-check.yml` | `Test` 步骤后新增一步 `bun run test:bin`(bin 的 12 个测试文件移出 `bun run test` 路径后,不经 CI 就再无人跑;meld-ts CLI 随 npm 包发布,测试写了就要跑) |
@@ -113,6 +113,7 @@ bin/                        # 与 src/ 同级,Node 内部工具,可用 node: 模
 - **A. `test:bin`**:加 script(`bun test bin/`,**不带** `--coverage`,避免 bunfig 的 100% 门槛对 bin 生效);**挂进 CI**(pr-check.yml Test 后加一步)——meld-ts CLI 随 npm 包发布,测试按需写,写了就要跑。
 - **B. biome 继续管 bin**:lint + fmt 与 scripts/ 同等待遇;生成文件随目录迁移,待遇不变。
 - **C. `a11y:sync` 完整跑一次**:写入位置验证后,表内容 diff 先还原、数据更新单独提交;还原后跑 `bun run test:a11y-lint`(lab 按表头版本精确安装,验证提交进仓库的版本)。
+- **D. 夹具防御**:嵌套 `lint/fixtures/biome.json` 关闭 formatter 与 assist。根配置 `files.includes` 排除 `"!lint/fixtures"` 被实测否决——嵌套配置整体接管目录:裸目录排除会饿死测试自起的 biome 运行,诊断归零、9 用例红;文件级排除纯装饰。
 - AGENTS.md 已由用户同步更新(例外条款删除、测试 5 改为 `bun run test:bin`)。
 
 ## 7. AGENTS.md 修改记录(用户维护)
