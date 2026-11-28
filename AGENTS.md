@@ -12,7 +12,8 @@
 
 1. lint 和格式化都用 biome，规则以 biome.json 为准。改完跑 `bun run lint` 和 `bun run ts-check`。
 2. 不要手动调格式、手动排 import。改完的文件用 `bun fmt <文件路径>` 格式化；全仓格式化用 `bun run fmt:all`。
-3. `src/` 里不用 `node:` 模块，`src/bin/` 和 `src/a11y/probe/` 除外：同一份源码要打包给浏览器。
+3. `src/` 里不用 `node:` 模块：同一份源码要打包给浏览器。
+4. 不要对 `lint/fixtures/` 里进行代码格式化或重排（忽略里面的 lint 错误）。
 
 ### 代码注释
 
@@ -73,7 +74,7 @@ export const TE = TimeoutError;            // 换个名字再导出
 2. [RP] 新加的文件要有测试 import 它。bun 只统计测试加载过的文件，没被任何测试 import 的文件不进覆盖率报告，100% 的门槛拦不住它。
 3. [RP] 不要为了凑到 100% 往 `coveragePathIgnorePatterns` 里加路径，要么补测试，要么删掉走不到的代码。
 4. 只有类型、只做转发的文件，以及生成文件（文件头写着「生成文件，勿手改」的），不用单独写测试。
-5. bin（现在在 `src/bin/`）按需测试，不要求覆盖率。
+5. `bin/` 按需写测试，用 `bun run test:bin` 跑，不要求覆盖率。
 
 开发时单跑一个文件用 `bun test <路径>`，不要带 `--coverage`：只跑一个文件时，被它顺带加载的其他文件只覆盖到一部分，会报不到 100%，这不是你改坏了。
 
