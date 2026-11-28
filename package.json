@@ -75,10 +75,11 @@
   "scripts": {
     "prepare": "lefthook install",
     "fmt": "biome check --write --linter-enabled=false",
-    "fmt:all": "biome check --write --linter-enabled=false ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts ./tsdown.bin.ts",
-    "lint": "biome lint --error-on-warnings ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts ./tsdown.bin.ts",
+    "fmt:all": "biome check --write --linter-enabled=false ./bin ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts ./tsdown.bin.ts",
+    "lint": "biome lint --error-on-warnings ./bin ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts ./tsdown.bin.ts",
     "ts-check": "node_modules/typescript7/bin/tsc --noEmit",
     "test": "bun test src/ lint/ --coverage",
+    "test:bin": "bun test bin/",
     "a11y:sync": "bun scripts/a11y-sync.ts",
     "test:a11y-lint": "bun scripts/a11y-lint-test.ts",
     "test:a11y-build": "bun scripts/a11y-build-test.ts",

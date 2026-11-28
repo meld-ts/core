@@ -61,7 +61,8 @@ describe('lints tables stay in sync with PROFILES', () => {
     const profile: ProfileData = snapshot;
     test(`${lint} table matches its PROFILES snapshot`, () => {
       const text = readFileSync(
-        join(import.meta.dir, '../lints', `_${lint}.ts`),
+        // lints 表没跟着 probe 迁走，仍在 src/a11y/lints/
+        join(import.meta.dir, '../../src/a11y/lints', `_${lint}.ts`),
         'utf8',
       );
       expect(text).toContain(

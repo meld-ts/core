@@ -7,25 +7,21 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { ProbeRunner } from '../a11y/probe';
-import { probe } from '../a11y/probe';
-import type { DetectedLint } from '../a11y/probe/detect';
-import { detectLints } from '../a11y/probe/detect';
-import { serializeOverride } from '../a11y/probe/emit-override';
-import type { ExecFn } from '../a11y/probe/exec';
-import { nodeExec } from '../a11y/probe/exec';
-import { fixtureSamples } from '../a11y/probe/fixtures';
-import { runBiome } from '../a11y/probe/runners/biome';
-import { runBun } from '../a11y/probe/runners/bun';
-import { runEslint } from '../a11y/probe/runners/eslint';
-import { runOxlint } from '../a11y/probe/runners/oxlint';
-import {
-  ARIA_KEYS,
-  NAME_RULES,
-  SAMPLES,
-} from '../a11y/probe/samples.generated';
-import type { TsconfigCheckResult } from '../a11y/probe/tsconfig-check';
-import { checkTsconfigIncludes } from '../a11y/probe/tsconfig-check';
+import type { ProbeRunner } from './a11y-probe';
+import { probe } from './a11y-probe';
+import type { DetectedLint } from './a11y-probe/detect';
+import { detectLints } from './a11y-probe/detect';
+import { serializeOverride } from './a11y-probe/emit-override';
+import type { ExecFn } from './a11y-probe/exec';
+import { nodeExec } from './a11y-probe/exec';
+import { fixtureSamples } from './a11y-probe/fixtures';
+import { runBiome } from './a11y-probe/runners/biome';
+import { runBun } from './a11y-probe/runners/bun';
+import { runEslint } from './a11y-probe/runners/eslint';
+import { runOxlint } from './a11y-probe/runners/oxlint';
+import { ARIA_KEYS, NAME_RULES, SAMPLES } from './a11y-probe/samples.generated';
+import type { TsconfigCheckResult } from './a11y-probe/tsconfig-check';
+import { checkTsconfigIncludes } from './a11y-probe/tsconfig-check';
 
 export interface ProbeArgs {
   readonly lint?: readonly DetectedLint['name'][];
@@ -215,16 +211,17 @@ const usage = `Usage:
   meld-ts --help`;
 
 const packageVersion = (): string => {
-  try {
-    const raw = readFileSync(
-      new URL('../../package.json', import.meta.url),
-      'utf8',
-    );
-    return (JSON.parse(raw) as { version?: string }).version ?? 'unknown';
-  } catch {
-    // 产物被单独复制、不在包根时只剩展示能力，退化为 unknown 不影响命令
-    return 'unknown';
+  // 运行位置的深度不同：源码 bin/meld-ts.ts 到包根是 ../，
+  // 产物 dist/bin/meld-ts.js 是 ../../，逐个候选试
+  for (const rel of ['../package.json', '../../package.json']) {
+    try {
+      const raw = readFileSync(new URL(rel, import.meta.url), 'utf8');
+      return (JSON.parse(raw) as { version?: string }).version ?? 'unknown';
+    } catch {
+      // 这个候选读不到就试下一个；全部落空时只剩展示能力，退化为 unknown
+    }
   }
+  return 'unknown';
 };
 
 export interface MainDeps extends ProbeDeps {

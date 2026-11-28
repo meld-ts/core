@@ -22,10 +22,10 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { serializeOverride } from '../src/a11y/probe/emit-override';
-import { nodeExec } from '../src/a11y/probe/exec';
-import { PROFILES } from '../src/a11y/probe/profiles.generated';
-import type { ProfileData } from '../src/a11y/probe/serialize';
+import { serializeOverride } from '../bin/a11y-probe/emit-override';
+import { nodeExec } from '../bin/a11y-probe/exec';
+import { PROFILES } from '../bin/a11y-probe/profiles.generated';
+import type { ProfileData } from '../bin/a11y-probe/serialize';
 import { runCmd } from './lab';
 
 const root = resolve(import.meta.dir, '..');

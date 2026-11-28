@@ -16,6 +16,7 @@
   },
   "files": {
     "includes": [
+      "bin/**/*.{ts,js}",
       "scripts/**/*.{ts,js}",
       "src/**/*.{ts,js}",
       "test/**/*.{ts,js}",
@@ -65,7 +66,7 @@
       }
     },
     {
-      "includes": ["src/**", "!src/bin/**", "!src/a11y/probe/**", "!**/*.test.ts"],
+      "includes": ["src/**", "!**/*.test.ts"],
       "linter": {
         "rules": {
           "correctness": {

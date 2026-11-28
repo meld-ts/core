@@ -8,7 +8,7 @@
 
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { nodeExec } from '../src/a11y/probe/exec';
+import { nodeExec } from '../bin/a11y-probe/exec';
 
 export interface LabLint {
   readonly name: 'eslint' | 'oxlint' | 'biome' | 'bun';

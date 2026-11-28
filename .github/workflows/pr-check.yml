@@ -53,6 +53,9 @@ jobs:
       - name: Test
         run: bun run test
 
+      - name: Test bin
+        run: bun run test:bin
+
   ts-matrix:
     runs-on: ubuntu-latest
     strategy:
