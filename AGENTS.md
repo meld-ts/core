@@ -4,15 +4,15 @@
 
 包内维护以最低成本、最少心智负担为准，写法要一眼就能看懂。转发只用 `export *`、用 tsdown 打包，都是出于这一点。
 
-**❌ 本文件禁止 AI 直接修改**，可以向用户提出修改建议，由用户进行维护。
+**❌ 本文件禁止 AI 直接修改**，可以向用户提出修改建议。
 
 标 [RP]（Review Point）的条目是 review 时必查的点。没标的，写代码时同样要照做。
 
 ## 代码规范
 
-1. lint 和格式化都用 biome，规则以 biome.json 为准。改完跑 `bun run lint` 和 `bun run ts-check`。
+1. lint 和格式化用 biome，规则以 biome.json 为准。改完跑 `bun run lint` 和 `bun run ts-check`。
 2. 不要手动调格式、手动排 import。改完的文件用 `bun fmt <文件路径>` 格式化；全仓格式化用 `bun run fmt:all`。
-3. `src/` 里不用 `node:` 模块：同一份源码要打包给浏览器。
+3. `src/` 里除测试文件外不用 `node:` 和 `bun` 模块：同一份源码要打包给浏览器。
 
 ### 代码注释
 
@@ -21,7 +21,7 @@
 
 ### JSDoc
 
-公开的符号（入口能 import 到的，见「模块入口与导出」）都要写 JSDoc，`_` 文件里的不要求。push 或开 PR 前跑 `bun run doc:check`，漏写的会直接报错。
+公开的符号（入口能 import 到的，见「模块入口与导出」）都要写 JSDoc。push 或开 PR 前跑 `bun run doc:check`，漏写的会直接报错。
 
 1. [RP] 公开的函数和 class 要有 `@example`，用 ts 代码块，覆盖调用方式差别大的几种写法。type、interface 看复杂程度决定写不写。
 2. [RP] 会抛错、或返回的 Promise 会 reject 的，写 `@throws`：抛哪个错误类，什么情况下抛。
@@ -40,22 +40,32 @@
 
 ### 内部文件
 
-只给模块内部用、不想公开导出的符号，放进 `_` 开头的文件或目录，[RP] index.ts 不导出 `_` 开头的文件和目录。
+1. 只给模块内部用、不想公开导出的符号，放进 `_` 开头的文件或目录
+2. [RP] index.ts 不导出 `_` 开头的文件和目录。
+3. 几个模块共用的，放 `src/_internal/`。需要时才拆，不是每个模块都要有。
 
-几个模块共用的，放 `src/_internal/`。需要时才拆，不是每个模块都要有。
+### [RP] 同一个名字只从一处导出
 
-### [RP] 只有定义文件和 index.ts 能导出
-
-一个符号只从定义它的文件导出，再由 index.ts 转发。其他文件不要把别处的符号再导出一遍，类型和值都一样：
+**一个符号应该只有唯一源**，别的文件不要用同一个名字再导出一遍，不然项目里会出现好几处同名导出，很难追到源头。
 
 ```ts
-export { TimeoutError } from './errors';  // 转发
-import { RpcAbortError } from './errors';
-export { RpcAbortError };                  // import 进来再导出
-export const TE = TimeoutError;            // 换个名字再导出
+export { TimeoutError } from './errors';   // ❌ 原名导出
+import { TimeoutError } from './errors';
+export { TimeoutError };                    // ❌ import 进来，再原名导出
+
+import { type TimerMode as OrigTimerMode } from '../timer';
+export type TimerMode = OrigTimerMode | 'add-mode'; // ❌ as 以后，再原名导出
+
+import type { RetryOptions } from '../async';
+export const TE = TimeoutError;                                             // ⚠️ 更名导出
+export type RetryInput = Omit<RetryOptions, 'onRetry'> & { label: string }; // ✅ 组合出新类型
+export type ExtraOptions = { retry: RetryOptions; }                         // ✅ 再组织
 ```
 
-用到别的文件的符号，就 import 进来自己用。调用方也要用，让调用方自己去 import 定义文件或模块入口。在别的类型上组合出新类型（比如 `Omit<X, 'a'> & {...}`）不算转发。常见写法 `bun run lint` 会拦。
+- ❌ 跨文件原名导出（除 index.ts 的 `export *`），严禁
+- ✅ type/interface 再组织导出，允许
+- ⚠️ 函数/常量/class/type 更名导出，允许，但不推荐
+- ❌ 搬文件、改名后，留旧名的别名（`export const oldName = newName`），禁止。
 
 ### [RP] 搬文件、改名
 
@@ -67,7 +77,7 @@ export const TE = TimeoutError;            // 换个名字再导出
 
 ## 测试
 
-`bun run test` 跑 `src/` 下的全部测试，覆盖率低于 100% 直接失败（bunfig.toml 的 `coverageThreshold = 1`）。
+改完跑 `bun run test`，它跑 src/ 下的全部测试，覆盖率低于 100% 直接失败（bunfig.toml 的 `coverageThreshold = 1`）。
 
 1. [RP] `src/` 下每个有运行时代码的文件都要 100% 覆盖。测试和被测文件放在一起，命名为 `x.test.ts`。
 2. [RP] 新加的文件要有测试 import 它。bun 只统计测试加载过的文件，没被任何测试 import 的文件不进覆盖率报告，100% 的门槛拦不住它。
@@ -99,14 +109,14 @@ export const TE = TimeoutError;            // 换个名字再导出
 
 ## a11y
 
-1. 改 `src/a11y/` 前先读 `docs/a11y.md`（用法和规则）和 `docs/requirements/a11y-design.md`（设计）。
+1. 改 `src/a11y/` 或 `bin/a11y-probe/` 前先读 `docs/a11y.md`（用法和规则）和 `docs/requirements/a11y-design.md`（设计）。
 2. [RP] 文件头写着「生成文件，勿手改」的（`*.generated.ts`、`src/a11y/lints/_*.ts`），由 `bun run a11y:sync` 生成。要改就改 `scripts/a11y-sync.ts`，然后重新生成。
 
 ## CLI 扩展约定
 
-不新增 bin，新命令作为 `meld-ts` 的子命令挂进去；每个命令都要支持 `--help`。
-
-暂空，后补
+1. 不新增命令入口（package.json 的 `bin` 只有 `meld-ts`），新命令作为 `meld-ts` 的子命令挂进去；
+2. [RP] 每个命令都要支持 `--help`。
+3. [RP] --help 里每个参数都要有说明，并标明是必填还是选填。
 
 ## 构建
 
