@@ -27,6 +27,8 @@
 2. [RP] 会抛错、或返回的 Promise 会 reject 的，写 `@throws`：抛哪个错误类，什么情况下抛。
 3. [RP] 带泛型、靠推断的，用 `@typeParam` 写清楚：泛型从哪个参数推出来，返回类型怎么跟着变。
 4. [RP] type、interface、class 的每个属性和方法都写 JSDoc。可选属性有默认值的，写 `@defaultValue`。
+5. [RP] 公开类型引用了没导出的类型，`doc:check` 会报 referenced 警告。使用方会直接写出这个名字的，就导出它并写 JSDoc；只在内部做类型推导或报错用的，不导出，登记到 `typedoc.json` 的 `intentionallyNotExported`，格式是「项目内相对路径:符号名」，比如 `src/a11y/types.ts:CheckOverride`。
+6. [RP] 登记过的类型改了名、换了文件、删了或者改成导出，要同步改 `intentionallyNotExported`：登记了却用不上的条目，`doc:check` 也会报错。不要用 `validation.notExported: false` 把整类检查关掉。
 
 ## 模块入口与导出
 
