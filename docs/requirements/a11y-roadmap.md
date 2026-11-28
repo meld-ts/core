@@ -8,8 +8,8 @@
 | 计划 | 内容 | 状态 | 交付物 |
 |---|---|---|---|
 | **A** 类型核心与运行时 | 类型机器 + `createA11y` 运行时 + 手写缩小版数据 | ✅ 已完成（2026-11-21） | `src/a11y/` 全部、子路径 `@meld-ts/core/a11y` |
-| **B** 探针与全量数据 | 探针 + `a11y:sync`，从真实 lint 生成全量规则表 | ✅ 已完成（2026-11-22） | `probe/`、`aria.generated.ts` 全量、`lints/` 四张表 |
-| **C** CLI 与用户侧闭环 | `meld-ts a11y probe`、用户模式重载、一致性/反向/产物测试 | ✅ 已完成（2026-11-22） | `src/bin/meld-ts.ts`、一致性测试、AGENTS 规则 |
+| **B** 探针与全量数据 | 探针 + `a11y:sync`，从真实 lint 生成全量规则表 | ✅ 已完成（2026-11-22） | `bin/a11y-probe/`、`aria.generated.ts` 全量、`lints/` 四张表 |
+| **C** CLI 与用户侧闭环 | `meld-ts a11y probe`、用户模式重载、一致性/反向/产物测试 | ✅ 已完成（2026-11-22） | `bin/meld-ts.ts`、一致性测试、AGENTS 规则 |
 
 依赖关系：B 依赖 A 的类型契约（`A11yProfile` 字面量形状）；C 依赖 A + B。
 
@@ -59,8 +59,8 @@ grep -A4 '"./a11y"' package.json
 **交付物**：
 
 - `src/a11y/aria.generated.ts`：全量（aria-query 127 个 role、全部 ARIA 属性、名字规则、idlist/id 分类）
-- `src/a11y/probe/samples.generated.ts`：每个属性的合法样例值
-- `src/a11y/probe/`：detect（发现项目里的 lint 与版本）、fixtures、exec（可注入子进程）、runners（四个 lint）、serialize
+- `bin/a11y-probe/samples.generated.ts`：每个属性的合法样例值
+- `bin/a11y-probe/`：detect（发现项目里的 lint 与版本）、fixtures、exec（可注入子进程）、runners（四个 lint）、serialize
 - `scripts/a11y-sync.ts`：维护者模式，建 lab、装最新 lint、跑探针、覆盖写 `src/a11y/lints/<lint>.ts`
 - `src/a11y/lints/` 四张表：eslint、bun、oxlint、biome（均独立探测生成）
 
@@ -89,7 +89,7 @@ grep -A4 '"./a11y"' package.json
 
 **交付物**（全部落地）：
 
-- `src/bin/meld-ts.ts` + `tsdown.bin.ts`：`meld-ts a11y probe [--lint=...] [--out=...] [--keep]`，打包到 `dist/bin/meld-ts.js`（shebang 由 banner 注入）
+- `bin/meld-ts.ts` + `tsdown.bin.ts`：`meld-ts a11y probe [--lint=...] [--out=...] [--keep]`，打包到 `dist/bin/meld-ts.js`（shebang 由 banner 注入）
 - 用户模式：读项目 package.json 发现的 lint，生成 `a11y-lints.generated.d.ts`（首行固定 `export {};`，写出后检查它在不在 tsconfig 的 include 里，不在只警告）
 - 第 2 层一致性测试：`a11y()` 输出展开成字面属性，交给对应 lint 跑，要求零报错（`bun run test:a11y-lint`）
 - 第 3 层反向测试：故意去必填属性，确认 lint 报错（同一脚本）
@@ -116,7 +116,7 @@ CI（`pr-check.yml`）覆盖 lint / ts-check / build / AGENTS grep / test，以�
 
 ```bash
 bun run test:a11y-lint    # §7 第 2/3 层：一致性 + 反向（lab，慢）
-bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts src/a11y/probe/profiles.generated.ts
+bun run a11y:sync && git diff src/a11y/lints/ src/a11y/aria.generated.ts bin/a11y-probe/samples.generated.ts bin/a11y-probe/profiles.generated.ts
                            # 漂移检查：lint 出新版/规则变了会露出 diff
 ```
 
@@ -138,7 +138,7 @@ git log --oneline main..feat/a11y
 bun run fmt && bun run lint && bun run ts-check && bun run test
 
 # a11y 数据漂移检查：重跑 sync（约 2–4 分钟），有 diff 说明 lint 出了新版/规则变了
-bun run a11y:sync && git diff --stat src/a11y/lints/ src/a11y/aria.generated.ts src/a11y/probe/samples.generated.ts src/a11y/probe/profiles.generated.ts
+bun run a11y:sync && git diff --stat src/a11y/lints/ src/a11y/aria.generated.ts bin/a11y-probe/samples.generated.ts bin/a11y-probe/profiles.generated.ts
 
 # a11y 产物
 ls src/a11y src/a11y/lints dist/a11y
