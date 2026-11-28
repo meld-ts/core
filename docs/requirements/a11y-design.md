@@ -326,7 +326,7 @@ declare function createA11y<const Opt extends A11yOptions>(options: Opt & Overri
 
 ```
 src/a11y/
-  index.ts                 子路径 @meld-ts/core/a11y 的入口：createA11y、类型、内置表。不导出 probe
+  index.ts                 子路径 @meld-ts/core/a11y 的入口：createA11y、类型、内置表
   createA11y.ts            运行时：值转换、id 数组拼接、跳过 undefined、focusable → tabIndex
   createA11y.test.ts
   types.ts                 A11yProfile、A11yInput、A11yAttrs、AriaAttrs、OutValue、注册表接口和重载检查、
@@ -339,7 +339,10 @@ src/a11y/
     bun.ts
     oxlint.ts
     biome.ts
-  probe/                   探针。只在 node 里跑，不进 a11y 入口和 browser 包
+
+bin/                        node 侧的 CLI 与探针，不在 src/ 里
+  meld-ts.ts                bin 入口，子命令路由。a11y probe 走用户模式。Plan C 交付
+  a11y-probe/               探针。只在 node 里跑，不进 a11y 入口和 browser 包
     index.ts               probe({ cwd, lints, exec? }) → 各 lint 的规则表数据
     detect.ts              从 cwd 找出装了哪些 lint、解析二进制和版本
     fixtures.ts            生成 fixture：required、supported、可聚焦差异、自检
@@ -353,14 +356,12 @@ src/a11y/
     serialize.ts           规则表数据 → TS 类型字面量（两种模式共用）
     emit-override.ts       用户模式：写重载文件（第一行固定 export {};）。Plan C 交付
     *.test.ts              解析器、fixture、序列化、模板的单测
-src/bin/
-  meld.ts                  bin 入口，子命令路由。a11y probe 走用户模式。Plan C 交付
 
 scripts/
   a11y-sync.ts             维护者模式：建 lab、装 lint、调 probe、写 src/a11y/lints/ 和 aria.generated.ts
   a11y-lint-test.ts        §7 第 2、3 层：在 lab 里跑一致性测试和反向测试。Plan C 交付
 
-bunup.bin.ts               bin 单独一份打包配置（见 §9）
+tsdown.bin.ts              bin 单独一份打包配置（见 §9）
 
 .cache/a11y-lab/           a11y-sync 建的空项目（.cache 已在 .gitignore 里）
 ```
@@ -369,9 +370,9 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 - **生成文件只含类型。** `aria.generated.ts` 和 `lints/*.ts` 里只有 `type` / `interface`，没有运行时值。`src/browser/index.ts` 会 `export *` 所有子路径，有运行时值就会被打进 iife。运行时只需要 `createA11y.ts` 里一张很小的表：`AriaIdListKey` 那 5 个键，用来判断哪些值要空格拼接。
 - `lints/*.ts` 文件名不带 `.generated`，但头部写明「生成文件，勿手改」和 lint 版本。更新一个 lint 就整文件覆盖，diff 只落在这一个文件里。
-- `probe/` 放在 `src/a11y/` 下面，但 `src/a11y/index.ts` 不导入它，所以 `@meld-ts/core/a11y` 和 browser 包里都没有 node 依赖。
+- 探针在 `bin/a11y-probe/`，整个不在 `src/` 里，`@meld-ts/core/a11y` 和 browser 包里都没有 node 依赖。
 - 维护者模式的输出（每个 lint 写一个 `.ts`）放在 `scripts/a11y-sync.ts`，不随包发布；它和用户模式共用 `serialize.ts`。
-- **样例值只有一个来源。** 探测 supported 时要给每个属性造一个合法值，§7 第 2 层写 fixture 时也要。这份数据和 `aria.generated.ts` 一样从 aria-query 生成（`probe/samples.generated.ts`），不手写，免得类型更新了样例没跟上。它是运行时值，只被 probe 和 scripts 引用，不进 a11y 入口。
+- **样例值只有一个来源。** 探测 supported 时要给每个属性造一个合法值，§7 第 2 层写 fixture 时也要。这份数据和 `aria.generated.ts` 一样从 aria-query 生成（`bin/a11y-probe/samples.generated.ts`），不手写，免得类型更新了样例没跟上。它是运行时值，只被 probe 和 scripts 引用，不进 a11y 入口。
 
 ## 6. 探针：两种模式
 
@@ -440,7 +441,7 @@ bunup.bin.ts               bin 单独一份打包配置（见 §9）
 
 ### 用户模式
 
-已实现（Plan C，`src/bin/meld-ts.ts`）。下面是它的行为。
+已实现（Plan C，`bin/meld-ts.ts`）。下面是它的行为。
 
 ```
 meld-ts a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts] [--keep]
@@ -466,7 +467,7 @@ meld-ts a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts] [--
 
 1. 清空 `.cache/a11y-lab/`，在里面 `bun init -y`。
 2. `bun add -d` 装最新的 eslint、eslint-plugin-jsx-a11y、@biomejs/biome、oxlint、aria-query。bun 不装在 lab 里：表用执行 sync 的那个 bun 探测，版本就是它的版本。
-3. 从 lab 里的 aria-query 生成 `src/a11y/aria.generated.ts` 和 `src/a11y/probe/samples.generated.ts`。
+3. 从 lab 里的 aria-query 生成 `src/a11y/aria.generated.ts` 和 `bin/a11y-probe/samples.generated.ts`。
 4. 以 lab 为 cwd 调 `probe()`，每个 lint 覆盖写 `src/a11y/lints/<lint>.ts`，头部写版本。
 5. 在仓库根对生成的文件跑 `biome format`：格式化由仓库自己的 biome（lockfile 锁定）做，不是 lab 里的最新版，`git diff` 才不随 lab 漂。
 
@@ -516,9 +517,9 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})|\bta
 
 ## 9. 和 core 的配合
 
-- 子路径 `@meld-ts/core/a11y`，同步改 `bunup.config.ts`、`src/browser/index.ts`、`build:exports`、CLAUDE.md、README、SKILL.md。
+- 子路径 `@meld-ts/core/a11y`，同步改 `tsdown.config.ts`、`src/browser/index.ts`、exports 生成（`build:dist`）、CLAUDE.md、README、SKILL.md。
 - `src/browser/index.ts` 会把所有子路径合并进一个命名空间，所以导出名（含类型）不能和现有的撞：统一用 `A11y` 前缀，如 `A11yRole`、`A11yProfile`，不用 `Role`。`AriaKey`、`AriaValue`、`AriaInput` 这类 `Aria` 前缀的也要查一遍不撞名。
-- bin 已实现（Plan C），**单独一份 `bunup.bin.ts`**：入口 `src/bin/meld-ts.ts`，只出 esm，shebang 由 bunup 的 banner 注入 `#!/usr/bin/env bun`（源文件自己不写，写两遍会打包出两行 `#!`）。不进 `bunup.config.ts`：那里导出的是单个对象，`bunup.exports.ts` 用 `{ ...config, exports: true }` 展开它；改成数组会让 `build:exports` 坏掉。`package.json` 的 `"bin": { "meld-ts": "./dist/bin/meld-ts.js" }` 不在 `exports` 里；`build` 脚本串上 `build:bin` 且放在最后——`build:dist` / `build:exports` 会清空 `dist/`（连带 `dist/bin`），完整构建后 bin 一定在。
+- bin 已实现（Plan C），**单独一份 `tsdown.bin.ts`**：入口 `bin/meld-ts.ts`，只出 esm，shebang 由 tsdown 的 banner 注入 `#!/usr/bin/env bun`（源文件自己不写，写两遍会打包出两行 `#!`）。不进 `tsdown.config.ts`：主配置的 `exports: true` 会把 entry 收进 `package.json` 的 `exports`，bin 不是库子路径，混进去会产生 `./bin` 导出。`package.json` 的 `"bin": { "meld-ts": "./dist/bin/meld-ts.js" }` 不在 `exports` 里；`build` 脚本串上 `build:bin` 且放在最后——`build:dist` 会清空 `dist/`（连带 `dist/bin`），完整构建后 bin 一定在。
 - bin 和 probe 只用 node 内置模块和 Bun 内建（如 `Bun.spawnSync`），无第三方运行时依赖，但要求 Bun——bin 的 shebang 是 `env bun`，Node 跑不起来。
 - 新增脚本：`build:bin`、`a11y:sync`、`test:a11y-lint`、`test:a11y-build`。
 - `tsconfig.json` 的 `exclude` 加上 `.cache`：`.gitignore` 只挡 git，不挡 tsc，lab 里 `bun init` 生成的 `.ts` 会被拉进类型检查。`scripts/` 下的两个脚本要进 `ts-check`（tsconfig 没写 `include`，默认就会包含，不要排除）。
@@ -557,7 +558,7 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})|\bta
 | B2 `focusable` 没闭环 | 采纳。`focusable: true` 输出 `tabIndex`，可聚焦必填项进表，合并规则补上 | §3、§4 |
 | B3 临时文件放 node_modules 会被忽略 | 采纳，并实测了新位置。改到 `<cwd>/.meld-a11y-probe/`，配置和 fixture 分开；加自检 | §6 |
 | B4 规则清单没写、oxlint 行为没复现 | 采纳。补每个 lint 的规则 id 和命令；复测确认 oxlint 一次报全部，删掉旧说法；按规则 id 白名单解析 | §2、§6 |
-| B5 bin 会破坏 `bunup.exports.ts` | 采纳。单独 `bunup.bin.ts` | §9 |
+| B5 bin 会破坏 `bunup.exports.ts` | 采纳。单独 `bunup.bin.ts`（2026-11 迁移 tsdown 后为 `tsdown.bin.ts`） | §9 |
 | B6 生成文件进 browser 包 | 采纳。生成文件只含类型 | §5 |
 | C1 `a11y('button')` 没被挡住 | 不改类型，role 范围不收窄；理由写进 §3，靠 AGENTS 规则 | §3、§8 |
 | C2 undefined 处理和表格不一致 | 采纳。含 undefined 的键可选 | §3、§4 输出 |
@@ -577,7 +578,7 @@ rg --pcre2 '\b(role|aria-[a-z]+)\s*=(?!=)|\btabIndex\s*=\s*\{(?!\s*-1\s*\})|\bta
 | I3 undefined 规则和必填冲突 | undefined 规则收窄到可选属性；必填属性不接受 undefined | §3、§7 |
 | I4 生成表缺不变量自检 | 生成时断言三条子集关系，不成立就不写文件 | §6 |
 | I5 第 2 层测不到 `requiredWhenFocusable` | 加第三种 fixture | §7 |
-| I6 样例值工厂没有位置 | 从 aria-query 生成 `probe/samples.generated.ts` | §5、§6 |
+| I6 样例值工厂没有位置 | 从 aria-query 生成 `bin/a11y-probe/samples.generated.ts` | §5、§6 |
 | I7 重载没有结构约束 | 键名和结构都在 `createA11y` 参数上报错，实测过 | §4 注册表、附录 A |
 | I8 tsconfig 没排除 `.cache` | `exclude` 加 `.cache`；`scripts/` 进 ts-check | §9 |
 | I9 实测版本和 peer `^7` 不一致 | 原型在 TypeScript 7.0.2 下复跑，chunk 重导出的重载也复跑了，结果和 5.9.3 一致 | §3、§4、§7 |
@@ -727,8 +728,8 @@ ARIA 规范与 lint 演进的注册机制，且无法做到项目级重载。§1
 Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设计 §6 用户模式、
 §7 第 2/3/4 层、§8 AGENTS/CI、§9 bin 全部落地。事实如下：
 
-- **bin 打包与命令**：`bunup.bin.ts` 单独打包（esm、`target: node`、`dts: false`），
-  banner 注入 `#!/usr/bin/env bun`——源文件 `src/bin/meld-ts.ts` 不写 shebang，写两遍会
+- **bin 打包与命令**：`bunup.bin.ts`（2026-11 迁移 tsdown 后为 `tsdown.bin.ts`）单独打包（esm、`target: node`、`dts: false`），
+  banner 注入 `#!/usr/bin/env bun`——源文件 `bin/meld-ts.ts` 不写 shebang，写两遍会
   打包出两行 `#!`。`package.json` 的 `bin` 指向 `./dist/bin/meld-ts.js`，不在 `exports`
   里。命令：`meld-ts a11y probe [--lint=biome,oxlint] [--out=./a11y-lints.generated.d.ts]
   [--keep]`，参数严格解析，未知参数直接失败（§6 的取舍：宁可失败，不静默忽略）。
@@ -750,24 +751,23 @@ Plan C（CLI 与用户侧闭环）完成（commits `0d38553..a2acac2`），设�
 - **AGENTS / CI**：规则原文进仓库根 `AGENTS.md`（§8）；PR 检查在 Test 前跑一次
   grep（`pr-check.yml`），按 rg 退出码分流，空仓库（没有 tsx/jsx）通过、rg 自身出错
   时滤掉排除路径（`src/a11y/`、`src/a11y.ts`）后仍有 tsx/jsx 才失败（§8）。`bun run
-  lint` 覆盖 `./src ./test ./scripts` 与 `bunup.*.ts`（`biome
-  lint --error-on-warnings ./src ./test ./scripts ./bunup.config.ts ./bunup.exports.ts
-  ./bunup.browser.ts ./bunup.bin.ts`），`test/a11y` 的编译 fixture 与维护脚本一起进
-  CI 的 lint。
+  lint` 覆盖 `./src ./test ./scripts` 与 `tsdown.*.ts`（迁移前为 `bunup.*.ts`；`biome
+  lint --error-on-warnings ./src ./test ./scripts ./tsdown.config.ts ./tsdown.browser.ts
+  ./tsdown.bin.ts`），`test/a11y` 的编译 fixture 与维护脚本一起进 CI 的 lint。
 - **bun 1.4.4 的两种 lint 模式**：项目带 oxlint 标记（依赖或 `.oxlintrc.json`）时
   `bun lint` 走内嵌 oxlint 的插件体系，要 `--jsx-a11y-plugin` 先开插件；无标记时走
   bun 自己的默认规则集，jsx_a11y 插件默认开，传该标志直接报错。JSON 信封也不同
   （前者 `diagnostics[]`，后者 eslint 兼容数组）。detect 用一个不存在的路径探「这个
   cwd 是否接受 `--jsx-a11y-plugin`」来定模式，不复刻 bun 的标记判定——探活跟着 bun
   的实际行为走；两种信封 `parseBun` 都解。
-- **Plan B 遗留清理**：`probe/runners/biome.ts` 头注释里旧的「循环补属性」算法
+- **Plan B 遗留清理**：`bin/a11y-probe/runners/biome.ts` 头注释里旧的「循环补属性」算法
   描述、`biome.test.ts` 头部的「Task 7 必须复核」过期提示已删。required 的实际发现
   方式是「逐个去掉一个 supported 属性再跑」（§6 第 2 步），不读消息清单；biome 的
   消息样例录自真实 2.5.0 / 2.6.8。
 
 ### 12.13 bin 改名 `meld-ts`
 
-命令名从原拟的 `meld` 改为 `meld-ts`，源码 `src/bin/meld-ts.ts`、产物
+命令名从原拟的 `meld` 改为 `meld-ts`，源码 `bin/meld-ts.ts`、产物
 `dist/bin/meld-ts.js`、`package.json` 的 `"bin": { "meld-ts": ... }` 同步。
 
 - **为什么不叫 `meld`**：npm 上已有无关的 `meld` 包，`npx meld` / `bunx meld` 会解析到

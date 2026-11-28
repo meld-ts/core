@@ -6,6 +6,8 @@ import type { AnyFunction } from './types';
  * 同步工厂返回 T，异步工厂返回 Promise<T>。
  * 异步分支内部处理并发竞态：多个并发调用只执行一次工厂，共享同一个 inflight Promise。
  *
+ * @typeParam F — 从 factory 参数推断；包装后的函数与 factory 同参同返回
+ *   （`(...args: Parameters<F>) => ReturnType<F>`）
  * @param factory 工厂函数（同步或异步均可）
  * @returns 包装后的函数，首次调用执行工厂，后续调用直接返回缓存实例
  *

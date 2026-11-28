@@ -1,14 +1,6 @@
+import type { UnionToIntersection } from '../_internal';
 import { isConstructor } from '../guards';
 import type { Constructor } from '../types';
-
-/** 将联合类型转换为交叉类型：`A | B | C` → `A & B & C` */
-type UnionToIntersection<U> = (
-  U extends unknown
-    ? (k: U) => void
-    : never
-) extends (k: infer I) => void
-  ? I
-  : never;
 
 /**
  * 将一个或多个 trait 对象的属性描述符复制到 `ctor.prototype`，实现运行时扩展。

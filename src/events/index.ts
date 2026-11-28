@@ -5,6 +5,12 @@ import { isInferObject } from '../guards';
 // Types
 // ============================================================================
 
+/**
+ * 同步值或其 Promise：事件回调可同步可异步的返回形状
+ *
+ * {@link EventCallbackFn} 的返回值是 `MaybePromise<void>`：
+ * 监听器既能是普通函数，也能是 `async` 函数（由 `emit` 统一 await）
+ */
 export type MaybePromise<T> = T | Promise<T>;
 
 /**
@@ -71,6 +77,12 @@ export const once = <T>(fn: EventCallbackFn<T>): MarkedCallback<T> => ({
  * 传 `isOnce: true` 等同于 `once()`——首次触发时先摘除、再执行回调。
  */
 export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
+  /**
+   * 注册监听器，返回反注册函数——不持有 callback 引用也能取消监听
+   *
+   * `isOnce` 传 `true` 时按单次注册：首次触发时先摘除、再执行，
+   * 效果与 {@link EventsEmitter.once} 方法一致
+   */
   on<N extends keyof E>(
     name: N,
     callback: EventCallbackFn<E[N]>,
@@ -85,15 +97,38 @@ export interface EventsEmitter<E extends EventsDefinition = EventsDefinition> {
 
   /** 清除指定事件的全部监听器，或不传参数清除所有事件的全部监听器 */
   off(): void;
+  /** 清除 `name` 事件的全部监听器，含 once 注册的回调 */
   off<N extends keyof E>(name: N): void;
+  /** 只移除 `name` 事件下与 `callback` 同一引用的监听器，对 once 注册的回调同样有效 */
   off<N extends keyof E>(name: N, callback: EventCallbackFn<E[N]>): void;
 
+  /**
+   * 触发 `name` 事件，返回 `Promise<void>`：全部监听器并发执行（`Promise.all`），
+   * 执行完毕后 resolve
+   *
+   * 监听器抛错或返回的 Promise reject 时转交 `onError`（未配置则静默丢弃），
+   * emit 自身不会因此 reject
+   *
+   * @throws `onError` 自身抛错时，emit 以该错误 reject
+   */
   emit<N extends keyof E>(name: N, params: E[N]): Promise<void>;
 }
 
+/**
+ * `createEmitter` / `initEventsEmitter` 创建 emitter 时的配置项
+ *
+ * 带索引签名：允许携带额外字段，emitter 只读取 `onError`。
+ */
 export interface EventsEmitterOptions<
   E extends EventsDefinition = EventsDefinition,
 > {
+  /**
+   * 监听器抛错或返回的 Promise reject 时以 `(err, name)` 调用，
+   * `name` 为触发的事件名；不传则错误被静默丢弃
+   *
+   * @param err — 监听器抛出的错误，或 Promise reject 的原因
+   * @param name — 触发的事件名
+   */
   onError?: (err: unknown, name: keyof E | PropertyKey) => void;
   [key: string]: unknown;
 }
@@ -295,6 +330,13 @@ export const createEmitter = <E extends EventsDefinition = EventsDefinition>(
 // linkEvents
 // ============================================================================
 
+/**
+ * `linkEvents` 第三参 `mode` 的取值
+ *
+ * - `'on'`：注册为普通监听（`once()` 标记的回调仍按单次注册）
+ * - `'once'`：所有回调强制按单次注册
+ * - `'off'`：移除 `input` 声明的全部监听
+ */
 export type LinkEventMode = 'on' | 'once' | 'off';
 
 /**

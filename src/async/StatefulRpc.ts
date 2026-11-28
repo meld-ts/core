@@ -39,10 +39,20 @@ export interface StatefulRpcTask<Params> {
   readonly date: Date;
 }
 
-type PendingItem<Result, Params> = {
+/**
+ * 等待中的一个 pending 条目：task 描述、Promise 的 settle 函数与超时值。
+ *
+ * `newPendingItem` / `addPendingItem` / `removePendingItem` / `onTimeout`
+ * 这些 protected 扩展点以此结构传值，子类扩展 pending 流程时按此结构构造。
+ */
+export type PendingItem<Result, Params> = {
+  /** 任务描述，由 `newPendingItem` 构造并冻结 */
   task: StatefulRpcTask<Params>;
+  /** `pending()` 返回的 Promise 的 resolve 函数 */
   resolve: (resp: Result) => void;
+  /** `pending()` 返回的 Promise 的 reject 函数 */
   reject: (error: unknown) => void;
+  /** 该 task 的超时毫秒数，`addPendingItem` 以它启动定时器 */
   timeout: number;
 };
 

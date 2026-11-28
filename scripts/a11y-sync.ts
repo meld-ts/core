@@ -15,30 +15,30 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { ProbeFs } from '../src/a11y/probe';
-import { probe } from '../src/a11y/probe';
-import type { AriaQuerySource } from '../src/a11y/probe/aria-gen';
+import type { ProbeFs } from '../bin/a11y-probe';
+import { probe } from '../bin/a11y-probe';
+import type { AriaQuerySource } from '../bin/a11y-probe/aria-gen';
 import {
   ariaKeys,
   generateAriaTypes,
   generateSamples,
   nameRules,
   samplesOf,
-} from '../src/a11y/probe/aria-gen';
-import type { DetectedLint } from '../src/a11y/probe/detect';
-import { detectLints } from '../src/a11y/probe/detect';
-import { nodeExec } from '../src/a11y/probe/exec';
-import { PROFILES } from '../src/a11y/probe/profiles.generated';
+} from '../bin/a11y-probe/aria-gen';
+import type { DetectedLint } from '../bin/a11y-probe/detect';
+import { detectLints } from '../bin/a11y-probe/detect';
+import { nodeExec } from '../bin/a11y-probe/exec';
+import { PROFILES } from '../bin/a11y-probe/profiles.generated';
 import {
   generateProfiles,
   mergeProfilesSnapshot,
-} from '../src/a11y/probe/profiles-gen';
-import { runBiome } from '../src/a11y/probe/runners/biome';
-import { runBun } from '../src/a11y/probe/runners/bun';
-import { runEslint } from '../src/a11y/probe/runners/eslint';
-import { runOxlint } from '../src/a11y/probe/runners/oxlint';
-import type { ProfileData } from '../src/a11y/probe/serialize';
-import { serializeProfile } from '../src/a11y/probe/serialize';
+} from '../bin/a11y-probe/profiles-gen';
+import { runBiome } from '../bin/a11y-probe/runners/biome';
+import { runBun } from '../bin/a11y-probe/runners/bun';
+import { runEslint } from '../bin/a11y-probe/runners/eslint';
+import { runOxlint } from '../bin/a11y-probe/runners/oxlint';
+import type { ProfileData } from '../bin/a11y-probe/serialize';
+import { serializeProfile } from '../bin/a11y-probe/serialize';
 import { createLab, labDirOf, runCmd } from './lab';
 
 const root = resolve(import.meta.dir, '..');
@@ -181,7 +181,7 @@ try {
   const generated: Array<{ rel: string; content: string }> = [
     { rel: 'src/a11y/aria.generated.ts', content: generateAriaTypes(source) },
     {
-      rel: 'src/a11y/probe/samples.generated.ts',
+      rel: 'bin/a11y-probe/samples.generated.ts',
       content: generateSamples(source),
     },
   ];
@@ -200,7 +200,7 @@ try {
   // 以现有快照为基底合并本轮结果：--lint 只点名部分 lint 时，未同步的表
   // 保留原快照，不能整文件重写成只剩本轮的子集。
   generated.push({
-    rel: 'src/a11y/probe/profiles.generated.ts',
+    rel: 'bin/a11y-probe/profiles.generated.ts',
     content: generateProfiles(mergeProfilesSnapshot(PROFILES, profiles)),
   });
 

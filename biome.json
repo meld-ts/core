@@ -16,13 +16,14 @@
   },
   "files": {
     "includes": [
+      "bin/**/*.{ts,js}",
       "scripts/**/*.{ts,js}",
       "src/**/*.{ts,js}",
-      "test/**/*.{ts,js}",
-      "bunup.*.ts",
+      "tsdown.*.ts",
       "!docs",
       "!dist",
-      "!browser/**/*"
+      "!browser/**/*",
+      "!scripts/tests/**"
     ]
   },
   "formatter": {
@@ -34,7 +35,6 @@
     "lineWidth": 80,
     "attributePosition": "auto"
   },
-  "plugins": ["./lint/no-cross-file-reexport.grit"],
   "linter": {
     "enabled": true,
     "rules": {
@@ -60,6 +60,16 @@
         "rules": {
           "style": {
             "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/**", "!**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "error"
           }
         }
       }

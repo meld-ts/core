@@ -54,10 +54,10 @@ interface A11yCallable {
  * 约束：
  * - 值必须是**完整的** `A11yProfile`（`meta` + 全部 127 个 role），不是局部
  *   补丁。只改个别 role 时，在完整表上用 `Omit` 改，写法见
- *   `test/a11y/override-good/index.ts`。
+ *   `scripts/tests/a11y/override-good/index.ts`。
  * - 不能是 union（`ProfileA | ProfileB`）：会在 `createA11y` 调用点报
  *   `Invalid A11yLintOverrides shape, rerun meld-ts a11y probe`。负例见
- *   `test/a11y/override-union/index.ts`。
+ *   `scripts/tests/a11y/override-union/index.ts`。
  * - 未注册的 lint 名会报 `Unknown lint name in A11yLintOverrides`。
  * - 覆盖是**整表替换**，不与内置表合并；漏掉的 role 等于没有这张表。
  *

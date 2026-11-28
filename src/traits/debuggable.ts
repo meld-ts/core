@@ -48,6 +48,21 @@ export interface DebugConfiguration {
   scopeStyle?: string;
   method?: 'log' | 'debug' | DebugFunction;
   timeFlag?: boolean | TimeFlagFunction;
+  /**
+   * 自定义头部格式函数，提供时替换默认的头部拼装。
+   *
+   * - `vars` — 头部变量：`flag`（时间戳字符串，未开启为空串）、`name`、
+   *   `scope`，未配置的项可能为 `null` / `undefined`
+   * - `styles` — 与 `vars` 同名的样式：`flag` 恒为 `'color: gray'`，
+   *   `name` / `scope` 来自 `style` / `color` / `scopeStyle` / `scopeColor`
+   *   的解析结果，未配置为 `undefined`
+   * - 返回值 — 整个数组作为前导参数传给输出函数（由 `method` 决定，默认
+   *   `console.log`），其后拼接 `debug()` 的 `args`；返回数组可用
+   *   `%c` + 样式字符串实现着色
+   *
+   * 省略时按 `vars` / `styles` 默认拼装：非空变量以空格连接为头部，
+   * 有样式的变量写成 `%c` 前缀、样式值追加在头部之后。
+   */
   format?: (
     vars: Record<string, string | null | undefined>,
     styles: Record<string, string | null | undefined>,

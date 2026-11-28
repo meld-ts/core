@@ -53,6 +53,17 @@ jobs:
       - name: Test
         run: bun run test
 
+      - name: Test bin
+        run: bun run test:bin
+
+      # 产物契约检查是显式 script,不进 bun run test（AGENTS「测试」第 7 条）
+      - name: Build output contract test
+        run: bun run test:build-output
+
+      # 重进程的类型级契约检查同样不进 bun run test;fixture 编译的是 src/ 源码,不依赖 Build
+      - name: A11y override type contract test
+        run: bun run test:a11y-override
+
   ts-matrix:
     runs-on: ubuntu-latest
     strategy:

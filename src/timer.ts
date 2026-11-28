@@ -28,12 +28,55 @@ export interface TimerHandle {
   clearAll(): void;
 }
 
+/**
+ * timer 的运行模式
+ *
+ * - `'timeout'`：`setTimeout`，到点触发一次
+ * - `'interval'`：`setInterval`，按设定间隔循环触发
+ * - 自定义对象：{@link TimerCustomMode}，换成自己的 set / clear，
+ *   requestAnimationFrame、测试 fake timer 等场景
+ */
 export type TimerMode = 'timeout' | 'interval' | TimerCustomMode;
 
-type SetTimer<Id = string> = (fn: () => void, ms: number) => Id;
+/**
+ * 注册定时回调的函数签名：延迟 `ms` 毫秒后调用 `fn`，返回用于清除的 id
+ *
+ * {@link TimerCustomMode} 的 `set` 就是这个形状。实现自定义模式时
+ * 可直接引用，比如先接住返回 number id 的原生函数：
+ *
+ * ```ts
+ * const nativeSet: SetTimer<number> = (fn, ms) => setTimeout(fn, ms);
+ * ```
+ *
+ * @typeParam Id — `set` 返回值的类型，默认 `string`；
+ *   同一模式里 {@link TimerCustomMode.clear} 的参数就是这个类型
+ */
+export type SetTimer<Id = string> = (fn: () => void, ms: number) => Id;
 
+/**
+ * 自定义模式的实现接口：一对自己的 set / clear
+ *
+ * 作为 `mode` 传给 {@link createTimer}（第二参或配置对象的 `mode` 字段），
+ * 替换平台定时器。经 `createTimer` 使用时 `Id` 必须是 `string`
+ * （`TimerMode` 的约束），原生 API 返回 number 等类型的 id 时先转成 string：
+ *
+ * ```ts
+ * const nativeSet: SetTimer<number> = (fn, ms) => requestAnimationFrame(fn);
+ * const rafMode: TimerCustomMode<string> = {
+ *   set: (fn, ms) => String(nativeSet(fn, ms)),
+ *   clear: (id) => cancelAnimationFrame(Number(id)),
+ * };
+ * const t = createTimer('raf', rafMode);
+ * ```
+ *
+ * @typeParam Id — `set` 返回值的类型，从 `set` 的实现推断；
+ *   `clear` 接收同类型，默认 `string`
+ */
 export interface TimerCustomMode<Id = string> {
+  /** 注册回调，返回交给 clear 的 id */
   set: SetTimer<Id>;
+
+  /** 清除 set 返回的那个 id 对应的任务 */
   clear: (id: Id) => void;
 }
 
@@ -46,9 +89,36 @@ type TimerId<Mode extends TimerMode> =
         ? ReturnType<typeof setInterval>
         : unknown;
 
+/**
+ * {@link createTimer} 第一个参数的配置对象形式
+ *
+ * 带索引签名：允许携带额外字段，timer 只读取 `prefix` / `mode` / `onError`。
+ *
+ * @typeParam Mode — `mode` 字段的模式类型，默认 `'timeout'`
+ */
 export interface TimerOptions<Mode extends TimerMode = 'timeout'> {
+  /**
+   * key 前缀，注册的 key 拼成 `` `${prefix}:${key}` ``，
+   * `onError` 收到的就是这个完整 key
+   *
+   * @defaultValue 不加前缀；空串和 null 同样视为无前缀
+   */
   prefix?: string | null;
+
+  /**
+   * 运行模式，见 {@link TimerMode}；显式传给 {@link createTimer}
+   * 的第二参会覆盖这里的值
+   *
+   * @defaultValue 'timeout'
+   */
   mode?: Mode;
+
+  /**
+   * 回调同步抛错或返回的 Promise reject 时调用；不传则静默
+   *
+   * @param error — 回调抛出的错误，或 Promise reject 的原因
+   * @param key — 带前缀的完整 key
+   */
   onError?: (error: unknown, key: string) => void;
 
   [key: string]: unknown;

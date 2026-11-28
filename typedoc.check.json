@@ -1,0 +1,7 @@
+{
+  "extends": ["./typedoc.json"],
+  "emit": "none",
+  "validation": { "notDocumented": true },
+  "requiredToBeDocumented": ["Function", "Class", "Interface", "TypeAlias", "Variable", "Enum", "Method", "Accessor"],
+  "treatValidationWarningsAsErrors": true
+}

@@ -22,30 +22,30 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import type { ProbeRunner } from '../src/a11y/probe';
-import { probe } from '../src/a11y/probe';
+import type { ProbeRunner } from '../bin/a11y-probe';
+import { probe } from '../bin/a11y-probe';
 import {
   buildConsistencyFixtures,
   buildReverseFixtures,
   mergeProfiles,
-} from '../src/a11y/probe/consistency';
-import type { DetectedLint } from '../src/a11y/probe/detect';
-import { detectLints } from '../src/a11y/probe/detect';
-import { nodeExec } from '../src/a11y/probe/exec';
-import type { Fixture } from '../src/a11y/probe/fixtures';
-import { fixtureSamples } from '../src/a11y/probe/fixtures';
-import { PROFILES } from '../src/a11y/probe/profiles.generated';
-import { runBiome } from '../src/a11y/probe/runners/biome';
-import { runBun } from '../src/a11y/probe/runners/bun';
-import type { LintReport } from '../src/a11y/probe/runners/eslint';
-import { runEslint } from '../src/a11y/probe/runners/eslint';
-import { runOxlint } from '../src/a11y/probe/runners/oxlint';
+} from '../bin/a11y-probe/consistency';
+import type { DetectedLint } from '../bin/a11y-probe/detect';
+import { detectLints } from '../bin/a11y-probe/detect';
+import { nodeExec } from '../bin/a11y-probe/exec';
+import type { Fixture } from '../bin/a11y-probe/fixtures';
+import { fixtureSamples } from '../bin/a11y-probe/fixtures';
+import { PROFILES } from '../bin/a11y-probe/profiles.generated';
+import { runBiome } from '../bin/a11y-probe/runners/biome';
+import { runBun } from '../bin/a11y-probe/runners/bun';
+import type { LintReport } from '../bin/a11y-probe/runners/eslint';
+import { runEslint } from '../bin/a11y-probe/runners/eslint';
+import { runOxlint } from '../bin/a11y-probe/runners/oxlint';
 import {
   ARIA_KEYS,
   NAME_RULES,
   SAMPLES,
-} from '../src/a11y/probe/samples.generated';
-import type { ProfileData } from '../src/a11y/probe/serialize';
+} from '../bin/a11y-probe/samples.generated';
+import type { ProfileData } from '../bin/a11y-probe/serialize';
 import { createLab, labDirOf } from './lab';
 
 const USAGE = 'usage: bun run test:a11y-lint [--keep]';
