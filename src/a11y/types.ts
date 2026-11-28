@@ -1,3 +1,4 @@
+import type { UnionToIntersection } from '../_internal';
 import type {
   A11yNameRule,
   A11yRole,
@@ -69,14 +70,6 @@ type CheckOverride<K extends A11yLintName> =
 export type A11yLints = { [K in A11yLintName]: CheckOverride<K> };
 
 // ---- 多 lint 合并 ----
-
-type UnionToIntersection<U> = (
-  U extends unknown
-    ? (x: U) => void
-    : never
-) extends (x: infer I) => void
-  ? I
-  : never;
 
 type Intersect<Ps extends A11yProfile, R extends A11yRole> = Extract<
   AriaKey,
@@ -151,6 +144,18 @@ type ResolveProfileImpl<L, _Orig = L, _D = L> = _D extends A11yLintName
  */
 type FlattenLint<L> = L extends readonly A11yLintName[] ? L[number] : L;
 
+/**
+ * lint 选择解析成实际生效的规则表
+ *
+ * `createA11y` 的 `lint` 选项（经 {@link A11yOf}）在这里解析：
+ * - 单个名字：直接取那张表（探针重载生效时用重载，见 {@link A11yLints}）
+ * - 多个名字（名字 union、数组或两者混合）：先展平成名字并集，再走
+ *   {@link MergeProfiles} 合并——`required` 取并集、`supported` 取交集，
+ *   合并后的表保证每个列出的 lint 都过
+ *
+ * @typeParam L — lint 选择：`A11yLintName`、名字 union、
+ *   `readonly A11yLintName[]` 或混合形状
+ */
 export type ResolveProfile<L> = ResolveProfileImpl<FlattenLint<L>, L>;
 
 // ---- 输入 ----
@@ -161,6 +166,36 @@ type NameRequirement<N> = N extends 'required'
   ? { label: string } | { labelledby: string | readonly string[] }
   : Record<never, never>;
 
+/**
+ * `a11y(role, props)` 的输入形状
+ *
+ * - 键是输出形态去掉 `aria-` 前缀的小写名（`checked`、`labelledby`、
+ *   `valuenow`）
+ * - 必填属性必选，值不接受 `undefined`：变量可能是 `undefined` 时先给默认值
+ * - 允许属性可选，值可 `undefined`（输出键随之消失或变可选）
+ * - `focusable?: true` 不是 ARIA 属性：输出 `tabIndex`，同时打开该 role
+ *   可聚焦时的额外必填（biome 表下可聚焦的 separator 必须有 `valuenow`）
+ * - 名字规则随 role：名字必填的 role（如 img）`label` / `labelledby`
+ *   至少一个
+ *
+ * @example
+ * ```ts
+ * // checked 是 switch 的必填键，label 只是允许键
+ * a11y('switch', { checked: true, label: 'Wi-Fi' });
+ *
+ * // 必填键不接受 undefined 变量，先给默认值
+ * a11y('switch', { checked: isOn ?? false, labelledby: 'wifi-switch' });
+ *
+ * // 名字必填的 role：label / labelledby 至少一个
+ * a11y('img', { label: '头像' });
+ *
+ * // 可聚焦的 separator（biome 表）：可聚焦时必须有 valuenow
+ * a11y('separator', { focusable: true, valuenow: 50 });
+ * ```
+ *
+ * @typeParam P — 实例绑定的规则表，从 `createA11y` 的 `lint` 选择解析而来
+ * @typeParam R — 调用时传入的 role 字面量，决定用表里的哪一条规则
+ */
 export type A11yInput<P extends A11yProfile, R extends A11yRole> = {
   [K in Rule<P, R>['required']]-?: AriaValue<K>;
 } & {
@@ -389,6 +424,31 @@ type FocusAttr<I, O extends A11yOutputMode> = 'focusable' extends keyof I
     : Record<never, never>
   : Record<never, never>;
 
+/**
+ * `a11y(role, props)` 的输出形状
+ *
+ * spread 进 JSX 的属性对象：
+ * - `role` 原样保留；`focusable` 不透传，换成 `tabIndex`（html 模式为
+ *   `tabindex`），`focusable` 的值可能是 `undefined` 时这个键可选
+ * - 其余键映射成 `aria-*`（`checked` → `aria-checked`）；html 模式下
+ *   布尔 / 数字值转成字符串（`true` → `'true'`）
+ * - 值可能是 `undefined` 的键输出为可选键；label / idlist 键的空值
+ *   （`''`、空元组）按没传处理，输出键消失
+ *
+ * @example
+ * ```ts
+ * a11y('switch', { checked: true, label: 'Wi-Fi' });
+ * // react 模式：{ readonly role: 'switch'; readonly 'aria-checked': true;
+ * //             readonly 'aria-label': 'Wi-Fi' }
+ * a11y('separator', { focusable: true, valuenow: 50 });
+ * // react 模式：{ readonly role: 'separator'; readonly tabIndex: 0;
+ * //             readonly 'aria-valuenow': 50 }
+ * ```
+ *
+ * @typeParam R — role 字面量，原样成为输出 `role` 键的类型
+ * @typeParam I — 调用点从 props 推断的输入类型，决定输出哪些 `aria-*` 键
+ * @typeParam O — 输出模式：`'react'` 值原样，`'html'` 布尔 / 数字字符串化
+ */
 export type A11yAttrs<R, I, O extends A11yOutputMode> = {
   readonly role: R;
 } & FocusAttr<I, O> &
@@ -410,6 +470,25 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
       RoleDefiniteCheck<R> &
       PropsDefiniteCheck<I>,
   ): A11yAttrs<R, I, O>;
+  /**
+   * 原生元素补 aria 状态，不带 role
+   *
+   * 原生元素自带隐式 role，再写 `role="button"` 是冗余。输出键只有
+   * `aria-*`，不含 `role` / `tabIndex`。允许全部 ARIA 属性、只检查取值
+   * 类型：属性与元素是否搭配取决于元素的隐式 role，`aria()` 不知道元素
+   * 是什么，查不了（已知缺口）。
+   *
+   * props 是 union 时在调用点报错：各分支输出的公共键是 never，一个键都
+   * 读不出来，运行时却发其中一个分支的属性——把分支写进一个对象，或拆
+   * 成两次调用。
+   *
+   * ```ts
+   * <button {...a11y.aria({ expanded: open, controls: menuId })} />
+   * ```
+   *
+   * @typeParam I — 从 props 字面量推断（const 泛型），决定输出哪些
+   *   `aria-*` 键
+   */
   // aria 也拦 union props（同 a11y(role, props) 挂 PropsDefiniteCheck）：
   // AriaAttrs 对 union 分布成各分支输出的并集，keyof 取公共键是 never，
   // 一个键都读不出来，运行时却发其中一个分支的属性（§12.9）。
