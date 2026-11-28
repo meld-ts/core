@@ -1,5 +1,13 @@
-import type { A11yBuiltinLints, A11yOf } from '../../../src/a11y/index.ts';
+/**
+ * 负向 fixture（预期 tsc 报错）：
+ * `A11yLintOverrides` 的值是 union（`ProfileA | ProfileB`）而不是单张表时，
+ * `createA11y` 必须在调用点报 `Invalid A11yLintOverrides shape, rerun meld-ts a11y probe`。
+ * 断言见 `src/a11y/override.test.ts`「union-typed override value errors…」。
+ */
 
+import { type A11yBuiltinLints, createA11y } from '../../../../src/a11y/index.ts';
+
+/** 具体表通过 A11yBuiltinLints 取，公开面只承诺聚合类型 */
 type BiomeA11yProfile = A11yBuiltinLints['biome'];
 
 type BiomeMeta = { lint: 'biome'; version: '9.9.9'; source: 'probe' };
@@ -37,19 +45,11 @@ type ProfileB = Omit<BiomeA11yProfile, 'meta' | 'roles'> & {
   };
 };
 
-declare module '../../../src/a11y/index.ts' {
+declare module '../../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
     /** 两张表各自合法，但 union 不是探针生成的单表形状 */
     biome: ProfileA | ProfileB;
   }
 }
 
-/**
- * BadShapeKeys 只挂在 createA11y 参数上，直接构造 A11yOf 会绕过
- * 那道检查：union 重载值必须退回内置表，只有 ProfileB 支持的
- * valuenow 不能因此放行（内置 switch 不支持 valuenow）。
- */
-declare const a: A11yOf<{ lint: 'biome' }>;
-
-// @ts-expect-error union override must fall back to the builtin table (valuenow unsupported by builtin switch)
-a('switch', { checked: true, label: 'x', valuenow: 1 });
+export const a11y = createA11y({ lint: 'biome' });

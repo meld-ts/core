@@ -1,4 +1,4 @@
-import { type A11yBuiltinLints, createA11y } from '../../../src/a11y/index.ts';
+import { type A11yBuiltinLints, createA11y } from '../../../../src/a11y/index.ts';
 
 type BiomeA11yProfile = A11yBuiltinLints['biome'];
 type OxlintA11yProfile = A11yBuiltinLints['oxlint'];
@@ -33,7 +33,7 @@ type OxlintProbe = Omit<OxlintA11yProfile, 'meta' | 'roles'> & {
   };
 };
 
-declare module '../../../src/a11y/index.ts' {
+declare module '../../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
     biome: BiomeProbe;
     oxlint: OxlintProbe;

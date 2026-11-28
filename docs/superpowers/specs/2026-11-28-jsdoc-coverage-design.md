@@ -141,7 +141,7 @@ A+B+C 共 30 条是纯 JSDoc 缺失,直接按规范补。D 类逐个裁决,见 �
 | `SetTimer`(src/timer.ts) | `export type SetTimer` + JSDoc;timer.ts 是入口文件直接导出即可 |
 | `PendingItem`(src/async/StatefulRpc.ts) | `export type PendingItem` + JSDoc;经 `src/async/index.ts` 的 `export *` 自动转发 |
 
-两者导出后 notDocumented 即生效,JSDoc 必写。公开面变化需同步更新 public-surface 断言(见 §3.6)。
+两者导出后 notDocumented 即生效,JSDoc 必写。
 
 ### 3.3 UnionToIntersection 归置
 
@@ -193,9 +193,8 @@ typedoc 对名单有防腐检查(2026-11-28 实测):登记了不存在的文件/
 7. 只写使用方视角需要知道的;实现里已有的 WHY 注释一律不动。
 8. 除 §3.2/§3.3 列明的导出与搬移外,不改任何运行时代码、不改现有类型定义结构。
 
-### 3.6 公开面断言与测试同步
+### 3.6 公开面与测试同步
 
-- `rg public-surface` 找到 timer/async 相关的公开面断言,补入 `SetTimer`、`PendingItem`;
 - a11y 公开面不变(AriaAttrs、FocusAttr 不导出);
 - `lint/` 下的 d.ts 消费测试与新公开类型一并验证。
 

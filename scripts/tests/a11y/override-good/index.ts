@@ -2,7 +2,7 @@ import {
   type A11yBuiltinLints,
   type A11yOf,
   createA11y,
-} from '../../../src/a11y/index.ts';
+} from '../../../../src/a11y/index.ts';
 
 type BiomeA11yProfile = A11yBuiltinLints['biome'];
 
@@ -19,7 +19,7 @@ type OverrideBiome = Omit<BiomeA11yProfile, 'meta' | 'roles'> & {
   };
 };
 
-declare module '../../../src/a11y/index.ts' {
+declare module '../../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
     biome: OverrideBiome;
   }

@@ -5,9 +5,9 @@
  * 断言见 `src/a11y/override.test.ts`「invalid override shape errors…」。
  */
 
-import { createA11y } from '../../../src/a11y/index.ts';
+import { createA11y } from '../../../../src/a11y/index.ts';
 
-declare module '../../../src/a11y/index.ts' {
+declare module '../../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
     /** 键名合法但结构不是 A11yProfile */
     biome: { broken: true };

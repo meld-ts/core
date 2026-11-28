@@ -45,6 +45,14 @@ jobs:
       - name: Build
         run: bun run build
 
+      # 产物契约检查是显式 script，不进 bun run test（AGENTS「测试」第 7 条）；
+      # script 内部会完整重建，挂 Build 后只为语义清晰
+      - name: Build output contract test
+        run: bun run test:build-output
+
+      - name: A11y override type contract test
+        run: bun run test:a11y-override
+
       # roadmap「发版前检查（a11y）」：构建产物重载测试无网络副作用，挂进
       # 发版流程把关；test:a11y-lint 与 a11y:sync 漂移检查要装 lab（数分钟 +
       # 网络），发版前仍手工跑（docs/requirements/a11y-roadmap.md）

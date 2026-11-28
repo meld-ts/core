@@ -66,6 +66,7 @@ export type ExtraOptions = { retry: RetryOptions; }                         // �
 - ✅ type/interface 再组织导出，允许
 - ⚠️ 函数/常量/class/type 更名导出，允许，但不推荐
 - ❌ 搬文件、改名后，留旧名的别名（`export const oldName = newName`），禁止。
+- ❌ `src/` 使用 `export default ` 语法，禁止
 
 ### [RP] 搬文件、改名
 
@@ -84,6 +85,8 @@ export type ExtraOptions = { retry: RetryOptions; }                         // �
 3. [RP] 不要为了凑到 100% 往 `coveragePathIgnorePatterns` 里加路径，要么补测试，要么删掉走不到的代码。
 4. 只有类型、只做转发的文件，以及生成文件（文件头写着「生成文件，勿手改」的），不用单独写测试。
 5. `bin/` 按需写测试，用 `bun run test:bin` 跑，不要求覆盖率。
+6. [RP] `src/` 目录下的单元测试，应该只针对 `src/` 。
+7. 检查构建、包完整性，不应该以 `*.test.ts` 命名，`bun test` 会触发，应该统一在 `scripts/` 目录下写这类测试脚本。
 
 开发时单跑一个文件用 `bun test <路径>`，不要带 `--coverage`：只跑一个文件时，被它顺带加载的其他文件只覆盖到一部分，会报不到 100%，这不是你改坏了。
 

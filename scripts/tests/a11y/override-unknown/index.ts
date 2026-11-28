@@ -5,11 +5,11 @@
  * 断言见 `src/a11y/override.test.ts`「unknown override key errors…」。
  */
 
-import { type A11yBuiltinLints, createA11y } from '../../../src/a11y/index.ts';
+import { type A11yBuiltinLints, createA11y } from '../../../../src/a11y/index.ts';
 
 type BiomeA11yProfile = A11yBuiltinLints['biome'];
 
-declare module '../../../src/a11y/index.ts' {
+declare module '../../../../src/a11y/index.ts' {
   interface A11yLintOverrides {
     /**
      * 拼错的键名：biome → biom（形状故意完整，只测键名错误）。

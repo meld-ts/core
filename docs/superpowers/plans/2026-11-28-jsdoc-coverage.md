@@ -20,7 +20,7 @@
 - typedoc 保持 0.28.19,不升级。
 - 改完格式化:`bun fmt <文件路径>`;单文件验证 `bun test <路径>`(不带 `--coverage`,单跑文件的覆盖率读数无意义)。
 - 每个 task 一个 commit(conventional commits,中文 subject,如 `docs: 补全 timer/singleton 公开符号 JSDoc`)。
-- `src/bin/`、`src/a11y/probe/`、`*.test.ts` 不属本 plan(迁出是第二个任务);public-surface 断言更新除外。
+- `src/bin/`、`src/a11y/probe/`、`*.test.ts` 不属本 plan(迁出是第二个任务)。
 
 ---
 
@@ -29,7 +29,6 @@
 **Files:**
 - Modify: `src/timer.ts`
 - Modify: `src/singleton.ts`
-- Modify: timer 公开面断言(`rg -l public-surface src/` 找;若断言含 timer)
 
 **要求**(写 JSDoc 前必须读源码;「要点」是内容方向,不是照抄文案):
 - [ ] `TimerMode`(TypeAlias 无文档):三种模式语义——`'timeout'`(setTimeout,一次性)、`'interval'`(setInterval,循环)、自定义对象(覆盖平台定时器:requestAnimationFrame、测试 fake timer 等场景)。
@@ -118,7 +117,7 @@ a11y JSDoc(4 个点位):
 **注意:** `AriaAttrs`、`FocusAttr` 及 14 个内部类型机器**不动**(不导出、不改名、注释不动),它们走 typedoc.json 豁免(Task 5)。
 
 **验证:**
-- `bun test src/traits/implTraits.test.ts src/a11y/types.test.ts src/a11y/createA11y.test.ts src/a11y/override.test.ts src/a11y/public-surface.test.ts` 全绿
+- `bun test src/traits/implTraits.test.ts src/a11y/types.test.ts src/a11y/createA11y.test.ts src/a11y/override.test.ts` 全绿
 - `bun fmt` 四个文件
 - `rg UnionToIntersection src/` 输出符合归置要求
 
@@ -155,9 +154,9 @@ src/a11y/_internal.ts:OutputDefiniteCheck
 
 **验证:** `bun run doc:check` → 0 errors 0 warnings(exit 0)。防腐警告(条目未触发 / 符号已导出)为失败信号,逐条核对。
 
-### Task 6: public-surface 核查 + 全链验证 + final review(controller)
+### Task 6: 公开面核查 + 全链验证 + final review(controller)
 
-- [ ] `rg public-surface src/` 断言与实际公开面一致(`SetTimer`、`PendingItem` 已入,无意外新导出)。
+- [ ] `SetTimer`、`PendingItem` 已导出且带 JSDoc(公开面快照测试已删,漏写 JSDoc 由 doc:check 的 notDocumented 拦)。
 - [ ] 全链:`bun run doc:check`(0/0)、`bun run lint`、`bun run ts-check`、`bun run test`(全绿,覆盖率不降)、`bun run doc`(正常产出)。
 - [ ] Final review:grok 4.6 xhigh,review package 为全部 task 的 BASE..HEAD,按 spec §2 裁决记录核对;有发现 → 一次 fix dispatch + 一次 scoped re-review。
 - [ ] 交用户上 argus。
