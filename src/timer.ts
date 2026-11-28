@@ -45,7 +45,7 @@ export type TimerMode = 'timeout' | 'interval' | TimerCustomMode;
  * 可直接引用，比如先接住返回 number id 的原生函数：
  *
  * ```ts
- * const nativeSet: SetTimer<number> = (fn, ms) => requestAnimationFrame(fn);
+ * const nativeSet: SetTimer<number> = (fn, ms) => setTimeout(fn, ms);
  * ```
  *
  * @typeParam Id — `set` 返回值的类型，默认 `string`；

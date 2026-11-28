@@ -482,6 +482,7 @@ export type A11y<P extends A11yProfile, O extends A11yOutputMode> = {
    * 读不出来，运行时却发其中一个分支的属性——把分支写进一个对象，或拆
    * 成两次调用。
    *
+   * @example
    * ```ts
    * <button {...a11y.aria({ expanded: open, controls: menuId })} />
    * ```
