@@ -3,8 +3,6 @@
 // declare 语句报 1 条，共 4 条。由 lint/no-cross-file-reexport.test.ts 断言
 // 诊断数，不要「修复」本文件。
 export declare function ambientFn(): void;
-export declare class Ambient {
-	a: string;
-}
+export declare class Ambient { a: string }
 export declare const version: string;
 declare const ambient: string;

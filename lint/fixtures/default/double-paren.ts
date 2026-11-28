@@ -1,2 +1,2 @@
-import { isString } from "../source";
-export default isString;
+import { isString } from '../source';
+export default ((isString));
