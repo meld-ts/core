@@ -48,11 +48,15 @@ bin/                        # 与 src/ 同级,Node 内部工具,可用 node: 模
 
 ## 4. 改动清单
 
-### 4.1 前置修复:lint/fixtures 夹具恢复
+### 4.1 前置修复:lint/fixtures 夹具恢复 + biome 防御排除
 
 `577c826` 提交把 `lint/fixtures/` 的 28 个夹具文件格式化重排(import 排序、双引号、`export default` 去括号),`noExportedImports` 诊断数随之变化,`lint/no-cross-file-reexport.test.ts` 4 个用例失败(夹具注释明写「不要『修复』本文件」)。
 
-修复:`git checkout 593f6d6 -- lint/fixtures/` 恢复夹具原形态(已试跑验证:12/12 全绿),单独 commit。这是恢复被误改的形态,不是「修复」夹具。此修复让 `bun run test` 全绿基线成立,本设计所有验证标准不再携带「除预存失败外」的口径。
+修复:
+1. `git checkout 593f6d6 -- lint/fixtures/` 恢复夹具原形态(已试跑验证:12/12 全绿);
+2. `biome.json` 的 `files.includes` 增加显式排除 `"!lint/fixtures"`(与 `!docs`、`!dist` 同风格的防御性声明——当前 includes 本不含 `lint/**`,此排除保证未来 includes 加宽或手动跑 biome 带宽路径时夹具不被扫到)。
+
+单独一个 commit。这是恢复被误改的形态并防重演,不是「修复」夹具。此修复让 `bun run test` 全绿基线成立,本设计所有验证标准不再携带「除预存失败外」的口径。
 
 ### 4.2 文件搬移
 
@@ -77,7 +81,7 @@ bin/                        # 与 src/ 同级,Node 内部工具,可用 node: 模
 | 文件 | 改动 |
 |------|------|
 | `tsdown.bin.ts` | `entry: ['src/bin/meld-ts.ts']` → `['bin/meld-ts.ts']` |
-| `biome.json` | `files.includes` 增加 `"bin/**/*.{ts,js}"`(lint 与 fmt 均覆盖,与 scripts/ 同等待遇;生成文件随目录迁移,待遇不变);noNodejsModules 的 override 从 `["src/**", "!src/bin/**", "!src/a11y/probe/**", "!**/*.test.ts"]` 简化为 `["src/**", "!**/*.test.ts"]`(例外消失) |
+| `biome.json` | `files.includes` 增加 `"bin/**/*.{ts,js}"` 与 `"!lint/fixtures"`(前者使 lint 与 fmt 均覆盖 bin,与 scripts/ 同等待遇,生成文件随目录迁移待遇不变;后者为夹具防御排除,见 §4.1);noNodejsModules 的 override 从 `["src/**", "!src/bin/**", "!src/a11y/probe/**", "!**/*.test.ts"]` 简化为 `["src/**", "!**/*.test.ts"]`(例外消失) |
 | `bunfig.toml` | 删除 `coveragePathIgnorePatterns = ["src/bin/**"]`(bin 不再在 src/ 测试路径下) |
 | `package.json` | 新增 `"test:bin": "bun test bin/"`(不带 `--coverage`——bunfig 的 100% 门槛对所有带 `--coverage` 的 bun test 生效,bin 不受此约束);`fmt:all` 与 `lint` 脚本的目标加 `./bin` |
 | `.github/workflows/pr-check.yml` | `Test` 步骤后新增一步 `bun run test:bin`(bin 的 12 个测试文件移出 `bun run test` 路径后,不经 CI 就再无人跑;meld-ts CLI 随 npm 包发布,测试写了就要跑) |
