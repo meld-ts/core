@@ -1,15 +1,46 @@
+/**
+ * 常用路径分隔符字面量：`'/'`（Unix 风格）与 `'\\'`（Windows 风格），
+ * 可直接作为 `options.separator` 传入
+ */
 export type DirectorySeparator = '/' | '\\';
+
+/**
+ * 路径输入：`null` / `undefined` / 空串都按空处理——
+ * `purge` 返回 `''`，`join` 跳过该段
+ */
 export type PathInput = string | undefined | null;
 
+/** Unix 风格分隔符 `'/'`：`options.separator` 为空串时的缺省取值 */
 export const UnixDS = '/' as const;
+
+/** Windows 风格分隔符 `'\\'`：按 Windows 路径处理时显式传给 `options.separator` */
 export const WinDS = '\\' as const;
 
+/**
+ * 路径替换回调契约：接收 `(path, separator)`，返回替换后的字符串，
+ * 后续处理基于返回值继续
+ *
+ * - `path`：`purge` 去除首尾空白后的路径段，或前一个回调的返回值
+ * - `separator`：生效的分隔符
+ *
+ * 执行时机见使用它的属性文档：{@link PathUtilsOptions.dangerReplace}
+ * 在 `purge` 最先执行，{@link PathUtilsOptions.duplicateReplace} 紧随其后。
+ */
 export type PathReplacementCallback = (
   path: string,
   separator: string,
 ) => string;
 
+/**
+ * `createPathUtils` 的配置项：`separator` 指定分隔符，
+ * 两个替换回调可选——不传时 `purge` 只做 trim 和首尾分隔符去除
+ */
 export type PathUtilsOptions = {
+  /**
+   * 路径分隔符，`purge` / `join` 的拆分与拼接都基于它
+   *
+   * 传空串时按 `/`（{@link UnixDS}）处理；传多个字符时只取首字符
+   */
   separator: string;
   /**
    * 危险内容替换回调（安全防线）
@@ -71,9 +102,7 @@ export interface PathUtils {
  * **安全注意**：默认情况下 `dangerReplace` 为空，路径遍历攻击（`../`）
  * 不会被拦截。请根据使用场景实现自定义安全策略。
  *
- * @param options.separator — 路径分隔符。空字符串默认 `/`，多字符取首字符
- * @param options.dangerReplace — 可选，在 `purge` 最前面执行的安全替换
- * @param options.duplicateReplace — 可选，在 `dangerReplace` 后执行的规范替换
+ * @param options — 路径配置，各字段的语义与取值规则见 {@link PathUtilsOptions}
  *
  * @example
  * ```ts
