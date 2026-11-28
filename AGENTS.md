@@ -13,7 +13,6 @@
 1. lint 和格式化都用 biome，规则以 biome.json 为准。改完跑 `bun run lint` 和 `bun run ts-check`。
 2. 不要手动调格式、手动排 import。改完的文件用 `bun fmt <文件路径>` 格式化；全仓格式化用 `bun run fmt:all`。
 3. `src/` 里不用 `node:` 模块：同一份源码要打包给浏览器。
-4. 不要对 `lint/fixtures/` 里进行代码格式化或重排（忽略里面的 lint 错误）。
 
 ### 代码注释
 
