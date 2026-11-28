@@ -235,11 +235,9 @@ export const timeout = <F extends AnyFunction>(
 };
 
 /**
- * 延迟指定毫秒数，可选延迟后执行函数
+ * 延迟指定毫秒数
  *
  * @param ms 延迟毫秒数
- * @param fn 延迟后执行的函数（可选）
- * @returns 无 fn 时返回 Promise<void>，有 fn 时返回 Promise<Awaited<ReturnType<F>>>
  *
  * @example
  * ```ts
@@ -251,6 +249,14 @@ export const timeout = <F extends AnyFunction>(
  * ```
  */
 export function sleep(ms: number): Promise<void>;
+/**
+ * 延迟指定毫秒数后执行函数
+ *
+ * @param ms 延迟毫秒数
+ * @param fn 延迟后执行的函数
+ * @returns 解析为 `fn()` 的结果（`fn` 返回 Promise 时等待其落定）
+ * @throws `fn` 同步抛错时，返回的 Promise 以该错误 reject
+ */
 export function sleep<F extends AnyFunction>(
   ms: number,
   fn: F,

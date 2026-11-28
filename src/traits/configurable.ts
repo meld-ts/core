@@ -1,5 +1,12 @@
 import { cloneObject } from '../base';
 
+/**
+ * 可配置对象的操作接口，由 {@link configurable} 工厂创建。
+ *
+ * 数据分两层：presets（初始化时传入的预设值）与 users（`set` /
+ * `setAll` 写入的覆盖值）。读取时 users 优先于 presets；`reset` 清空
+ * users 后回落到预设值。
+ */
 export type Configurable<T extends object> = {
   /**
    * 读取配置值，优先级：用户设置 > 预设值
