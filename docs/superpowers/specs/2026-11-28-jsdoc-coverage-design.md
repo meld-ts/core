@@ -180,7 +180,7 @@ src/a11y/_internal.ts:LintSelectionCheck
 src/a11y/_internal.ts:OutputDefiniteCheck
 ```
 
-typedoc 对名单有防腐检查(2026-11-28 实测):登记了不存在的文件/符号、或符号其实已导出,报「marked as intentionally not exported, but were either not referenced … or were exported」;`treatValidationWarningsAsErrors` 下这条警告直接让 doc:check 失败。名单不会腐烂,改动类型时必须同步名单(见 AGENTS.md JSDoc 第 6 条)。
+typedoc 对名单有防腐检查(2026-11-28 实测):登记了不存在的文件/符号、或符号其实已导出,报「marked as intentionally not exported, but were either not referenced … or were exported」;`treatValidationWarningsAsErrors` 下这条警告直接让 doc:check 失败。名单不会腐烂,改动类型时必须同步名单(原则见 §2.2)。
 
 ### 3.5 JSDoc 写作规范(执行约束)
 
@@ -231,4 +231,4 @@ typedoc 对名单有防腐检查(2026-11-28 实测):登记了不存在的文件/
 
 ## 7. AGENTS.md 落实记录
 
-本设计的建议已于 2026-11-28 由用户写入 `AGENTS.md`「JSDoc」第 5、6 条:referenced 警告按「使用方会直接写出名字的导出,内部推导/报错用的登记」裁决;登记条目随改名/移动/删除/导出同步,禁止 `validation.notExported: false` 整类关闭。
+本设计的裁决原则(§2.2)由用户写入 `AGENTS.md`「JSDoc」第 5、6 条(2026-11-28)。AGENTS.md 由用户维护,条文以现行文本为准;本设计的 §2.2、§3.4 与条文一致,是实现层的执行依据。
